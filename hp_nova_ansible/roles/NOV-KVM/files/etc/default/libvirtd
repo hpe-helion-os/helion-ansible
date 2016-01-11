@@ -1,0 +1,8 @@
+# Defaults for libvirt-bin initscript (/etc/init.d/libvirt-bin)
+# This is a POSIX shell fragment
+
+# options passed to libvirtd, add "-l" to listen on tcp
+libvirtd_opts="-l"
+
+# pass in location of kerberos keytab
+# export KRB5_KTNAME=/etc/libvirt/libvirt.keytab

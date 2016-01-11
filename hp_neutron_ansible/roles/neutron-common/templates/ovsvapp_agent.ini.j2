@@ -1,0 +1,56 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+[vmware]
+vcenter_ip = {{ vcenter_ip }}
+vcenter_username = {{ vcenter_username }}
+vcenter_password = {{ vmware_host_password }}
+vcenter_api_retry_count = 2
+wsdl_location = {{ vcenter_wsdl_location }}
+cluster_dvs_mapping = {{ vcenter_cluster_dvs_mapping }}
+# Example:
+# Inventory path of cluster : vDS Name
+# cluster_dvs_mapping = TestDataCenter/host/TestCluster:TestSwitch
+esx_hostname = {{ vcenter_esx_hostname }}
+# To set the esx host into maintenance mode
+esx_maintenance_mode = True
+#SSL communication between OVSvApp agent and vCenter Server
+cert_check = {{ vcenter_cert_check }}
+cert_path = {{ vcenter_cert_path }}
+#Customized https_port for OVSvApp agent and vCenter Server communication
+https_port = {{ vcenter_https_port }}
+vcenter_id = {{ vcenter_id }}
+
+[DEFAULT]
+log_config_append = {{ neutron_ovsvapp_agent_logging_config_file }}
+
+[ovsvapp]
+tenant_network_type = {{ ovsvapp_tenant_network_type }}
+integration_bridge = br-int
+#physical network - OVS bridge mappings for VLAN networks
+bridge_mappings = {{ ovsvapp_bridge_mappings }}
+#Example:
+#bridge_mappings = physnet1:br-eth1
+monitoring_ip = {{ ovsvapp_monitoring_ip }}
+{{ neutron_local_ip|trim }}
+
+[securitygroup]
+security_bridge_mapping = {{ ovsvapp_security_bridge_mapping }}
+#Example:
+#security_bridge_mapping = br-sec:eth0
+#firewall_driver=neutron.agent.firewall.NoopFirewallDriver
+firewall_driver=networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver

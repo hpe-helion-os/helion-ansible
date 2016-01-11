@@ -1,0 +1,104 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- hosts: NEU-*
+  sudo: yes
+  roles:
+    - neutron-common
+
+  tasks:
+    - include: roles/neutron-common/tasks/configure.yml
+
+- hosts: NEU-SVR
+  sudo: yes
+  roles:
+    - neutron-common
+    - neutron-server
+
+  tasks:
+    - include: roles/neutron-server/tasks/configure.yml
+
+- hosts: NEU-OVS
+  sudo: yes
+  roles:
+    - neutron-common
+    - neutron-openvswitch-agent
+
+  tasks:
+    - include: roles/neutron-openvswitch-agent/tasks/configure.yml
+
+- hosts: NEU-OVSVAPP
+  sudo: yes
+  roles:
+    - neutron-common
+    - neutron-ovsvapp-agent
+
+  tasks:
+    - include: roles/neutron-ovsvapp-agent/tasks/configure.yml
+
+- hosts: NEU-DHCP
+  sudo: yes
+  roles:
+    - neutron-common
+    - neutron-dhcp-agent
+
+  tasks:
+    - include: roles/neutron-dhcp-agent/tasks/configure.yml
+
+- hosts: NEU-MDA
+  sudo: yes
+  roles:
+    - neutron-common
+    - neutron-metadata-agent
+
+  tasks:
+    - include: roles/neutron-metadata-agent/tasks/configure.yml
+
+- hosts: NEU-L3A
+  sudo: yes
+  roles:
+    - neutron-common
+    - neutron-l3-agent
+
+  tasks:
+    - include: roles/neutron-l3-agent/tasks/configure.yml
+
+- hosts: NEU-VPNA
+  sudo: yes
+  roles:
+    - neutron-common
+    - neutron-vpn-agent
+
+  tasks:
+    - include: roles/neutron-vpn-agent/tasks/configure.yml
+
+- hosts: NEU-LBAV2
+  sudo: yes
+  roles:
+    - neutron-common
+    - neutron-lbaasv2-agent
+
+  tasks:
+    - include: roles/neutron-lbaasv2-agent/tasks/configure.yml
+
+- hosts: NEU-LBAV1
+  sudo: yes
+  roles:
+    - neutron-common
+    - neutron-lbaas-agent
+
+  tasks:
+    - include: roles/neutron-lbaas-agent/tasks/configure.yml

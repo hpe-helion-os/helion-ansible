@@ -1,0 +1,57 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+# Prepare a scratch directory from various checkouts
+#
+# Parameters:
+#   repo: ~/helion
+#   target_dir: ~/cp-run (subdirs of this used as work dirs)
+#   branches:
+#     - name: site
+#       copies:
+#         - from: some relative path
+#           to: some relative path
+#         - ... etc ...
+#     - name: cp-persistent
+#       copies:
+#         - ... etc ...
+---
+
+- name: git-operations | _assemble-working-directory | Clear out target directory
+  file:
+    dest: "{{ target_dir }}"
+    state: absent
+
+- name: git-operations | _assemble-working-directory | Create target directory
+  file:
+    dest: "{{ target_dir }}"
+    state: directory
+
+- name: git-operations | _assemble-working-directory | Assemble scratch content
+  shell: >
+    {% for branch in branches %}
+        rm -rf .work &&
+        git clone -b {{ branch.name | quote }} {{ repo | quote }} .work &&
+        {% for copy in branch.copies %}
+            if [ -e ./.work/{{ copy.from | quote }} ]; then
+                mkdir -p ./{{ copy.to | dirname | quote }} &&
+                rsync -a --exclude=.git .work/{{ copy.from | quote }} ./{{ copy.to | quote }}
+            fi &&
+        {% endfor %}
+    {% endfor %}
+    rm -rf .work
+  args:
+    chdir: "{{ target_dir }}"

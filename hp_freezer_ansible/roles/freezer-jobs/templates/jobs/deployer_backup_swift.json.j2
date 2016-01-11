@@ -1,0 +1,101 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+{
+    "job_actions": [
+        {
+            "freezer_action": {
+                "action": "backup",
+                "mode": "fs",
+                "backup_name": "freezer_deployer_backup",
+                "path_to_backup": "/home/",
+                "container": "freezer_deployer_backup",
+                "log_file": "{{ freezer_agent_log_file }}",
+                "max_level": 15,
+                "remove_older_than": 365,
+                "snapshot": true
+            },
+            "max_retries": 5,
+            "max_retries_interval": 600
+        },
+        {
+            "freezer_action": {
+                "action": "backup",
+                "mode": "fs",
+                "backup_name": "freezer_etc_ssh_backup",
+                "path_to_backup": "/etc/ssh/",
+                "container": "freezer_deployer_backup",
+                "log_file": "{{ freezer_agent_log_file }}",
+                "max_level": 15,
+                "remove_older_than": 365,
+                "snapshot": true
+            },
+            "max_retries": 5,
+            "max_retries_interval": 600
+        },
+        {
+            "freezer_action": {
+                "action": "backup",
+                "mode": "fs",
+                "backup_name": "freezer_shadow_backup",
+                "path_to_backup": "/etc/shadow",
+                "container": "freezer_deployer_backup",
+                "log_file": "{{ freezer_agent_log_file }}",
+                "max_level": 15,
+                "remove_older_than": 365,
+                "snapshot": true
+            },
+            "max_retries": 5,
+            "max_retries_interval": 600
+        },
+        {
+            "freezer_action": {
+                "action": "backup",
+                "mode": "fs",
+                "backup_name": "freezer_passws_backup",
+                "path_to_backup": "/etc/passwd",
+                "container": "freezer_deployer_backup",
+                "log_file": "{{ freezer_agent_log_file }}",
+                "max_level": 15,
+                "remove_older_than": 365,
+                "snapshot": true
+            },
+            "max_retries": 5,
+            "max_retries_interval": 600
+        },
+        {
+            "freezer_action": {
+                "action": "backup",
+                "mode": "fs",
+                "backup_name": "freezer_cobbler_backup",
+                "path_to_backup": "/var/lib/cobbler/",
+                "container": "freezer_deployer_backup",
+                "log_file": "{{ freezer_agent_log_file }}",
+                "max_level": 15,
+                "remove_older_than": 365,
+                "snapshot": true
+            },
+            "max_retries": 5,
+            "max_retries_interval": 600
+        }
+    ],
+    "job_schedule": {
+        "schedule_interval": "48 hours"
+    },
+    "description": "HLM Default: Deployer backup to Swift"
+}
+

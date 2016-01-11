@@ -1,0 +1,83 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+# Receive a new HOS drop
+#
+# Create a new commit on a specified branch
+# We clone the branch into a scratch repo,
+# unconditionally lay down the new directory,
+# and commit those contents as a new commit,
+# pushing the successful change back to the
+# original branch.
+#
+# Parameters:
+#   repo: ~/helion
+#   work_dir: ~/.helion.new
+#   commit_msg: "New drop"
+#   branches:
+#     - name: hos
+#       copies:
+#       - from: ~/helion.new (a directory of contents)
+#         to: .
+---
+
+- name: git-operations | _persist-to-git | Clear scratch directory
+  file:
+    dest: "{{ work_dir }}"
+    state: absent
+
+- name: git-operations | _persist-to-git | Create scratch directory
+  file:
+    dest: "{{ work_dir }}"
+    state: directory
+
+- name: git-operations | _persist-to-git | Prep new commit
+  shell: >
+    {% for branch in branches %}
+        rm -rf .work &&
+        if ( cd {{ repo }} && git rev-parse --verify {{ branch.name | quote }} )
+        then
+            git clone -b {{ branch.name | quote }} {{ repo }} .work &&
+            (
+            cd .work &&
+            git rm -rf .
+            )
+        else
+            git clone {{ repo }} .work &&
+            (
+            cd .work &&
+            git checkout --orphan {{ branch.name | quote }} &&
+            git rm -rf --ignore-unmatch .
+            )
+        fi &&
+        (
+        cd .work &&
+        {% for copy in branch.copies %}
+            if [ -e {{ copy.from }} ]; then
+              {% if copy.to | dirname != '' -%}
+                  mkdir -p {{ copy.to | dirname | quote }} &&
+              {%- endif %}
+              cp -a {{ copy.from }}/. {{ copy.to }}
+            fi &&
+        {% endfor %}
+        git add -A &&
+        git commit --allow-empty -m "{{ commit_msg }}" &&
+        git push origin {{ branch.name | quote }}
+        ) &&
+    {% endfor %}
+    rm -rf .work
+  args:
+    chdir: "{{ work_dir }}"

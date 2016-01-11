@@ -1,0 +1,40 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+[Unit]
+SourcePath=/etc/init.d/logstash
+Description=Logtash
+Before=runlevel2.target runlevel3.target runlevel4.target runlevel5.target shutdown.target
+After=network-online.target remote-fs.target nss-lookup.target
+BindsTo=elasticsearch.service
+
+[Service]
+WorkingDirectory=/opt/logstash
+Type=forking
+Restart=on-failure
+ExecStartPre=/bin/bash -c '\
+  while [ !  $(curl -s {{ elasticsearch_http_host }}:{{ elasticsearch_http_port }}/_nodes/_local/name -w "\n%{http_code}" | tail -1) -eq 200 ]; do \
+   sleep 1 ; \
+   pcount=`pgrep -cu elasticsearch java`; \
+   [ $pcount -lt 1 ] && break ; \
+  done'
+
+ExecStart=/etc/init.d/logstash start
+ExecStop=/etc/init.d/logstash stop
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,107 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# common install tasks associated with the install of nova services
+---
+
+- debug:
+    msg: "Running nova-common install for {{ nova_component }}"
+    when: nova_component is defined
+    run_once: true
+
+# accounts & group
+- name: nova-common | install | Add group '{{ nova_system_group }}'
+  group:
+    name: "{{ nova_system_group }}"
+
+- name: nova-common | install | Add nova system user account '{{ nova_system_user }}'
+  user:
+    name: "{{ nova_system_user }}"
+    group: "{{ nova_system_group }}"
+    createhome: "{{ nova_system_createhome }}"
+    home: "{{ nova_system_home_folder }}"
+    shell: "{{ nova_system_shell }}"
+    system: True
+
+# directories
+- name: nova-common | install | Create directories
+  file:
+    path: "{{ item.file }}"
+    owner: "{{ nova_system_user }}"
+    group: "{{ item.group | default('root') }}"
+    mode: "{{ item.mode | default('a-rwx,u+rwx,g+rx,o+rx') }}"
+    state: directory
+  with_items:
+    - file: "{{ nova_lock_file_location }}"
+    - file: "{{ nova_keys_file_location }}"
+    - file: "{{ nova_log_file_location }}"
+      group: "{{ nova_system_group }}"
+      mode: "0755"
+
+# Make sure we do not create a path to a symlink that does not exist yet
+- name: nova-common | install | Check '{{ nova_service_etc_dir }}' dir exists
+  stat:
+    path: "{{ nova_service_etc_dir }}"
+  register: nova_service_etc_dir_result
+
+- fail: nova-common | install | Fail when '{{ nova_service_etc_dir }}' does not exist
+  when: not nova_service_etc_dir_result.stat.exists or not nova_service_etc_dir_result.stat.isdir
+
+- name: nova-common | install | Create directory '{{ nova_service_conf_dir }}'
+  file:
+    path: "{{ nova_service_conf_dir }}"
+    owner: "{{ nova_system_user }}"
+    group: "{{ nova_system_group }}"
+    mode: 0755
+    state: directory
+
+- name: nova-common | install | Install required packages
+  apt:
+    name: "{{ item }}"
+    install_recommends: no
+    state: latest
+  with_items:
+    required_packages | default([])
+
+- name: nova-common | install | Add kernel modules
+  modprobe:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    kernel_modules | default([])
+
+- name: nova-common | install | Set kernel modules to load on reboot
+  template:
+    src: modules_load.conf.j2
+    dest: "/etc/modules-load.d/{{ nova_kernel_module_file }}.conf"
+    owner: root
+    group: root
+    mode: '0640'
+  with_items:
+    kernel_modules | default([])
+
+# Iterate through current pkg-updates-all fact (from CP) for packages relevant
+# to service component.
+# Packages relating to each service component are defined in defaults/main
+# as required_packages:
+# Register the result to be picked up by the service component restart handler.
+# TO DO: - work out what goes here ...
+# AND REMOVE THE changed_when: False!!
+- name: nova-common | check-updated-packages | Check for updated packages
+  shell: echo " dummy command - this needs to be worked out"
+  with_items:
+    required_packages | default([])
+  register: check_updated_packages_result
+  changed_when: False

@@ -1,0 +1,41 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Run a deployment using the configuration processor's saved state
+---
+- hosts: localhost
+  connection: local
+  roles:
+    - git-operations
+    - guard-runtime-location
+    - config-processor
+  tasks:
+    - include: roles/git-operations/tasks/ready-deployment-tree.yml
+    - include: roles/config-processor/tasks/configure.yml
+      vars:
+        config_processor: "{{ config_processor_deploy }}"
+        deploy_subdir: next
+      when: last_deployment_timestamp != git_operations.initial_tag_timestamp
+    - include: roles/config-processor/tasks/configure.yml
+      vars:
+        config_processor: "{{ config_processor_deploy }}"
+        deploy_subdir: next
+    - include: roles/git-operations/tasks/ready-deployment-tree-help.yml
+
+- hosts: localhost
+  roles:
+    - ansible-setup
+  tasks:
+    - include: roles/ansible-setup/tasks/configure-ansible.yml

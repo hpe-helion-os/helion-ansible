@@ -1,0 +1,38 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: freezer-agent | start | Activate the latest install
+  become: yes
+  install_package:
+    name: freezer_agent
+    service: freezer-agent
+    activate: act_on
+    version: "{{ freezer_agent_install_result.version }}"
+  when: freezer_agent_install_result is defined
+
+- name: freezer-agent | start | Restart freezer-scheduler
+  become: yes
+  service:
+    name: freezer-scheduler
+    state: restarted
+  when: freezer_agent_restart_required
+
+- name: freezer-agent | start | Ensure freezer-scheduler is started
+  become: yes
+  service:
+    name: freezer-scheduler
+    state: started

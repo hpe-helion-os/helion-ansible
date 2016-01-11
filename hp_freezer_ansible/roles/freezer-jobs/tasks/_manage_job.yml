@@ -1,0 +1,59 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: freezer-jobs | manage_job | Get job json
+  set_fact:
+    job_json: "{{ lookup('template', '../templates/jobs/'+ template_name) | from_json }}"
+
+- name: freezer-jobs | manage_backup | Check for job "description" field presence
+  fail: msg="The template {{ template_name }} does not contain a valid description field."
+  when: job_json['description'] | default("") | trim() == ""
+
+- name: freezer-jobs | manage_backup | Show which job is being managed
+  debug: var=job_json['description']
+  run_once: true
+
+- name: freezer-jobs | manage_job | Copy backup job template
+  become: yes
+  template:
+    src: "jobs/{{ template_name }}"
+    dest: "/etc/freezer/scheduler/to_upload/{{ template_name | regex_replace('.j2','') }}"
+  register: backup_job_copy_result
+
+- name: freezer-jobs | manage_job | Remove old job if necessary
+  become: yes
+  shell: "{{ freezer_scheduler_command }} job-delete -j {{ item.split('|')[0] | trim() }}"
+  args:
+    executable: /bin/bash
+  with_items: jobs_list_result.stdout_lines
+  when: job_json['description'] in item and backup_job_copy_result.changed
+  register: remove_job_result
+  until: "remove_job_result.rc == 0"
+  retries: 5
+  delay: 10
+
+- name: freezer-jobs | manage_job | Create job if necessary
+  become: yes
+  shell: "{{ freezer_scheduler_command }} job-create --file {{ template_name | regex_replace('.j2','') }}"
+  args:
+    executable: /bin/bash
+    chdir: /etc/freezer/scheduler/to_upload
+  when: jobs_list_result.stdout.find(job_json['description']) == -1 or backup_job_copy_result.changed
+  register: create_job_result
+  until: "create_job_result.rc == 0"
+  retries: 5
+  delay: 10

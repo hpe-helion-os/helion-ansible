@@ -1,0 +1,35 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- include_vars: ../defaults/hlm_tar_locations.yml
+- include_vars: "{{ playbook_dir }}/hlm_version.yml"
+
+- name: deployer-setup | install-input-model-contents | Install hlm input model
+  unarchive:
+    src: "{{ hlmuser_home }}/{{ deployer_input_model_tarball }}"
+    dest: "{{ hlmuser_home }}/{{ hlm_version }}"
+    copy: no
+
+- name: deployer-setup | install-input-model-contents | Copy examples to helion directory
+  synchronize:
+    src: "{{ hlmuser_home }}/{{ hlm_version }}/hlm-input-model/2.0/{{ item }}"
+    dest: "{{ git_operations_staging_directory }}"
+    delete: yes
+    copy_links: yes
+  with_items:
+    - examples
+    - tech-preview

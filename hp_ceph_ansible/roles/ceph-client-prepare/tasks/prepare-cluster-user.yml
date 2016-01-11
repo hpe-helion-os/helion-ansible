@@ -1,0 +1,73 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- include_vars: ceph_user_model.yml
+
+#
+# All commands here should run on {{ ceph_admin_node }}. Its not possible in
+# ansible syntax to specify this where the file is 'include'd, so it has had
+# to be specified on all tasks within the file
+#
+- name: ceph-client-prepare | prepare-cluster-user | Create pool
+  command: ceph --cluster {{ ceph_cluster }} osd pool create {{ item.1.name }} {{ item.1.attrs.pg | default(100) }} {{ item.1.attrs.pg | default(100) }} {{ item.1.attrs.type | default('replicated') }}
+  when: item.1.attrs.creation_policy | default('lazy') == "eager"
+  with_subelements:
+       - ceph_user_models
+       - pools
+  delegate_to: "{{ ceph_admin_node }}"
+
+- name: ceph-client-prepare | prepare-cluster-user | Set pool {{ item.1.name }} pg_num to {{ item.1.attrs.pg }}
+  shell: ceph --cluster {{ ceph_cluster }} osd pool set {{ item.1.name }} pg_num {{ item.1.attrs.pg | default(100)}}
+  when: item.1.attrs.creation_policy | default('lazy') == "eager"
+  with_subelements:
+       - ceph_user_models
+       - pools
+  delegate_to: "{{ ceph_admin_node }}"
+
+- name: ceph-client-prepare | prepare-cluster-user | Wait for pg's to come into active state
+  command: ceph --cluster {{ ceph_cluster }} -s
+  register: ceph_pg_result
+  until: "'creating' not in ceph_pg_result.stdout"
+  retries: "{{ pg_active_retries }}"
+  delay: "{{ pg_active_delay_time }}"
+  delegate_to: "{{ ceph_admin_node }}"
+
+- name: ceph-client-prepare | prepare-cluster-user | Set pool {{ item.1.name }} pgp_num to {{ item.1.attrs.pg }}
+  shell: ceph --cluster {{ ceph_cluster }} osd pool set {{ item.1.name }} pgp_num {{ item.1.attrs.pg | default(100)}}
+  when: item.1.attrs.creation_policy | default('lazy') == "eager"
+  with_subelements:
+       - ceph_user_models
+       - pools
+  delegate_to: "{{ ceph_admin_node }}"
+
+- name: ceph-client-prepare | prepare-cluster-user | Set pool replica size
+  command: ceph --cluster {{ ceph_cluster }} osd pool set {{ item.1.name }} size {{ item.1.attrs.replica_size | default(2) }}
+  when: (item.1.attrs.creation_policy | default('lazy') == "eager") and (item.1.attrs.type | default('replicated') == "replicated")
+  with_subelements:
+       - ceph_user_models
+       - pools
+  delegate_to: "{{ ceph_admin_node }}"
+
+- name: ceph-client-prepare | prepare-cluster-user | Create user
+  command: "ceph --cluster {{ ceph_cluster }} auth get-or-create client.{{ item.user.name }}"
+  with_items: "{{ ceph_user_models }}"
+  delegate_to: "{{ ceph_admin_node }}"
+
+- name: ceph-client-prepare | prepare-cluster-user | Update user caps
+  command: "ceph --cluster {{ ceph_cluster }} auth caps client.{{ item.user.name }} mon 'allow r' osd 'allow class-read object_prefix rbd_children, {% for pool in item['pools'] %}allow {{ pool['attrs']['permission'] | default('rwx') }} pool={{ pool['name'] }}{% if not loop.last %}, {% endif %}{% endfor %}'"
+  with_items: "{{ ceph_user_models }}"
+  delegate_to: "{{ ceph_admin_node }}"

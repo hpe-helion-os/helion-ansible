@@ -1,0 +1,64 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+# Setup neutron-ovsvapp-agent specific configuration files.
+---
+- name: Neutron Common | configure | Get vcenter password from EON
+  shell: |
+          eon --os-tenant-name "{{ eon_admin_tenant_name }}" \
+          --os-username "{{ eon_admin_user }}" \
+          --os-password "{{ eon_admin_password }}" \
+          --os-auth-url "{{ neutron_auth_uri }}/v2.0" \
+          get-vcenter-password "{{ vcenter_id }}"
+  register: vcenter_info_result
+
+- name: Neutron Common | configure | Assign vcenter password vmware_host_password
+  set_fact: vmware_host_password="{{ vcenter_info_result.stdout }}"
+
+- include: _write_conf.yml
+  src: "ovsvapp_agent.ini.j2"
+  dest: "ovsvapp_agent.ini"
+
+- name: Neutron Common | configure | ovsvapp_agent.ini change
+  set_fact:
+    neutron_ovsvapp_agent_restart_required: true
+  when: write_conf_result.changed==true
+
+- include: _write_conf.yml
+  src: "neutron-ovsvapp-agent.service.j2"
+  dest: "neutron-ovsvapp-agent.service"
+
+- include: _write_conf.yml
+  src: "neutron-ovsvapp-agent-monitor.service.j2"
+  dest: "neutron-ovsvapp-agent-monitor.service"
+
+- include: _write_conf.yml
+  src: "nginx-default.j2"
+  dest: "nginx-default"
+
+- name: Neutron Common | configure | nginx-default change
+  set_fact:
+    nginx_restart_required: true
+  when: write_conf_result.changed==true
+
+- include: _write_conf.yml
+  src: "ovsvapp-agent-logging.conf.j2"
+  dest: "ovsvapp-agent-logging.conf"
+
+- name: neutron-ovsvapp-agent | configure_ovsvapp_agent | ovsvapp-agent-logging.conf change
+  set_fact:
+    neutron_ovsvapp_agent_restart_required: true
+  when: write_conf_result.changed==true

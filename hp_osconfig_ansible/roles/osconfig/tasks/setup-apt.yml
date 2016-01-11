@@ -1,0 +1,58 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: osconfig | setup-apt | Install prereqs
+  sudo: yes
+  apt: name={{ item }} state=latest
+  with_items:
+    - python-apt
+
+- name: osconfig | setup-apt | Remove /etc/apt/sources.list
+  sudo: yes
+  file:
+    path: "/etc/apt/sources.list"
+    state: absent
+  register: _apt_source_list_result
+  when: deployer_apt_repo_present
+
+- name: osconfig | setup-apt | Add deployer apt repos
+  sudo: yes
+  apt_repository:
+    repo: "{{ item }}"
+    update_cache: no
+  with_items:
+    - "deb [arch=amd64] {{ hlinux_url }} {{ hlinux_distro }} main contrib non-free"
+    - "deb [arch=i386] {{ hlinux_server }}/hlm/cmc32 {{ hlinux_distro }} main"
+  register: _apt_repository_result
+  when: deployer_apt_repo_present
+
+- name: osconfig | setup-apt | Setup apt repository priority preferences
+  sudo: yes
+  template:
+    src: "priority.d.j2"
+    dest: "/etc/apt/preferences.d/{{ hlinux_server | replace('http://', '') | replace('.', '_') | replace('-', '_') | replace('/', '_') }}"
+  register: _apt_repository_priority_result
+  when: deployer_apt_repo_present
+
+- name: osconfig | setup-apt | Add i386 arch for cmc support
+  sudo: yes
+  command: dpkg --add-architecture i386
+  when: deployer_apt_repo_present
+
+- name: osconfig | setup-apt | Update and upgrade hlinux apt repository
+  sudo: yes
+  command: apt-get update
+  when: deployer_apt_repo_present

@@ -1,0 +1,11 @@
+--- reporting.py	2015-10-08 14:00:38.067574875 +0000
++++ reporting.py	2015-10-08 14:01:36.354896961 +0000
+@@ -147,7 +147,7 @@
+                 self.process_subsection(section_contents, type_.ADDS_TO,
+                                         header, format_)
+ 
+-        return "\n".join(buf)
++        return "\n".join(l.decode('UTF-8') for l in buf).encode('UTF-8')
+ 
+     def process_subsection(self, section, key, header, format_):
+         if key in section:

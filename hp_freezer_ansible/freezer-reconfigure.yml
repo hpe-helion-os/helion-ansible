@@ -1,0 +1,61 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- hosts: FRE-API
+  roles:
+    - freezer-api
+    - freezer-post-configure
+  tasks:
+    - include_vars: roles/logging-common/defaults/main.yml
+    - include: roles/freezer-api/tasks/configure.yml
+    # This task should be set to run-once
+    - include: roles/freezer-post-configure/tasks/elasticsearch_mappings.yml
+
+- hosts: KEY-CLI
+  roles:
+    - freezer-post-configure
+  # Those tasks should be set to run-once
+  tasks:
+    - include: roles/freezer-post-configure/tasks/keystone_conf.yml
+      ansible_python_interpreter: "{{ KEY_CLI.vars.keystone_client_python_interpreter }}"
+      when: ( 'FRE-API' in groups ) and ( ( groups['FRE-API'] | length ) > 0 )
+    - include: roles/freezer-post-configure/tasks/hlm_backup_env.yml
+      ansible_python_interpreter: "{{ KEY_CLI.vars.keystone_client_python_interpreter }}"
+      when: ( 'FRE-API' in groups ) and ( ( groups['FRE-API'] | length ) > 0 )
+
+- hosts: FRE-API
+  roles:
+    - freezer-api
+  tasks:
+    - include: roles/freezer-api/tasks/start.yml
+    - include: roles/freezer-api/tasks/monitor.yml
+
+- hosts: FRE-AGN
+  roles:
+    - freezer-agent
+  tasks:
+    - include: roles/freezer-agent/tasks/configure.yml
+
+- hosts: FRE-AGN
+  roles:
+    - freezer-agent
+  tasks:
+    - include: roles/freezer-agent/tasks/start.yml
+    - include: roles/freezer-agent/tasks/monitor.yml
+  serial: "{{ freezer_serialization | default(3) | int }}"
+
+- include: _freezer_manage_jobs.yml

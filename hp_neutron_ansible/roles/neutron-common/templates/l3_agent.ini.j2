@@ -1,0 +1,36 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+# This configuration file includes the default values for Helion Openstack
+# Changes may be made to this file by customers.
+# The changes here will only apply to the L3-agent.
+
+[DEFAULT]
+log_config_append = {{ neutron_l3_agent_logging_config_file }}
+state_path = {{ neutron_common_rundir }}
+send_arp_for_ha = 3
+router_delete_namespaces = True
+use_namespaces = True
+interface_driver = neutron.agent.linux.interface.OVSInterfaceDriver
+agent_mode = {{ neutron_l3_agent_mode }}
+external_network_bridge = {{ neutron_l3_agent_external_network_bridge }}
+
+
+### Add additional options here
+
+
+### Do not add anything after this line

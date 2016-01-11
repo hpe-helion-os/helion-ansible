@@ -1,0 +1,126 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: neutron-cloud-configure | neutron-svc-net-setup | Check usage
+  fail:
+    msg: |
+      Please provide all required arguments.
+      Usage: ansible-playbook -i hosts/verb_hosts.yml neutron-svc-net-configure.yml \
+           -e PROV_PHYS_NET=<physical_network> \
+           [ -e PROV_NET_TYPE flat ] \
+           [ -e PROV_NET_TYPE vlan -e PROV_NET_VLAN_ID=<vlan-id> ] \
+           -e SVC_NET_CIDR=<cidr of SVC network> \
+           -e SVC_ALLOCATION_START=<starting IP of allocation range> \
+           -e SVC_ALLOCATION_END=<ending IP of allocation range> \
+           -e SVC_NET_DEST=<ip address for the SVC traffic> \
+           -e SVC_NET_GATEWAY=<gateway IP of the SVC network>
+  when: PROV_PHYS_NET is undefined or PROV_NET_TYPE is undefined or SVC_NET_CIDR is undefined or SVC_NET_DEST is undefined or SVC_NET_GATEWAY is undefined or SVC_ALLOCATION_START is undefined or SVC_ALLOCATION_END is undefined
+
+- name: neutron-cloud-configure | neutron-svc-net-setup | validate PROV_NET_TYPE
+  fail:
+    msg: "Invalid PROV_NET_TYPE '{{ PROV_NET_TYPE }}'. Valid PROV_NET_TYPE values are {{ supported_prov_net_types }}"
+  when: not (PROV_NET_TYPE in supported_prov_net_types)
+
+- name: neutron-cloud-configure | neutron-svc-net-setup | validate vlan id
+  fail:
+    msg: "PROV_NET_TYPE is 'vlan' but PROV_NET_VLAN_ID was not provided."
+  when: PROV_NET_TYPE == "vlan" and PROV_NET_VLAN_ID is undefined
+
+- set_fact:
+    do_net_create: False
+    svc_net_id: ""
+    svc_subnet_id: ""
+    provider_net_args: "--provider:physical_network {{ PROV_PHYS_NET }} --provider:network_type {{ PROV_NET_TYPE }}"
+
+- name: neutron-cloud-configure | neutron-svc-net-setup | build neutron net-create command string (VLAN)
+  set_fact:
+    provider_net_args: "{{ provider_net_args }} --provider:segmentation_id {{ PROV_NET_VLAN_ID }}"
+  when: PROV_NET_TYPE == "vlan"
+
+- name: neutron-cloud-configure | neutron-svc-net-setup | build the neutron subnet-create cmd string
+  set_fact:
+    svc_subnet_args: "{{ SVC_NET_CIDR }} --allocation-pool start={{SVC_ALLOCATION_START}},end={{SVC_ALLOCATION_END}} --host-routes type=dict list=true destination={{ SVC_NET_DEST }},nexthop={{ SVC_NET_GATEWAY }}"
+
+- name: neutron-cloud-configure | neutron-svc-net-setup | Get the tenant id
+  shell: openstack {{ openstack_cmd_args }} project show -f value -c id {{ neutron_admin_tenant_name }}
+  register: user_id
+  changed_when: False
+
+- name: neutron-cloud-configure | neutron-svc-net-setup | Set ID
+  set_fact:
+     tenant_id: "{{ user_id.stdout }}"
+  when: user_id | success
+
+- name: neutron-cloud-configure | neutron-svc-net-setup | Check for existence of SVC networks
+  shell: neutron {{ neutron_cmd_args }} net-list -f csv -c id --quote none --name "{{ svc_net_name }}" --tenant-id {{ tenant_id }}
+  register: svcnet_list_results
+  changed_when: False
+
+- name: neutron-cloud-configure | neutron-svc-net-setup | Found multiple SVC networks
+  fail:
+    msg: "Multiple networks with name of {{ svc_net_name }} -- unable to continue."
+  when: "(svcnet_list_results.stdout_lines|length) > 2"
+
+- name: neutron-cloud-configure | neutron-svc-net-setup | Save the SVC network id
+  set_fact:
+    svc_net_id: "{{ svcnet_list_results.stdout_lines[1] }}"
+  when: "(svcnet_list_results.stdout_lines|length) == 2"
+
+- name: neutron-cloud-configure | neutron-svc-net-setup | A SVC network is already created
+  debug:
+    msg: "An existing network named {{ svc_net_name }} id={{ svc_net_id }} is found -- not creating a new one."
+  when: "(svcnet_list_results.stdout_lines|length) == 2"
+
+- name: neutron-cloud-configure | neutron-svc-net-setup | Need to create a SVC Network
+  set_fact:
+    do_net_create: True
+  when: "svc_net_id|length == 0"
+
+- name: neutron-cloud-configure | neutron-svc-net-setup | Create provider network
+  shell: neutron {{ neutron_cmd_args }} net-create  {{ provider_net_args }} -f value -c id {{ svc_net_name }}
+  register: net_create_results
+  when: do_net_create
+
+- name:  neutron-cloud-configure | neutron-svc-net-setup | Get the net-id from command output
+  set_fact:
+    svc_net_id: "{{ net_create_results.stdout_lines[1] }}"
+  when: do_net_create and 'Created a new network' in net_create_results.stdout and net_create_results.stdout_lines|length == 2
+
+- name: neutron-cloud-configure | neutron-svc-net-setup | Check if SVC network has subnet
+  shell: neutron subnet-list {{ neutron_cmd_args }} -f csv -c id --quote none --network-id {{ svc_net_id }}
+  register: subnet_list_results
+  changed_when: False
+  when: "svc_net_id|length > 0"
+
+- name: neutron-cloud-configure | neutron-svc-net-setup | Fail if multiple subnets exist
+  fail:
+    msg: "Multiple subnets for network {{ svc_net_id }} were found -- unable to continue."
+  when: "subnet_list_results.stdout_lines|length > 2"
+
+- name: neutron-cloud-configure | neutron-svc-net-setup | Retrieve the id of SVC subnet
+  set_fact:
+    svc_subnet_id: "{{ subnet_list_results.stdout_lines[1] }}"
+  when: "subnet_list_results.stdout_lines|length == 2"
+
+- name: neutron-cloud-configure | neutron-svc-net-setup | Subnet is already created for SVC network
+  fail:
+    msg: "subnet for {{ svc_net_name }} already created id={{ svc_subnet_id }}.  Not creating it again."
+  when: "svc_subnet_id|length > 0"
+
+- name: neutron-cloud-configure | neutron-svc-net-setup | Create the subnet for SVC network
+  shell: neutron {{ neutron_cmd_args }} subnet-create --ip_version 4 --no-gateway {{ svc_net_id }} {{ svc_subnet_args }}
+  when: "svc_subnet_id|length == 0"

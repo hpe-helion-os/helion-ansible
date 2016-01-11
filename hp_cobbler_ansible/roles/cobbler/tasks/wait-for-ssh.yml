@@ -1,0 +1,30 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+- name: cobbler | wait-for-ssh | Derive node ip
+  local_action: bmconfig file={{ baremetal_config }} node={{ inventory_hostname }} field=ip_addr
+  register: cobbler_ip
+
+- name: cobbler | wait-for-ssh | Wait for ssh to come online
+  local_action: wait_for port=22 host="{{ cobbler_ip.stdout }}" search_regex=OpenSSH timeout="{{ ssh_wait_seconds }}"
+
+- name: cobbler | wait-for-ssh | Get md5sum
+  local_action: shell md5sum {{ local_timestamp_file }} | awk '{print $1}'
+  register: local_md5sum_data
+
+- name: cobbler | wait-for-ssh | check the timestamp on the dest with local
+  local_action: shell ssh -o StrictHostKeyChecking=no {{ cobbler_ip.stdout }} md5sum /etc/cobbler_hlm_installed | awk '{print $1}'
+  register: remote_md5sum_data
+  failed_when: remote_md5sum_data.stdout != local_md5sum_data.stdout

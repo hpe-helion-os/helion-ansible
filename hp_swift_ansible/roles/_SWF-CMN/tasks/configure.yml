@@ -1,0 +1,74 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: _SWF_CMN | configure | Create swift_dir directory
+  file:
+    path: "{{ swift_dir }}"
+    owner: "{{ swift_user }}"
+    group: "{{ swift_group }}"
+    mode: 0755
+    state: directory
+
+- name: _SWF_CMN | configure | Create swift_logs_dir directory
+  file:
+    path: "{{ swift_logs_dir }}"
+    owner: root
+    group: adm
+    mode: 0755
+    state: directory
+
+- name: _SWF_CMN | configure | Create recon_cache_path directory
+  file:
+    path: "{{ recon_cache_path }}"
+    owner: swift
+    group: swift
+    mode: 0755
+    state: directory
+
+- name: _SWF_CMN | configure | Create swift_facts_dir directory
+  file:
+    path: "{{ swift_facts_dir }}"
+    owner: root
+    group: root
+    mode: 0755
+    state: directory
+
+- name: _SWF_CMN | configure | Copy /etc/rsyslog.d/40-swift.conf
+  template:
+    src: 40-swift.conf.j2
+    dest: /etc/rsyslog.d/40-swift.conf
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - swift_rsyslog_changed
+
+- name: _SWF_CMN | configure | Create disk_models yml file
+  template:
+    src: disk_models.j2
+    dest: /etc/swift/disk_models.yml
+    owner: swift
+    group: swift
+    mode: 0444
+
+- name: _SWF_CMN | configure | Add drive-audit config file
+  template:
+    src: drive-audit.conf.j2
+    dest: "{{ swift_dir }}/drive-audit.conf"
+    owner: "{{ swift_user }}"
+    group: "{{ swift_group }}"
+    mode: 0400

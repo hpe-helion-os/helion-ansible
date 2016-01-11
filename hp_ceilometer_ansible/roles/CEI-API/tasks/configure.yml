@@ -1,0 +1,92 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+### Copying Configurations in right locations ###
+
+- include: ../../_CEI-CMN/tasks/configure.yml ceilometer_conf_dir="{{ ceilometer_api_conf_dir }}"
+
+- name: CEI-API | configure | Create several ceilometer config files
+  become: yes
+  template:
+    src="{{ item[0] }}.j2"
+    dest="{{ item[1] }}/{{ item[0] }}"
+    owner="{{ ceilometer_user }}"
+    group="{{ ceilometer_group }}"
+    mode=0640
+  with_nested:
+    - [ 'api_paste.ini','policy.json','api-logging.conf', 'pipeline-api.yaml' ]
+    - [ "{{ ceilometer_api_conf_dir }}" ]
+  notify:
+    - ceilometer_api_change
+
+- name: CEI-API | configure | Configure Logging for Ceilometer API
+  ini_file:
+    dest="{{ ceilometer_api_conf_dir }}/ceilometer.conf"
+    section="DEFAULT"
+    option="log_config_append"
+    value="{{ ceilometer_api_conf_dir }}/api-logging.conf"
+    backup=no
+  become: yes
+  become_user: "{{ ceilometer_user }}"
+  notify: ceilometer_api_change
+
+- name: CEI-API | configure | Configure api_paste reference for Ceilometer API
+  ini_file:
+    dest="{{ ceilometer_api_conf_dir }}/ceilometer.conf"
+    section="DEFAULT"
+    option="api_paste_config"
+    value="{{ ceilometer_api_conf_dir }}/api_paste.ini"
+    backup=no
+  become: yes
+  become_user: "{{ ceilometer_user }}"
+  notify: ceilometer_api_change
+
+- name: CEI-API | configure | Configure pipeline reference for Ceilometer API
+  ini_file:
+    dest="{{ ceilometer_api_conf_dir }}/ceilometer.conf"
+    section="DEFAULT"
+    option="pipeline_cfg_file"
+    value="{{ ceilometer_api_conf_dir }}/pipeline-api.yaml"
+    backup=no
+  become: yes
+  become_user: "{{ ceilometer_user }}"
+  notify: ceilometer_api_change
+
+### Configuring Apache changes ###
+
+- name: CEI-API | configure  | Copies modwsgi directory
+  template: src=ceilometer_modwsgi.conf.j2 dest=/etc/apache2/sites-available/ceilometer_modwsgi.conf
+  notify:
+    - ceilometer_api_change
+
+- name: CEI-API | configure  | Enable wsgi module in apache
+  apache2_module: state=present name=wsgi
+  notify:
+    - ceilometer_api_change
+
+# Temporary patch to enable upgrade from Beta1 to Beta 2 without manual workaround
+- name: CEI-API | configure | Remove the files that are in Beta 1
+  file:
+    path={{ ceilometer_global_conf_dir }}/{{ item }}
+    state=absent
+  with_items:
+    - api-logging.conf
+    - api_paste.ini
+    - ceilometer.conf
+    - pipeline.yaml
+    - policy.json
+  become: yes
+  ignore_errors: True

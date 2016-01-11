@@ -1,0 +1,6 @@
+setuptools
+netifaces
+enum34
+python-swiftclient
+python-keystoneclient
+pyyaml

@@ -1,0 +1,51 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Playbook to drive the upgrade of all deployed HOS services
+---
+
+- include: sosreport-upgrade.yml
+- include: monasca-agent-upgrade.yml
+- include: tls-upgrade.yml
+- include: clients-upgrade.yml
+- include: percona-upgrade.yml
+# Disabled  upgrade re-eanble with HLM-2429
+#- include: rabbitmq-upgrade.yml
+- include: FND-AP2-upgrade.yml
+- include: memcached-upgrade.yml
+- include: keystone-upgrade.yml
+- include: ops-console-upgrade.yml
+#- include: zookeeper-upgrade.yml
+- include: monasca-upgrade.yml
+- include: swift-upgrade.yml
+- include: nova-upgrade.yml
+- include: glance-upgrade.yml
+- include: neutron-upgrade.yml
+- include: cinder-upgrade.yml
+#- include: eon-upgrade.yml
+#- include: ironic-upgrade.yml
+- include: heat-upgrade.yml
+- include: horizon-upgrade.yml
+- include: logging-upgrade.yml
+- include: ceilometer-upgrade.yml
+- include: ceph-upgrade.yml
+- include: vsa-upgrade.yml
+- include: cmc-upgrade.yml
+- include: freezer-upgrade.yml
+- include: tempest-upgrade.yml
+- include: sherpa-upgrade.yml
+# Update haproxy last as it conflicts with a setting in the beta2 kit
+# where nova-api listens on the vip.
+- include: FND-CLU-upgrade.yml

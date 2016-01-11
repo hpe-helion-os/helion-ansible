@@ -1,0 +1,106 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+keystone_domainldap_conf:
+
+    # CA certificates file content.
+    # Certificates are stored in Base64 PEM format. This may be entire LDAP server
+    # certificate (in case of self-signed certificates), certificate of authority 
+    # which issued LDAP server certificate, or a full certificate chain (Root CA
+    # certificate, intermediate CA certificate(s), issuer certificate).
+    #
+    cert_settings:
+      cacert: |
+        -----BEGIN CERTIFICATE-----
+        MIIDVTCCAg2gAwIBAgIEVW4FQjANBgkqhkiG9w0BAQsFADAaMRgwFgYDVQQDEw9F
+        eGFtcGxlIENvbXBhbnkwHhcNMTUwNjAyMTkzNDI2WhcNMTYwNjAxMTkzNDI2WjAa
+        MRgwFgYDVQQDEw9FeGFtcGxlIENvbXBhbnkwggFSMA0GCSqGSIb3DQEBAQUAA4IB
+        PwAwggE6AoIBMQC2JHPnTfQ0BExcdfeLGzUxsmFtJ/EZc/EkU5/qpKJAwsssDRlS
+        Xfg4CN2J68IosFiltBXzQFjT2GK+I9kLLr9Qmbexh5lmLhwApTXTNC+o5/IRIZnK
+        fguRsbE0OdUPlEH7oeLVacPRGg3TU6DPJD7yIgEAmYmQOXWtmUiE2hy50w+Ik6kI
+        JS2ve6VB48jLGC9O7H/x1Fs5sdRLXAEse9A06u2BtbSH9JWp1/DFSFjP9Dk514UP
+        OyXD7rUWEWPMm7vkzwD1Yy2Oj2696y1hGTUxPGWtNEBpE2A364izd8GmD2PxYFzn
+        emWs9u7UUKsc3ZCD7YQCuf+a5uLVOiq2LKsg3Cylk7jBqSVx0BjU4G3eSDnb/E2j
+        a68tEqKMrMw7n791eHFOA8vfnwy0lceQHOghAgMBAAGjQzBBMA8GA1UdEwEB/wQF
+        MAMBAf8wDwYDVR0PAQH/BAUDAwcEADAdBgNVHQ4EFgQUeazaagjvqla452B67afb
+        afAL8B0wDQYJKoZIhvcNAQELBQADggExAIE44JHWTsakqY9/r7UUXYtmA3JPIS4q
+        +ySyYkvO8zwTuinVRJqZJr9qN1dLKoovME5oQm9dgJCDuX9IPcm+NJduJp+r8Dcd
+        q+LQ58qcHI9AEIGj4z12Q6BfyN6SMfq+qxx8XiTn+94gbF8SvLDGV30kyu5P4/M0
+        kSEhpklmey0b1uxzGRgwz03QsCuMHebt7rCD5ngEsq/wjKEY58xCs/YJzoyuqOY4
+        YmI5HV8DH2WSdB0ZmG9CdgbOijm4XnIhu5fXhIpyLPfL7kOUwoyF5t2eTU/lm2Uh
+        9/qqmq+q4qQ7uSj4fZ1B3vLozD27c/AXgInq+1cUUPQx/C7PwRKfdvm1CK+75pP5
+        ed7K+bPcCfGA/YDg4HIHBdTNeFAxlBdEwXgyZUTAv4WmY4el3R/Bys0=
+        -----END CERTIFICATE-----
+
+    # A domain will be created in MySQL with this name, and associated with ldap backend.
+    # Installer will also generate a config file named /etc/keystone/domains/keystone.<domain_name>.conf
+    #
+    domain_settings:
+      name: dept1
+      description: Dedicated domain for dept1 users
+
+    conf_settings:
+      identity:
+         driver: keystone.identity.backends.ldap.Identity
+
+      # For full list and description of ldap configuration options, please refer to
+      # https://github.com/openstack/keystone/blob/master/etc/keystone.conf.sample or
+      # http://docs.openstack.org/kilo/config-reference/content/keystone-configuration-file.html.
+      #
+      # Please note:
+      #  1. LDAP configuration is read-only. Configuration which performs write operations (i.e. creates users, groups, etc)
+      #     is not supported at the moment.
+      #  2. LDAP is only supported for identity operations (reading users and groups from LDAP). Assignment
+      #     operations with LDAP (i.e. managing roles, projects) are not supported.
+      #  3. LDAP is configured as non-default domain. Configuring LDAP as a default domain is not supported.
+      #
+      ldap:
+        url: ldap://ad.myorg.com
+        suffix: DC=acme,DC=net
+        user_tree_dn: CN=Users,DC=acme,DC=net
+        user : CN=admin,CN=Users,DC=acme,DC=net
+        password: REDACTED
+        user_objectclass: user
+        user_id_attribute: cn
+        user_name_attribute: cn
+        user_allow_create: False
+        user_allow_update: False
+        user_allow_delete: False
+        group_tree_dn: CN=Users,DC=acme,DC=net
+        group_objectclass: group
+        group_id_attribute: cn
+        group_name_attribute: cn
+        group_allow_create: False
+        group_allow_update: False
+        group_allow_delete: False
+        use_pool: True
+        user_enabled_attribute: userAccountControl
+        user_enabled_mask: 2
+        user_enabled_default: 512
+        use_tls: True
+        tls_req_cert: demand
+        # if you are configuring multiple LDAP domains, and LDAP server certificates are issued
+        # by different authorities, make sure that you place certs for all the LDAP backend domains in the
+        # cacert parameter as seen in this sample yml file so that all the certs are combined in a single CA file
+        # and every LDAP domain configuration points to the combined CA file.
+        # Note:
+        # 1. Please be advised that every time a new ldap domain is configured, the single CA file gets overwritten
+        # and hence ensure that you place certs for all the LDAP backend domains in the cacert parameter.
+        # 2. There is a known issue on one cert per CA file per domain when the system processes
+        # concurrent requests to multiple LDAP domains. Using the single CA file with all certs combined
+        # shall get the system working properly.
+        tls_cacertfile: /etc/keystone/ssl/certs/all_ldapdomains_ca.pem

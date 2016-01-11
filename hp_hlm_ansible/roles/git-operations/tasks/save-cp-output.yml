@@ -1,0 +1,83 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+# Tentatively save the output from a successful CP run.
+#
+# We don't yet know if this CP output is going to be used or not,
+# since the user may want to refine their configuration prior to actually
+# running a deployment; nonetheless, the output must be retained.
+#
+# Therefore, we unconditionally copy the cp-persistent state to a new, transient
+# branch: staging-cp-persistent
+# Similarly, we unconditionally copy the ansible output to a new, transient
+# staging-ansible branch.
+# (Any old branches with thes names are deleted).
+#
+# Parameters:
+#   repo: ~/helion
+#   target_dir: ~/cp-run (subdirs of this used as work dirs)
+#   branches:
+#     staging-sp-persistent:
+#       - from: some relative path
+#         to: some relative path
+#       - ... etc ...
+#     staging-ansible:
+#       - ... etc ...
+---
+
+- name: git-operations | save-cp-output | Empty transient branches
+  shell: >
+    if git rev-parse --verify {{ git_operations.temp_cp_branch | quote }};
+    then
+      git branch -D {{ git_operations.temp_cp_branch | quote }}
+    fi &&
+    if git rev-parse --verify {{ git_operations.temp_ansible_branch | quote }};
+    then
+      git branch -D {{ git_operations.temp_ansible_branch | quote }}
+    fi
+  args:
+    chdir: "{{ git_operations.main_repo }}"
+
+- name: git-operations | save-cp-output | Get {{ git_operations.site_branch }} reference
+  shell: >
+    git rev-parse {{ git_operations.site_branch | quote }}
+  args:
+    chdir: "{{ git_operations.main_repo }}"
+  register: site_tag
+
+- name: git-operations | save-cp-output | Save CP outputs
+  include: _persist-to-git.yml
+  vars:
+    repo: "{{ git_operations.main_repo }}"
+    work_dir: "{{ git_operations.cp_scratch_dir }}"
+    commit_msg: "Saved output from CP run on {{ site_tag.stdout }}"
+    branches:
+      - name: "{{ git_operations.temp_cp_branch }}"
+        copies:
+          - from: "{{ git_operations.cp_target_dir }}/{{ git_operations.cp_subdir }}"
+            to: "{{ git_operations.cp_subdir }}"
+      - name: "{{ git_operations.temp_ansible_branch }}"
+        copies:
+          - from: "{{ git_operations.cp_target_dir }}/{{ git_operations.ansible_subdir }}"
+            to: "{{ git_operations.ansible_subdir }}"
+
+- name: git-operations | save-cp-output | Copy my_cloud/info into place
+  include: _save-info-directory.yml
+  vars:
+    repo: "{{ git_operations.main_repo }}"
+    work_dir: "{{ git_operations.cp_target_dir }}"
+    from: "{{ git_operations.cp_info_subdir }}"
+    to: "{{ git_operations.cp_info_target }}"

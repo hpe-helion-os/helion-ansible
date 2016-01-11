@@ -1,0 +1,31 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+# The following relative symlinks are created under the
+# my_cloud/config directory.
+---
+symlinks:
+  "ceilometer/ceilometer.conf.j2": "roles/_CEI-CMN/templates/ceilometer.conf.j2"
+  "ceilometer/collector.conf.j2": "roles/CEI-COL/templates/collector.conf.j2"
+  "ceilometer/expirer.conf.j2": "roles/CEI-EXP/templates/expirer.conf.j2"
+  "ceilometer/ceilometer-expirer-cron.j2": "roles/CEI-EXP/templates/ceilometer-expirer-cron.j2"
+  "ceilometer/pipeline-agent-central.yaml.j2": "roles/CEI-CAG/templates/pipeline-agent-central.yaml.j2"
+  "ceilometer/agent-central.conf.j2": "roles/CEI-CAG/templates/agent-central.conf.j2"
+  "ceilometer/api_paste.ini.j2": "roles/CEI-API/templates/api_paste.ini.j2"
+  "ceilometer/policy.json.j2": "roles/CEI-API/templates/policy.json.j2"
+  "ceilometer/pipeline-api.yaml.j2": "roles/CEI-API/templates/pipeline-api.yaml.j2"
+  "ceilometer/agent-notification.conf.j2": "roles/CEI-NAG/templates/agent-notification.conf.j2"
+  "ceilometer/pipeline-agent-notification.yaml.j2": "roles/CEI-NAG/templates/pipeline-agent-notification.yaml.j2"

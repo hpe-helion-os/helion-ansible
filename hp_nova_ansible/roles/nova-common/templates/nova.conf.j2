@@ -1,0 +1,174 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+# This configuration file includes the default values for HOS
+# Changes may be made to this file by the customer.
+# Layout / order of settings in this file can be found:
+# http://docs.openstack.org/kilo/config-reference/content/list-of-compute-config-options.html
+
+[DEFAULT]
+
+# API
+api_paste_config = {{ api_paste_config }}
+api_rate_limit = False
+enable_new_services = True
+enabled_apis = osapi_compute,metadata
+multi_instance_display_name_template = %(name)s-%(count)s
+osapi_compute_ext_list = Admin_actions,Aggregates,Availability_zone,Config_drive,Console_output,Consoles,Createserverext,Evacuate,Extended_availability_zone,Extended_floating_ips,Extended_hp_hypervisors,Extended_hypervisors,Extended_ips,Extended_ips_mac,Extended_quotas,Extended_server_attributes,Extended_services,Extended_status,Flavor_access,Flavor_disabled,Flavor_rxtx,Flavor_swap,Flavorextradata,Flavorextraspecs,Flavormanage,Floating_ips,Hide_server_addresses,Hosts,Hypervisors,Image_size,Instance_actions,Instance_usage_audit_log,Keypairs,Multiple_create,Quota_classes,Quotas,Rescue,Scheduler_hints,Security_groups,Server_diagnostics,Server_password,Server_start_stop,Services,Simple_tenant_usage,Used_limits,Used_limits_for_admin,User_data,Volumes,Server_groups,Server_group_quotas,Attach_interfaces,Block_device_mapping_v2_boot,Extended_rescue_with_image,Migrations,Console_auth_tokens,Extended_volumes,Hypervisor_status,Server_list_multi_status,Server_usage,Extended_services_delete,Shelve,Volume_attachment_update,Extended_evacuate_find_host,Multinic,User_quotas,Server_external_events
+osapi_compute_extension = nova.api.openstack.compute.contrib.select_extensions
+osapi_compute_link_prefix = {{ osapi_compute_link_prefix }}
+osapi_compute_listen = {{ osapi_compute_listen }}
+# Please change this value (if you need to) in helion/hos/ansible/roles/nova-common/defaults/main.yml , do not remove it here
+osapi_compute_workers = {{ osapi_compute_workers }}
+wsgi_default_pool_size = 100
+
+# Authentication
+auth_strategy = keystone
+
+# CA & SSL
+keys_path = {{ keys_path }}
+
+# common
+memcached_servers =
+my_ip = {{ my_ip }}
+notify_api_faults = True
+notify_on_state_change = vm_and_task_state
+rootwrap_config = {{ rootwrap_config }}
+state_path = {{ state_path }}
+
+# Compute
+image_cache_manager_interval = 360
+instance_usage_audit = True
+instance_usage_audit_period = hour
+resume_guests_state_on_host_boot = True
+running_deleted_instance_action = reap
+vif_plugging_is_fatal = False
+vif_plugging_timeout = 30
+
+# Hypervisor
+virt_mkfs = linux-ext4=mkfs -t ext4 -F -L %(fs_label)s %(target)s
+
+# Logging
+debug = True
+default_log_levels = nova.openstack.common.rpc.amqp=INFO,nova.scheduler.filters.retry_filter=INFO,nova.scheduler.filters.image_props_filter=INFO,nova.scheduler.filters.disk_filter=INFO,nova.servicegroup.drivers.db=INFO,nova.servicegroup.api=INFO,nova.scheduler.host_manager=INFO
+logging_context_format_string = %(asctime)s.%(msecs)03d %(process)d %(levelname)s %(name)s [%(request_id)s %(user)s %(tenant)s] %(instance)s%(message)s
+log_dir = {{ log_dir }}
+
+# Metadata
+metadata_listen = {{ metadata_listen }}
+# Please change this value (if you need to) in helion/hos/ansible/roles/nova-common/defaults/main.yml , do not remove it here
+metadata_workers = {{ metadata_workers }}
+
+# Network
+default_floating_pool = ext-net
+dhcpbridge = {{ dhcpbridge }}
+dhcpbridge_flagfile = {{ dhcpbridge_flagfile }}
+firewall_driver = nova.virt.firewall.NoopFirewallDriver
+linuxnet_interface_driver = nova.network.linux_net.LinuxOVSInterfaceDriver
+network_api_class = nova.network.neutronv2.api.API
+security_group_api = neutron
+
+# Oslo messaging
+notification_driver = messaging
+notification_topics = notifications
+
+# Policy
+resize_fs_using_block_device = True
+until_refresh = 1
+
+# Quota
+quota_cores = -1
+quota_injected_files = 5
+quota_injectd_file_content_bytes = 10240
+quota_instances = 40
+quota_metadata_items = 50
+quota_ram = 15360
+
+# Scheduler
+ram_allocation_ratio = 1.0
+ram_weight_multiplier = -1.0
+reserved_host_disk_mb = 10240
+reserved_host_memory_mb = 2816
+scheduler_available_filters = nova.scheduler.filters.all_filters
+scheduler_default_filters = AvailabilityZoneFilter,RetryFilter,ComputeFilter,DiskFilter,RamFilter,ImagePropertiesFilter,ServerGroupAffinityFilter,ServerGroupAntiAffinityFilter,ComputeCapabilitiesFilter,NUMATopologyFilter
+scheduler_driver = nova.scheduler.filter_scheduler.FilterScheduler
+scheduler_host_subset_size = 5
+scheduler_weight_classes = nova.scheduler.weights.ram.RAMWeigher
+
+# VNC
+novncproxy_host = {{ novncproxy_host }}
+novncproxy_port = {{ novncproxy_port }}
+vncserver_listen = {{ vncserver_listen }}
+vncserver_proxyclient_address = {{ vncserver_proxyclient_address }}
+
+# Volumes (Cinder)
+volume_api_class = nova.volume.cinder.API
+volume_usage_poll_interval = 3600
+
+# End of [DEFAULT] section
+
+
+[cinder]
+catalog_info = volumev2:cinderv2:adminURL
+cinder_ca_certificates_file = /etc/ssl/certs/ca-certificates.crt
+
+[database]
+backend = sqlalchemy
+connection = {{ database_connection }}
+
+[glance]
+api_servers = {{ glance_api_servers }}
+protocol = http
+
+[keystone_authtoken]
+admin_password = {{ nova_admin_password }}
+admin_tenant_name = {{ nova_admin_tenant_name }}
+admin_user = {{ nova_admin_user }}
+auth_uri = {{ keystone_auth_uri }}
+cafile = /etc/ssl/certs/ca-certificates.crt
+identity_uri = {{ keystone_identity_uri }}
+signing_dir = /tmp/keystone-signing-nova
+
+[neutron]
+admin_auth_url = {{ neutron_admin_auth_url }}
+admin_password = {{ neutron_admin_password }}
+admin_tenant_name = {{ neutron_admin_tenant_name }}
+admin_username = {{ neutron_admin_username }}
+metadata_proxy_shared_secret = {{ neutron_metadata_proxy_shared_secret }}
+neutron_auth_strategy = keystone
+neutron_ca_certificates_file = /etc/ssl/certs/ca-certificates.crt
+service_metadata_proxy = True
+url = {{ neutron_url }}
+timeout = 300
+
+[osapi_v3]
+enabled = True
+
+[oslo_concurrency]
+lock_path = {{ lock_path }}
+
+[oslo_messaging_rabbit]
+rabbit_hosts = {{ rabbit_hosts }}
+rabbit_password = {{ rabbit_password }}
+rabbit_userid = {{ rabbit_userid }}
+rpc_conn_pool_size = 10
+
+[ssl]
+ca_file = /etc/ssl/certs/ca-certificates.crt
+
+### End of File  ###
+## Do NOT put anything after this line ##

@@ -1,0 +1,78 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+cinder_component: cinder-api
+
+# flag to track restart requirement during reconfigure
+cinder_api_restart_required: false
+# flag to track if venv activation is required during start
+cinder_api_activate_required: false
+
+# Default service directories
+cinder_api_conf_dir: "{{ 'cinder-api' | config_dir() }}"
+cinder_api_venv_share_dir: "{{ 'cinder-api' | share_dir() }}/cinder"
+
+# Files that need to be symlinked from versioned conf dir to
+# global conf dir
+cinder_api_conf_symlinks:
+  - { dst: '{{ cinder_dir }}/api_audit_map.conf', src: 'api_audit_map.conf' }
+  - { dst: '{{ cinder_dir }}/cinder.conf', src: 'cinder.conf' }
+
+# flag to enable audit middleware in cinder api pipeline
+cinder_api_audit_enable: false
+
+cinder_db_login_host: "{{ CND_API.consumes_FND_MDB.vips.public[0].host }}"
+cinder_db_login_user: "{{ FND_MDB.vars.mysql_service_user }}"
+cinder_db_login_password: "{{ FND_MDB.vars.mysql_service_pwd | quote }}"
+cinder_db_admin_user: "{{ CND_API.consumes_FND_MDB.vars.mysql_admin_user }}"
+cinder_db_admin_password: "{{ CND_API.consumes_FND_MDB.vars.mysql_admin_password | quote }}"
+
+
+cinder_api_v1:
+  admin_url: >
+    {{ CND_API | item ('advertises.vips.admin[0].url',
+       default='http://'
+               ~ CND_API.advertises.vips.admin[0].host ~ ':'
+               ~ CND_API.advertises.vips.admin[0].port) }}/v1/%(tenant_id)s
+  internal_url: >
+    {{ CND_API | item('advertises.vips.private[0].url',
+       default='http://'
+               ~ CND_API.advertises.vips.private[0].host ~ ':'
+               ~ CND_API.advertises.vips.private[0].port) }}/v1/%(tenant_id)s
+  public_url: >
+    {{ CND_API | item('advertises.vips.public[0].url',
+       default='http://'
+               ~ CND_API.advertises.vips.public[0].host ~ ':'
+               ~ CND_API.advertises.vips.public[0].port) }}/v1/%(tenant_id)s
+
+
+cinder_api_v2:
+  admin_url: >
+    {{ CND_API | item ('advertises.vips.admin[0].url',
+       default='http://'
+               ~ CND_API.advertises.vips.admin[0].host ~ ':'
+               ~ CND_API.advertises.vips.admin[0].port) }}/v2/%(tenant_id)s
+  internal_url: >
+    {{ CND_API | item ('advertises.vips.private[0].url',
+       default='http://'
+               ~ CND_API.advertises.vips.private[0].host ~ ':'
+               ~ CND_API.advertises.vips.private[0].port) }}/v2/%(tenant_id)s
+  public_url: >
+    {{ CND_API | item('advertises.vips.public[0].url',
+       default='http://'
+               ~ CND_API.advertises.vips.public[0].host ~ ':'
+               ~ CND_API.advertises.vips.public[0].port) }}/v2/%(tenant_id)s

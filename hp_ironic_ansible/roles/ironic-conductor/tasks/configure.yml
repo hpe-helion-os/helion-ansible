@@ -1,0 +1,94 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- include: ../../ironic-common/tasks/_set_directories.yml
+  vars:
+    ironic_install_package_result: "{{ ironic_conductor_install_result }}"
+
+- name: Ironic Conductor | configure | create directories required by ironic-conductor
+  file: path={{ item.path }} state=directory  owner={{ item.owner }} group={{ item.group }}
+  with_items:
+    - { path: "{{ ironic_images_path }}", mode: "0775", owner: "{{ ironic_user }}", group: "{{ ironic_group }}" }
+    - { path: "{{ instance_master_path }}", mode: "0775", owner: "{{ ironic_user }}", group: "{{ ironic_group }}" }
+
+- include: ../../ironic-common/tasks/_write_conf.yml
+  src: "ironic-conductor.conf.j2"
+  dest: "{{ ironic_service_conf_dir }}/ironic-conductor.conf"
+
+- name: Ironic Conductor | configure | notify on ironic-conductor.conf change
+  set_fact:
+    ironic_conductor_restart_required: true
+  when: write_conf_result.changed
+
+- name: Ironic Conductor | configure | Copy Apache vhost config for Ironic
+  template:
+    src: "ironic.conf.j2"
+    dest: "/etc/apache2/sites-available/ironic.conf"
+
+- name: Ironic Conductor | configure | Setup ironic user to allow sudo to run ironic-rootwrap without password
+  template:
+    src: "ironic-rootwrap.j2"
+    dest: /etc/sudoers.d/ironic-rootwrap
+    owner: root
+    group: root
+    mode: 0644
+    validate: 'visudo -cf %s'
+
+- name: Ironic Conductor | configure | Create a symbolic link between filesystem and venv for ironic-rootwrap
+  file:
+    src: "{{ ironic_service_bin_dir }}/ironic-rootwrap"
+    dest: /usr/local/bin/ironic-rootwrap
+    owner: "{{ ironic_user }}"
+    group: "{{ ironic_group }}"
+    force: yes
+    state: link
+
+- name: Ironic Conductor | configure | stop and disable the default tftpd-hpa service
+  service: name=tftpd-hpa state=stopped enabled=no
+
+- name: "Ironic Conductor | configure | Creating map-file"
+  template:
+    src: "map-file.j2"
+    dest: "{{ ironic_images_path }}/map-file"
+    owner: "{{ ironic_user }}"
+    group: "{{ ironic_group }}"
+    mode: 0644
+
+- name: "Ironic Conductor | configure | Creating /etc/xinetd.d/tftp"
+  template:
+    src: "tftp.j2"
+    dest: "/etc/xinetd.d/tftp"
+    owner: "root"
+    group: "root"
+    mode: 0644
+  notify: restart xinetd
+
+- name: Ironic Conductor | configure | copy undionly.kpxe, pxelinux.0 and ldlinux.c32
+  command: cp "{{ item.src }}" "{{ item.dest }}" creates="{{ item.dest }}"
+  with_items:
+    - { src: "{{ host_ipxe }}", dest: "{{ ironic_images_path }}/undionly.kpxe"}
+    - { src: "{{ host_pxelinux }}", dest: "{{ ironic_images_path }}/pxelinux.0"}
+    - { src: "{{ host_ldlinux }}", dest: "{{ ironic_images_path }}/ldlinux.c32"}
+
+- name: Ironic Conductor | configure | change undionly.kpxe, pxelinux.0 and ldlinux.c32 permissions
+  file: path="{{ item }}" owner="{{ ironic_user }}" group="{{ ironic_user }}" mode=0644
+  with_items:
+    - "{{ ironic_images_path }}/undionly.kpxe"
+    - "{{ ironic_images_path }}/pxelinux.0"
+    - "{{ ironic_images_path }}/ldlinux.c32"
+
+- include: ../../ironic-common/tasks/configure.yml

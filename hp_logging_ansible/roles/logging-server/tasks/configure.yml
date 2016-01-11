@@ -1,0 +1,67 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+# Configure Elasticsearch
+#------------------------------------------------------------------------------
+- name: logging-server | configure | Configure Elasticsearch process options
+  template: src=elasticsearch-default.j2 dest=/etc/default/elasticsearch
+  notify: restart_elasticsearch
+
+- name: logging-server | configure | Configure Elasticsearch options
+  template: src=elasticsearch.yml.j2 dest=/etc/elasticsearch/elasticsearch.yml
+  notify: restart_elasticsearch
+
+- name: logging-server | configure | Configure Elasticsearch logging options
+  template: src=logging.yml.j2 dest=/etc/elasticsearch/logging.yml
+  notify: restart_elasticsearch
+
+# Configure Logstash
+#------------------------------------------------------------------------------
+- name: logging-server | configure | Configure Logstash
+  template: src=logstash-default.j2 dest=/etc/default/logstash owner={{logstash_user}} group={{logstash_group}} mode=0600
+  notify: restart_logstash
+
+- name: logging-server | configure | Configure Logstash sources
+  template: src=logstash.conf.j2 dest=/etc/logstash/conf.d/logstash.conf owner={{logstash_user}} group={{logstash_group}} mode=0600
+  notify: restart_logstash
+
+# Configure Kibana
+#------------------------------------------------------------------------------
+- name: logging-server | configure | Configure Kibana
+  template: src=kibana.yml.j2 dest={{ kibana_path }}/config/kibana.yml
+  notify: restart_kibana
+
+- name: logging-server | configure | Configure Kibana htpasswd
+  htpasswd: path={{ kibana_path }}/kibana.htpasswd name={{ kibana_user }} password={{ kibana_pass }} owner=root mode=0644
+  notify: reload_apache
+
+- name: logging-server | configure | Configure Kibana/Apache virtualhost available
+  template: src=kibana-apache2.conf.j2 dest=/etc/apache2/sites-available/kibana-apache2.conf
+  notify: reload_apache
+
+- name: logging-server | configure | Configure Kibana/Apache virtualhost enabled
+  file: src=/etc/apache2/sites-available/kibana-apache2.conf dest=/etc/apache2/sites-enabled/kibana-apache2.conf state=link
+  notify: reload_apache
+
+# Configure Curator
+#------------------------------------------------------------------------------
+- name: logging-server | configure | Remove old curator config file
+  file: path=/etc/cron.hourly/prune_es_indices state=absent
+
+- name: logging-server | configure | Configure Curator
+  template: src=prune_es_indices.sh.j2 dest=/etc/cron.hourly/prune_es_indices mode=0755
+  when: curator_enable

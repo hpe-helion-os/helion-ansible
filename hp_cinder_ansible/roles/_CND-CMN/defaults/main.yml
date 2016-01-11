@@ -1,0 +1,112 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+cinder_user: cinder
+cinder_group: cinder
+
+# directories
+cinder_dir: /etc/cinder
+cinder_rootwrap_dir: /etc/cinder/rootwrap.d
+cinder_logs_dir: /var/log/cinder
+cinder_state_path: /var/lib/cinder
+# TODO: set image_conversion_dir
+cinder_image_conversion_dir: /var/lib/cinder
+# TODO: check if installation_directory is needed
+installation_directory: /usr/share
+
+# logging
+cinder_verbose: True
+cinder_debug: True
+
+# recommended DEBUG for Cinder
+cinder_default_loglevel: DEBUG
+# recommended INFO for logstash
+cinder_logstash_default_loglevel: INFO
+
+# cinder defaults should take precedence
+cinder_loglevel: "{{ cinder_default_loglevel | default(helion_loglevel) }}"
+cinder_logstash_loglevel: "{{ cinder_logstash_default_loglevel | default(helion_loglevel) }}"
+
+cinder_iscsi_helper: tgtadm
+#cinder_keymgr_fixed_key:
+cinder_control_exchange: cinder
+cinder_notification_driver: messaging
+cinder_osapi_volume_listen: "{{ host.vars.my_network_name }}"
+cinder_bind_host: "{{ host.vars.my_network_name }}"
+
+# TODO: set service password
+cinder_service_password: cinderServicePassword
+
+# database
+# DB password and host set by configure
+cinder_db: "mysql://{{ CND_API.consumes_FND_MDB.vars.mysql_admin_user }}:{{ CND_API.consumes_FND_MDB.vars.mysql_admin_password | urlencode }}@{{ CND_API.consumes_FND_MDB.vips.private[0].host }}/cinder"
+cinder_max_overflow: 500
+cinder_max_pool_size: 500
+cinder_min_pool_size: 100
+
+# Keystone
+cinder_keystone:
+  admin_tenant_name: "{{ KEY_API.vars.keystone_service_tenant }}"
+  admin_user: "{{ KEY_API.vars.keystone_admin_user }}"
+  admin_password: "{{ KEY_API.vars.keystone_admin_pwd | quote }}"
+  default_domain_name: "{{ KEY_API.vars.keystone_default_domain }}"
+  admin_url: >
+    {{ CND_API | item('consumes_KEY_API.vips.admin[0].url',
+       default='http://'
+               ~ KEY_API.advertises.vips.admin[0].host ~ ':'
+               ~ KEY_API.advertises.vips.admin[0].port) }}/v3
+  identity_v2_admin_url: >
+    {{ CND_API | item('consumes_KEY_API.vips.admin[0].url',
+       default='http://'
+               ~ KEY_API.advertises.vips.admin[0].host ~ ':'
+               ~ KEY_API.advertises.vips.admin[0].port) }}/v2.0
+  region_name: "{{ KEY_API.advertises.vips.public[0].region_name }}"
+  internal_url: >
+    {{ CND_API | item('consumes_KEY_API.vips.private[0].url',
+       default='http://'
+               ~ KEY_API.advertises.vips.private[0].host ~ ':'
+               ~ KEY_API.advertises.vips.private[0].port) }}
+
+cinder_identity_admin_user: >
+    {{ CND_API | item('consumes_KEY_API.vars.keystone_cinder_user',
+                      default='cinder') }}
+cinder_identity_admin_password: >
+    {{ CND_API | item('consumes_KEY_API.vars.keystone_cinder_password',
+                 default='cindre') }}
+
+
+# Glance
+cinder_glance_host: "{{ GLA_API.advertises.vips.private[0].host }}"
+cinder_glance_port: "{{ GLA_API.advertises.vips.private[0].port }}"
+
+# Rabbit
+cinder_rabbit_hosts: "{% for x in CND_API.consumes_FND_RMQ.members.private %}{{ x.host }}:{{ x.port }}{%if not loop.last %},{% endif %}{% endfor %}"
+cinder_rabbit_userid: "{{ CND_API.consumes_FND_RMQ.vars.rmq_service_user }}"
+cinder_rabbit_password: "{{ CND_API.consumes_FND_RMQ.vars.rmq_service_password }}"
+
+# Default service directories
+cinder_common_conf_dir: "{{ 'cinder-common' | config_dir() }}"
+cinder_common_bin_dir: "{{ 'cinder-common' | bin_dir }}"
+cinder_common_venv_share_dir: "{{ 'cinder-common' | share_dir }}/cinder"
+
+cinder_logging_context_formatter: oslo_log.formatters.ContextFormatter
+
+# flag set in configure playbooks to trigger all cinder services to restart
+cinder_restart_required: false
+
+# cinder_lvm_device_group will test as false if no matching device group is found
+cinder_lvm_device_group: "{{ host.my_disk_models | device_group('cinder-volume', 'cinder') }}"

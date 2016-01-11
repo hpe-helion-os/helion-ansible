@@ -1,0 +1,38 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+{
+"context_is_admin": "role:admin",
+"context_is_project": "project_id:%(target.project_id)s",
+"context_is_owner": "user_id:%(target.user_id)s",
+"segregation": "rule:context_is_admin",
+
+"telemetry:create_samples": "hp_disabled_rule:not_implemented",
+
+"telemetry:get_alarm": "hp_disabled_rule:not_implemented",
+"telemetry:change_alarm": "hp_disabled_rule:not_implemented",
+"telemetry:delete_alarm": "hp_disabled_rule:not_implemented",
+"telemetry:alarm_history": "hp_disabled_rule:not_implemented",
+"telemetry:change_alarm_state": "hp_disabled_rule:not_implemented",
+"telemetry:get_alarm_state": "hp_disabled_rule:not_implemented",
+"telemetry:create_alarm": "hp_disabled_rule:not_implemented",
+"telemetry:get_alarms": "hp_disabled_rule:not_implemented",
+
+"telemetry:query_sample": "hp_disabled_rule:not_implemented",
+
+"default": ""
+}

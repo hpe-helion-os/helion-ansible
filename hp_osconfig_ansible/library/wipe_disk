@@ -1,0 +1,95 @@
+#!/usr/bin/python
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+DOCUMENTATION = '''
+---
+module: wipe_disk
+short_description: A module for wiping all sd* disks excluding sda
+options:
+  devices:
+    description:
+      - an ansible list of the drives to be wiped
+    required: true
+author:
+'''
+import os
+import glob
+from ansible.module_utils.basic import *
+
+
+class Wiper(object):
+
+    def __init__(self, module):
+        self.module = module
+
+    def wipedisks(self, partitions):
+        ordered_partitions = list(reversed(sorted(partitions)))
+        for partition_name in ordered_partitions:
+            self.wipedisk(partition_name)
+        self.cleanuplvm()
+        self.flush()
+        return
+
+    def wipedisk(self, partition_name):
+        print ">>> clearing GPT(MBR) beginning of /dev/" + partition_name
+        command = "sudo dd if=/dev/zero of=/dev/" + partition_name
+        arguments = " bs=1048576 count=1000"
+        command = command + arguments
+        os.system(command)
+        print ""
+        print ">>> clearing GPT(MBR) end of /dev/" + partition_name
+        command = "sudo blockdev --getsz /dev/" + partition_name
+        dsize = os.popen(command).read()
+        dsize = dsize.replace("\n", "")
+        print "dsize = " + dsize
+        seek_value = int(dsize)*512/1048576 - 1000
+        command = "sudo dd if=/dev/zero of=/dev/" + partition_name
+        arguments = " bs=1048576 count=1000 seek=" + str(seek_value)
+        oflag = " oflag=direct"
+        command = command + arguments + oflag
+        os.system(command)
+        return
+
+    def cleanuplvm(self):
+        # There could have been stale lvm vols instantiated
+        # remove those not in use
+        devs=glob.glob('/dev/dm*')
+        for dev in devs:
+            command="sudo dmsetup remove %s" % (dev)
+            os.system(command)
+        return
+
+    def flush(self):
+        command="echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null"
+        os.system(command)
+
+
+def main():
+    module = AnsibleModule(
+        argument_spec=dict(
+            drives=dict(required=True),
+        )
+    )
+    try:
+        partitions = module.params["drives"]
+        wipe = Wiper(module)
+        wipe.wipedisks(partitions)
+    except Exception as e:
+        module.fail_json(msg='Exception: %s' % e)
+    else:
+        module.exit_json(change=True)
+
+main()

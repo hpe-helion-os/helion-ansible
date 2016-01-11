@@ -1,0 +1,81 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- hosts: KEY-API
+  roles:
+    - role: KEY-API
+      become: yes
+  tasks:
+    - include: roles/KEY-API/tasks/install.yml
+      become: yes
+
+- hosts: FND-MDB
+  roles:
+    - role: KEY-API
+      become: yes
+  tasks:
+    - include: roles/KEY-API/tasks/db_create.yml
+      become: yes
+
+- hosts: KEY-API
+  roles:
+    - role: KEY-API
+      become: yes
+  tasks:
+    - include: roles/KEY-API/tasks/db_configure.yml
+      become: yes
+
+- hosts: KEY-API
+  roles:
+    - KEY-API
+  tasks:
+    - include: roles/KEY-API/tasks/configure.yml
+
+- hosts: KEY-API
+  roles:
+    - role: KEY-API
+      become: yes
+  tasks:
+    - include: roles/KEY-API/tasks/start.yml
+      become: yes
+
+- hosts: KEY-API
+  roles:
+    - role: keystone-monitor
+      become: yes
+  tasks:
+    - include: roles/keystone-monitor/tasks/local_monitor.yml
+      become: yes
+
+- hosts: MON-API
+  roles:
+    - role: keystone-monitor
+      become: yes
+  tasks:
+    - include: roles/keystone-monitor/tasks/remote_monitor.yml
+      become: yes
+
+# Register endpoint using keystone client.
+- hosts: KEY-CLI
+  roles:
+    - role: keystone-post-configure
+      become: yes
+  tasks:
+    - include: roles/keystone-post-configure/tasks/keystone_conf.yml
+      ansible_python_interpreter: "{{ KEY_CLI.vars.keystone_client_python_interpreter }}"
+      when: ( 'KEY-API' in groups ) and ( ( groups['KEY-API'] | length ) > 0 )
+      become: yes

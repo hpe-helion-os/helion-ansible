@@ -1,0 +1,81 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Common osconfig tasks we want to do during deployment and during an upgrade
+---
+- hosts: localhost
+  roles:
+    - osconfig
+  tasks:
+    - include: roles/osconfig/tasks/setup-resolv-conf.yml
+    - include: roles/osconfig/tasks/copy-hlm-version-file.yml
+
+- hosts: resources
+  roles:
+    - osconfig
+    - cobbler
+    - deployer-setup
+  tasks:
+    - include: roles/osconfig/tasks/check-for-apt-repo.yml
+    - include: roles/cobbler/tasks/set-vars.yml
+    - include: roles/osconfig/tasks/setup-apt.yml
+    - include: roles/osconfig/tasks/marker.yml
+
+- hosts: "resources;!NOV-ESX;!NEU-OVSVAPP"
+  sudo: yes
+  roles:
+    - multipath
+  tasks:
+    - include: roles/multipath/tasks/install.yml
+
+- hosts: resources
+  sudo: yes
+  roles:
+    - diskconfig
+  tasks:
+    - include: roles/diskconfig/tasks/install.yml
+    - include: roles/diskconfig/tasks/configure.yml
+
+- hosts: resources
+  roles:
+    - cobbler
+    - osconfig
+    - package-consumer
+  tasks:
+    - include: roles/osconfig/tasks/setup-sudo-conf.yml
+    - include: roles/osconfig/tasks/setup-hosts-file.yml
+    - include: roles/osconfig/tasks/set-hostname.yml
+    - include: roles/osconfig/tasks/setup-resolv-conf.yml
+    - include: roles/osconfig/tasks/set-timezone.yml
+    - include: roles/osconfig/tasks/install-ansible-prereqs.yml
+    - include: roles/package-consumer/tasks/install.yml
+    - include: roles/package-consumer/tasks/configure.yml
+    - include: roles/osconfig/tasks/copy-hlm-version-file.yml
+    - include: roles/osconfig/tasks/setup-crash-dump.yml
+    - include: roles/osconfig/tasks/setup-debug-tools.yml
+
+# For now, do not run the configure task
+- hosts: resources
+  roles:
+    - osconfig-probe
+  tasks:
+    - include: roles/osconfig-probe/tasks/install.yml
+
+- hosts: resources
+  roles:
+    - osconfig-common
+
+- include: sysctl.yml
+- include: udev.yml

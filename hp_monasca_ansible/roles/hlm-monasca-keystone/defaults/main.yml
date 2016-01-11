@@ -1,0 +1,38 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+keystone_admin: "{{KEY_API.vars.keystone_admin_user}}"
+keystone_admin_password: "{{ KEY_API.vars.keystone_admin_pwd | quote }}"
+keystone_default_domain_name: "{{ KEY_API.vars.keystone_default_domain }}"
+keystone_admin_project: "{{KEY_API.vars.keystone_admin_tenant}}"
+keystone_region: "{{MON_API.advertises.vips.private[0]['region_name']}}"
+keystone_url: "{{KEY_API.advertises.vips.admin[0].url}}/v3"
+mon_keystone_users:
+  - username: "{{MON_API.consumes_KEY_API.vars.keystone_monasca_user}}"
+    password: "{{MON_API.consumes_KEY_API.vars.keystone_monasca_password| quote }}"
+    project: "{{keystone_admin_project}}"
+    role: monasca-user
+  - username: "{{MON_AGN.consumes_KEY_API.vars.keystone_monasca_agent_user}}"
+    password: "{{MON_AGN.consumes_KEY_API.vars.keystone_monasca_agent_password| quote }}"
+    project: "{{keystone_admin_project}}"
+    role: monasca-agent
+  - username: "{{keystone_admin}}"
+    project: "{{keystone_admin_project}}"
+    password: "{{keystone_admin_password}}"
+    role: monasca-user
+monasca_private_api_url: "{{MON_API.advertises.vips.private[0].url}}/v2.0"
+monasca_public_api_url: "{{MON_API.advertises.vips.public[0].url}}/v2.0"

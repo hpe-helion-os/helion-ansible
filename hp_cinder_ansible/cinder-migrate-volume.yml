@@ -1,0 +1,97 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+# Usage:
+# ansible-playbook -i hosts/verb_hosts cinder-migrate-volume.yml
+# --extra-vars "migrate_host=<HOSTNAME>"
+# HOSTNAME is the name of the host to migrate to
+
+# Verify that the specified hostname is valid before performing migrate
+- hosts: CND-*
+  roles:
+    - _CND-CMN
+  tasks:
+    - include: roles/_CND-CMN/tasks/check_migrate_hostname.yml destination_host={{ migrate_host }}
+
+# Stop cinder volume monitoring on all CND-VOL hosts.
+# - avoid false alarms during migration
+- hosts: CND-VOL
+  sudo: yes
+  roles:
+    - {role: monasca-agent, run_mode: Use}
+    - cinder-monitor
+  vars_files:
+    - _cinder_vars.yml
+  tasks:
+    - include: roles/cinder-monitor/tasks/monasca_alarms.yml cinder_volume_monitor_state=absent
+
+# Stop cinder volume on all CND-VOL hosts. cinder_volume_flag is set to
+# False, this will set the cindervolume running local fact to False
+# for all hosts. This is done because we are migrating the cinder volume
+# service. The CND-VOL start task will subsequently set the cindervolume
+# running local fact to True on the host specified by the user.
+
+- hosts: CND-VOL
+  sudo: yes
+  roles:
+    - CND-VOL
+
+  tasks:
+    - include: roles/CND-VOL/tasks/stop.yml cinder_volume_flag=False
+
+# Stop Cinder Backup on all hosts
+- hosts: CND-BCK
+  sudo: yes
+  roles:
+    - CND-BCK
+
+  tasks:
+    - include: roles/CND-BCK/tasks/stop.yml
+
+# Start Cinder Volume on target host
+- hosts: '{{ migrate_host }}'
+  sudo: yes
+  roles:
+    - CND-VOL
+
+  tasks:
+    - include: roles/CND-VOL/tasks/install.yml
+    - include: roles/CND-VOL/tasks/configure.yml
+    - include: roles/CND-VOL/tasks/start.yml
+    - include: roles/CND-VOL/tasks/populate.yml
+
+# Start Cinder Backup on target host
+- hosts: '{{ migrate_host }}'
+  sudo: yes
+  roles:
+    - CND-BCK
+
+  tasks:
+    - include: roles/CND-BCK/tasks/install.yml
+    - include: roles/CND-BCK/tasks/configure.yml
+    - include: roles/CND-BCK/tasks/start.yml
+    - include: roles/CND-BCK/tasks/populate.yml
+
+# Start cinder volume monitoring on all CND-VOL hosts.
+- hosts: CND-VOL
+  sudo: yes
+  roles:
+    - {role: monasca-agent, run_mode: Use}
+    - cinder-monitor
+  vars_files:
+    - _cinder_vars.yml
+  tasks:
+    - include: roles/cinder-monitor/tasks/monasca_alarms.yml cinder_volume_monitor_state=present

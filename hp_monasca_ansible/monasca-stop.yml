@@ -1,0 +1,118 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: Stop monasca-thresh
+  hosts: MON-THR
+  sudo: yes
+  tags: [thresh]
+  vars_files:
+    - roles/monasca-variables/defaults/main.yml
+    - roles/storm/vars/nodes.yml
+  vars:
+    run_mode: Stop
+  roles:
+    - {role: monasca-thresh, tags: [thresh], when: storm_nimbus_enabled}
+
+- name: Stop storm-supervisor
+  hosts: MON-THR
+  sudo: yes
+  tags: [storm, thresh]
+  vars_files:
+    - roles/monasca-variables/defaults/main.yml
+    - roles/storm/vars/nodes.yml
+  vars:
+    run_mode: Stop
+  roles:
+    - {role: storm, tags: [storm, thresh], when: storm_supervisor_enabled}
+
+- name: Stop storm-nimbus
+  hosts: MON-THR[0]
+  sudo: yes
+  tags: [storm, thresh]
+  vars_files:
+    - roles/monasca-variables/defaults/main.yml
+    - roles/storm/vars/nodes.yml
+  vars:
+    run_mode: Stop
+  roles:
+    - {role: storm, tags: [storm, thresh], when: storm_nimbus_enabled}
+
+- name: Stop monasca-notification
+  hosts: MON-NTF
+  sudo: yes
+  tags: [notification]
+  vars:
+    run_mode: Stop
+  roles:
+    - {role: monasca-notification, tags: [notification]}
+
+- name: Stop monasca-persister
+  hosts: MON-PST
+  sudo: yes
+  tags: [persister]
+  vars:
+    run_mode: Stop
+  roles:
+    - {role: monasca-persister, tags: [persister]}
+
+- name: Stop monasca-api
+  hosts: MON-API
+  sudo: yes
+  tags: [monasca-api]
+  vars:
+    run_mode: Stop
+  roles:
+    - {role: monasca-api, tags: [monasca-api]}
+
+- name: Stop influxdb
+  hosts: FND-IDB
+  sudo: yes
+  tags: [influxdb]
+  vars:
+    run_mode: Stop
+  pre_tasks:
+    - include_vars: roles/monasca-variables/defaults/main.yml
+  roles:
+    - {role: influxdb, when: database_type == 'influxdb', tags: [influxdb]}
+
+- name: Stop vertica
+  hosts: FND-VDB
+  sudo: yes
+  tags: [vertica]
+  vars:
+    run_mode: Stop
+    stop_cluster: True
+  pre_tasks:
+    - include_vars: roles/monasca-variables/defaults/main.yml
+    - name: Determine if we are stopping the cluster or only one node
+      set_fact:
+        stop_cluster: False
+      when: ( database_type == 'vertica' and {{ FND_VDB.members.private }} | length ) != ( {{ play_hosts }} | length )
+    - name: Fail if not stopping cluster and if cluster will not have quorum
+      fail:
+         msg: Must stop entire cluster or less than half of Vertica nodes
+      when: ( database_type == 'vertica' and not stop_cluster and {{ play_hosts }} | length > ( {{ FND_VDB.members.private }} | length ) / 2 )
+  roles:
+    - {role: vertica, when: database_type == 'vertica', tags: [vertica]}
+
+- name: Stop kafka
+  hosts: FND-KFK
+  sudo: yes
+  tags: [kafka]
+  vars:
+    run_mode: Stop
+  roles:
+    - {role: kafka, tags: [kafka]}

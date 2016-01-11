@@ -1,0 +1,47 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: Create Monasca Alarm Definitions
+  monasca_alarm_definition:
+    name: "{{item.name}}"
+    description: "{{item.description | default('') }}"
+    expression: "{{item.expression}}"
+    keystone_token: "{{default_notification.keystone_token}}"
+    match_by: "{{item.match_by | default(['hostname']) }}"
+    monasca_api_url: "{{default_notification.monasca_api_url}}"
+    severity: "{{item.severity | default('LOW') }}"
+    alarm_actions:
+      - "{{default_notification.notification_method_id}}"
+    ok_actions:
+      - "{{default_notification.notification_method_id}}"
+    undetermined_actions:
+      - "{{default_notification.notification_method_id}}"
+  run_once: True
+  with_items:
+    - { name: "Kafka Consumer Lag",
+        description: "Alarms when the specified consumer_group is not keeping up with the incoming messages",
+        severity: "MEDIUM",
+        expression: "avg(kafka.consumer_lag) > {{ monasca_kafka_max_lag | default(60000) }} times 3",
+        match_by: ["consumer_group", "hostname"] }
+    - { name: "Monasca Agent Emit Time", description: "Alarms when the elapsed time that the the Monasca Agent takes to send metrics to the Monasca API is high", expression: "avg(monasca.emit_time_sec) > 2 times 3" }
+    - { name: "Monasca Agent Collection Time", description: "Alarms when the elapsed time the Monasca Agent takes to collect metrics is high", expression: "avg(monasca.collection_time_sec) > 15 times 3" }
+#    - { name: "Monasca Notification DB Query Time",
+#        description: "Alarms when the elapsed time for queries to the Configuration DB by the Monasca Notification Engine is high",
+#        expression: "avg(monasca.config_db_time.95percentile) > 5 times 3" }
+#    - { name: "Monasca Notification Email Time",
+#        description: "Alarms when the elapsed time to send emails by the Monasca Notification Engine is high",
+#        expression: "avg(monasca.email_time.95percentile) > 2 times 3" }
+    - { name: "ZooKeeper Latency", description: "Alarms when the ZooKeeper latency is high", expression: "avg(zookeeper.avg_latency_sec) > 1 times 3" }

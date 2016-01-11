@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+set -eux
+set -o pipefail
+
+# This script runs tempest against a deployed Helion OpenStack cloud
+#
+# Usage: [path]/helion-tempest.sh [run-filter]
+
+# Environment variable may be overridden by the caller
+export OS_TEST_PATH="${OS_TEST_PATH:-{{ tempest_bin_dir }}/tempest/test_discover}"
+export OS_TOP_LEVEL="{{ tempest_bin_dir }}"
+export TEMPEST_CONFIG_DIR="{{ 'tempest' | config_dir }}"
+export TESTR="{{ 'tempest' | bin_dir }}/testr"
+export PYTHON="{{ 'tempest' | bin_dir }}/python"
+export TESTS_TO_SKIP_BIN="{{ installation_directory }}/tests2skip.py"
+export RUN_FILTER="{{ installation_directory }}/run_filters/${1:-{{ run_filter }}}.txt"
+
+cd {{ installation_directory }}
+http_proxy= https_proxy= HTTP_PROXY= HTTPS_PROXY= ${TESTR} run \
+    --subunit --parallel --concurrency={{ run_concurrency }} $(python ${TESTS_TO_SKIP_BIN} ${RUN_FILTER}) |
+  /opt/stack/service/tempest/venv/bin/subunit-trace --no-failure-debug -f | tee testr_results.log

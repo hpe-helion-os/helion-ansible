@@ -1,0 +1,99 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Configure the apache service
+---
+- name: FND-AP2 | configure | Disable default port listeners
+  sudo: yes
+  replace: dest=/etc/apache2/ports.conf regexp='^((?!#).)*(Listen[ ]+.*)' replace='# \2'
+  notify: apache2_change
+
+- name: FND-AP2 | configure | Disable the default sites
+  sudo: yes
+  command: a2dissite {{ item }}
+  with_items:
+    - 000-default
+    - default-ssl
+  register: disable_result
+  changed_when: ( disable_result | success ) and
+                ( 'already disabled' not in disable_result.stdout )
+  notify: apache2_change
+
+- name: FND-AP2 | configure | Add any sites to be enabled
+  sudo: yes
+  template: dest=/etc/apache2/sites-enabled/{{ item.key }} src=sites-enabled.conf.j2
+  with_dict: FND_AP2_sites_enabled | default({})
+  notify: apache2_change
+
+# This matches the keystone status play, that we use to check that
+# keystone comes up.
+- name: FND-AP2 | configure | Increase timeout
+  become: yes
+  lineinfile:
+    line: "Timeout 600"
+    regexp: "^Timeout [0-9]+"
+    dest: "/etc/apache2/apache2.conf"
+    state: present
+  notify: apache2_change
+
+# These lines are a workaround for apache problem
+# identified in KEYSTONE-297
+
+- name:  FND-AP2 | configure | Disable mpm_event
+  become: yes
+  apache2_module:
+    name: mpm_event
+    state: absent
+  notify: apache2_change
+
+- name:  FND-AP2 | configure | Enable mpm_worker
+  become: yes
+  apache2_module:
+    name: mpm_worker
+    state: present
+  notify: apache2_change
+
+- name: FND-AP2 | configure | Install modwsgi dependencies
+  become: yes
+  apt:
+    state: latest
+    name: "{{ item }}"
+  with_items:
+    - libapache2-mod-wsgi
+    - libapache2-mod-shib2
+
+# We always use wsgi
+- name:  FND-AP2 | configure | Enable wsgi module in apache
+  become: yes
+  apache2_module:
+    state: present
+    name: wsgi
+  notify: apache2_change
+
+# Include mod_proxy for proxying Apache Kibana requests to nodeJS server
+- name:  FND-AP2 | configure | Enable proxy module in apache
+  become: yes
+  apache2_module:
+    state: present
+    name: proxy
+  notify: apache2_change
+
+# Include proxy_http proxying Apache Kibana requests to nodeJS server
+- name:  FND-AP2 | configure | Enable proxy_http module in apache
+  become: yes
+  apache2_module:
+    state: present
+    name: proxy_http
+  notify: apache2_change

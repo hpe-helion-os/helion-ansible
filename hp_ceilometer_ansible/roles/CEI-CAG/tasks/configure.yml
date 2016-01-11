@@ -1,0 +1,45 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- include: ../../_CEI-CMN/tasks/configure.yml ceilometer_conf_dir="{{ ceilometer_cag_conf_dir }}"
+
+- include: ../../_CEI-CMN/tasks/_write_conf.yml
+  src: "../../CEI-CAG/templates/agent-central.conf.j2"
+  dest: "{{ ceilometer_cag_conf_dir }}/agent-central.conf"
+  notify:
+    - ceilometer_agent_central_change
+
+- include: ../../_CEI-CMN/tasks/_write_conf.yml
+  src: "../../CEI-CAG/templates/pipeline-agent-central.yaml.j2"
+  dest: "{{ ceilometer_cag_conf_dir }}/pipeline-agent-central.yaml"
+  notify:
+    - ceilometer_agent_central_change
+
+- include: ../../_CEI-CMN/tasks/_write_conf.yml
+  src: "../../CEI-CAG/templates/agent-central-logging.conf.j2"
+  dest: "{{ ceilometer_cag_conf_dir }}/agent-central-logging.conf"
+  notify:
+    - ceilometer_agent_central_change
+
+- name: CEI-CAG | configure | create ceilometer-agent-central log
+  file:
+     path={{ CEILOMETER_LOG_DIR }}/{{ item }} state=touch owner={{ ceilometer_user }} group={{ ceilometer_group }} mode=0644
+  with_items:
+    - ceilometer-agent-central.log
+    - ceilometer-agent-central-json.log
+  notify:
+    - ceilometer_agent_central_change

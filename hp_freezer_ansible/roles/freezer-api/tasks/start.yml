@@ -1,0 +1,48 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: freezer-api | start | Enable Freezer-api site
+  become: yes
+  command: a2ensite freezer-modwsgi
+  register: freezer_api_a2_enable_site_result
+  changed_when: '"already enabled" not in freezer_api_a2_enable_site_result.stdout'
+
+- name: freezer-api | start | Activate the latest install
+  become: yes
+  install_package:
+    name: freezer_api
+    service: freezer-api
+    activate: act_on
+    version: "{{ freezer_api_install_result.version }}"
+  when: freezer_api_install_result is defined
+
+- name: freezer-api | start | Update conf dir symlinks
+  become: yes
+  file:
+    src: "{{ freezer_api_venv_conf_dir }}/{{ item.src }}"
+    dest: "{{ item.dst }}"
+    owner: "{{ freezer_system_user }}"
+    group: "{{ freezer_system_group }}"
+    state: link
+  when: freezer_api_install_result is defined
+  with_items: freezer_api_conf_symlinks
+
+- include: "{{ playbook_dir }}/roles/FND-AP2/tasks/start_reload.yml"
+  vars:
+    apache_reload_requested: freezer_api_restart_required or freezer_api_a2_enable_site_result.changed
+
+- include: status.yml

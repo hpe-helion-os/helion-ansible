@@ -1,0 +1,53 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+# Create an empty git repository.
+---
+- name: git-operations | initialise | Install required software
+  apt:
+    name: git
+    state: present
+  sudo: yes
+
+- name: git-operations | initialise | Create initial repository
+  include: _initialise.yml
+  vars:
+    repo: "{{ git_operations.main_repo }}"
+    branches:
+      - "{{ git_operations.upstream_branch }}"
+      - "{{ git_operations.cp_branch }}"
+      - "{{ git_operations.ansible_branch }}"
+
+- name: git-operations | initialise | Ensure {{ git_operations.site_branch }} is checked out
+  shell: >
+    if git rev-parse --verify {{ git_operations.site_branch | quote }} ; then
+        git checkout {{ git_operations.site_branch }}
+    else
+        git checkout {{ git_operations.upstream_branch }} &&
+        git checkout -b {{ git_operations.site_branch }}
+    fi
+  args:
+    chdir: "{{ git_operations.main_repo }}"
+
+- name: git-operations | initialise | Lay down initial tags
+  include: _tag-branches-for-deployment.yml
+  vars:
+    repo: "{{ git_operations.main_repo }}"
+    timestamp: "{{ git_operations.initial_tag_timestamp }}"
+    branches:
+      - "{{ git_operations.site_branch }}"
+      - "{{ git_operations.ansible_branch }}"
+      - "{{ git_operations.cp_branch }}"

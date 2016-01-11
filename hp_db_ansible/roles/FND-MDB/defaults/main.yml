@@ -1,0 +1,81 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+# Global variables used in the plays
+# Note: A number of the vars coming from configprocessor
+# need changing here for full V2 compatibility, will
+# be fixed in  subsequent change
+mysql_restart_required: false
+mysql_bootstrapping: false
+mysql_bootstrapped: false
+mysql_service: mysql
+mysql_restart_packages:
+   - percona-xtradb-cluster-server-5.5
+mysql_initialised: /var/lib/mysql/galera.initialised
+mysql_root_user: "{{ FND_MDB.vars.mysql_root_user }}"
+mysql_root_pwd: "{{ FND_MDB.vars.mysql_root_pwd | quote }}"
+mysql_sst_user: "{{ FND_MDB.vars.mysql_sst_user }}"
+mysql_sst_pwd: "{{ FND_MDB.vars.mysql_sst_password | quote }}"
+mysql_clustercheck_user: "{{ FND_MDB.vars.mysql_clustercheck_user }}"
+mysql_clustercheck_pwd: "{{ FND_MDB.vars.mysql_clustercheck_pwd | quote }}"
+mysql_clustercheck_port: "{{ FND_MDB.vars.mysql_clustercheck_port }}"
+mysql_service_user: "{{ FND_MDB.vars.mysql_service_user }}"
+mysql_service_pwd: "{{ FND_MDB.vars.mysql_service_pwd | quote }}"
+mysql_log_dir: /var/log/mysql
+# Section  [client]
+mysql_client_port: "{{ FND_MDB.members.private[0].port }}"
+mysql_client_socket:  /var/run/mysqld/mysqld.sock
+# Section [mysqld_safe]
+mysql_safe_socket: /var/run/mysqld/mysqld.sock
+mysql_nice: 0
+# Section [mysqld]
+mysql_user: mysql
+mysql_pid_file: /var/run/mysqld/mysqld.pid
+mysql_server_socket: /var/run/mysqld/mysqld.sock
+mysql_server_port: "{{ host.bind['FND_MDB'].internal.port }}"
+mysql_basedir: /usr
+mysql_datadir: /var/lib/mysql
+mysql_tmpdir: /tmp
+mysql_lc_messages_dir: /usr/share/mysql
+mysql_bind_address: "{{ host.bind['FND_MDB'].internal.ip_address }}"
+# This replaces the startup script and checks MyISAM tables if needed
+# the first time they are touched
+mysql_myisam_recover: BACKUP
+mysql_log_error: "{{ mysql_log_dir }}/error.log"
+mysql_collation_server:  utf8_general_ci
+mysql_init_connect: 'SET NAMES utf8'
+mysql_character_set_server: utf8
+mysql_wsrep_provider: /usr/lib/libgalera_smm.so
+mysql_binlog_format: ROW
+mysql_default_storage_engine: InnoDB
+# This changes how InnoDB autoincrement locks are managed and is a requirement for Galera
+mysql_innodb_autoinc_lock_mode: 2
+# cluster name
+mysql_wsrep_cluster_name: "{{ FND_MDB.vars.mysql_cluster_name }}"
+# server id
+mysql_server_id: "{{ ( FND_MDB.vars.mysql_cluster_name ~ host.vars.member_id ) | adler32_unsigned }}"
+# Default address used for Group Comms, SST and IST
+mysql_wsrep_node_address: "{{ host.bind['FND_MDB'].admin.ip_address }}"
+mysql_gmcast_ip: "{{ host.bind['FND_MDB'].admin.ip_address }}"
+mysql_gmcast_port: 4567
+
+mysql_mdb_servers: "{{ groups['FND-MDB'] }}"
+
+# SST method
+mysql_wsrep_sst_method: xtrabackup
+
+# authentication for SST method
+mysql_wsrep_sst_auth: "{{ FND_MDB.vars.mysql_sst_user ~ ':' ~ ( FND_MDB.vars.mysql_sst_password | quote ) }}"

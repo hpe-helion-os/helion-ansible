@@ -1,0 +1,89 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+logr_services:
+  horizon:
+    logging_options:
+    - centralized_logging:
+        enabled: false
+        format: json
+      files:
+      - /var/log/horizon/horizon_access.log
+      log_rotate:
+      - daily
+      - maxsize 100M
+      - rotate 7
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - create 644 root root
+    - centralized_logging:
+        enabled: false
+        format: json
+      files:
+      - /var/log/horizon/horizon_error.log
+      log_rotate:
+      - daily
+      - maxsize 300M
+      - rotate 7
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - create 644 root root
+    - centralized_logging:
+        enabled: true
+        format: rawjson
+      files:
+      - /var/log/horizon/horizon-json.log
+      log_rotate:
+      - daily
+      - maxsize 400M
+      - rotate 5
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - create 640 horizon horizon
+    - centralized_logging:
+        enabled: false
+        format: json
+      files:
+      - /var/log/horizon/management/management.log
+      log_rotate:
+      - daily
+      - maxsize 45M
+      - rotate 7
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - create 644 horizon-venv horizon-venv
+    - centralized_logging:
+        enabled: false
+        format: json
+      files:
+      - /var/log/horizon/management/management-json.log
+      log_rotate:
+      - daily
+      - maxsize 45M
+      - rotate 7
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - create 644 horizon-venv horizon-venv

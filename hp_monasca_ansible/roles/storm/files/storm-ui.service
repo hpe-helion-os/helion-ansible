@@ -1,0 +1,14 @@
+[Unit]
+Description=Storm UI daemon
+After=storm-nimbus.service
+
+[Service]
+Type=simple
+User=storm
+Group=storm
+Restart=on-failure
+WorkingDirectory=/opt/storm/current
+ExecStart=/opt/storm/current/bin/storm ui
+
+[Install]
+WantedBy=multi-user.target

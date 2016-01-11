@@ -1,0 +1,39 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: Check If Swift Temp Url Exists
+  shell: swift --os-project-name {{ KEY_API.vars.keystone_service_tenant }} --os-username {{ GLA_API.consumes_KEY_API.vars.keystone_glance_user }} --os-password {{GLA_API.consumes_KEY_API.vars.keystone_glance_password }} --auth-version 2 --os-auth-url {{ auth_uri }} --os-endpoint-type internalURL stat -v | grep StorageURL  | awk '{ print $2}'
+  register: check_temp_url
+
+- name: Set Swift Temp URL
+  shell: swift --os-project-name {{ KEY_API.vars.keystone_service_tenant }} --os-username {{ GLA_API.consumes_KEY_API.vars.keystone_glance_user }} --os-password {{GLA_API.consumes_KEY_API.vars.keystone_glance_password }} --auth-version 2 --os-auth-url {{ auth_uri }} --os-endpoint-type internalURL post -m temp-url-key:{{ swift_temp_url_key }}
+  when: not('http' in check_temp_url)
+
+- name: Get Swift Stat
+  shell: swift --os-project-name {{ KEY_API.vars.keystone_service_tenant }} --os-username {{ GLA_API.consumes_KEY_API.vars.keystone_glance_user }} --os-password {{GLA_API.consumes_KEY_API.vars.keystone_glance_password }} --auth-version 2 --os-auth-url {{ auth_uri }} --os-endpoint-type internalURL stat -v | grep StorageURL  | awk '{ print $2}'
+
+- name: Get Swift API Version
+  shell: echo '{{ swift_stat_output.stdout }}' | awk -F'/' '{ print $4}'
+  register: swift_api_version
+
+- name: Get Swift Endpoint
+  shell: echo '{{ swift_stat_output.stdout }}' | awk -F'{{ swift_api_version.stdout }}' '{print $1}'
+  register: swift_internal_endpoint
+
+- name: Get Swift Account
+  shell: echo '{{ swift_stat_output.stdout }}' | awk -F'{{ swift_api_version.stdout }}/' '{print $2}'
+  register: swift_account
+

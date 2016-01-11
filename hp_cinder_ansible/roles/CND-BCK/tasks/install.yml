@@ -1,0 +1,54 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+# Install Cinder Backup
+
+- include: ../../CND-VOL/tasks/install.yml
+
+- name: Cinder Backup | install | Remove Cinder Backup DPKG (if exists)
+  apt: name=cinder-backup install_recommends=no state=absent force=yes
+  ignore_errors: True
+  register: install_bck_dpkg_check_result
+
+- name: Cinder Backup | install | Update venv cache
+  install_package:
+    cache: update
+
+- name: Cinder Backup | install | Install Cinder Backup
+  install_package:
+    name: cinder
+    service: cinder-backup
+    state: present
+    activate: act_off
+  register: cinder_backup_install_result
+  notify: cinder_backup_change
+
+- name: Cinder Backup | install | Set service directories
+  set_fact:
+    cinder_backup_conf_dir: "{{ 'cinder-backup' | config_dir(cinder_backup_install_result.version) }}"
+    cinder_backup_venv_share_dir: "{{ 'cinder-backup' | share_dir(cinder_backup_install_result.version) }}/cinder"
+
+- name: Cinder Backup | install | Register the cinder-backup service
+  setup_systemd:
+    service: cinder-backup
+    cmd: cinder-backup
+    user: cinder
+    group: cinder
+    args: >
+       --config-file {{ cinder_backup_conf_dir }}/cinder.conf
+       --config-file {{ cinder_backup_conf_dir }}/backup.conf
+  when: cinder_backup_install_result.changed

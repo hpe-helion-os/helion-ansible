@@ -1,0 +1,84 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: _SWF_CMN | install | Add group {{ swift_group }}
+  group: name={{ swift_group }} gid={{ swift_gid }}
+
+- name: _SWF_CMN | install | Add user {{ swift_user }}
+  user: name={{ swift_user }} uid={{ swift_uid }} group={{ swift_group }} createhome=no
+
+# The swift-common service is created simply as a convenience for
+# creating symlinks from /usr/local/bin to the swift scripts in
+# /opt/stack/service/swift-common/venv/bin
+# As such there is no need to postpone activation, register a systemd service
+# or restart any services.
+- name: _SWF_CMN | install | Install Swift swift-common service
+  install_package:
+    name: swift
+    service: swift-common
+    state: present
+
+- name: _SWF_CMN | install | Install xfsprogs
+  apt:
+    name: xfsprogs
+    state: latest
+    force: yes
+
+- name: _SWF_CMN | install | Install parted
+  apt:
+    name: parted
+    state: latest
+    force: yes
+
+- name: _SWF_CMN | install | Install hpssacli
+  apt:
+    name: hpssacli
+    state: latest
+    force: yes
+
+# The swiftlm is not a service that needs to be started.
+# There is no need to postpone activation, register a systemd service
+# or restart any services.
+# Its sole purpose if to facilitate creating symlinks from /usr/local/bin
+# to the swiftlm scripts in /opt/stack/service/swiftlm/venv/bin
+- name: _SWF_CMN | install | Install swiftlm service
+  install_package:
+    name: swiftlm
+    service: swiftlm
+    state: present
+
+# We dont want to have to update in two locations for each new script so we
+# symlink all executables that exist in the bin dir's.
+- name: _SWF_CMN | install | Get swift-common files for symlinking
+  command: "find {{ 'swift-common' | bin_dir() }} -maxdepth 1 -type f -executable -name \"swift*\""
+  register: swift_common_symlink_targets
+
+- name: _SWF_CMN | install | Get swiftlm files for symlinking
+  command: "find {{ 'swiftlm' | bin_dir() }} -maxdepth 1 -type f -executable -name \"swift*\""
+  register: swiftlm_symlink_targets
+
+- name: _SWF_CMN | install | Create symlinks to binaries
+  file:
+    src: "{{ item }}"
+    dest: "/usr/local/bin/{{ item | basename }}"
+    owner: root
+    group: root
+    state: link
+  with_items:
+    - "{{ swift_common_symlink_targets.stdout_lines }}"
+    - "{{ swiftlm_symlink_targets.stdout_lines }}"
+

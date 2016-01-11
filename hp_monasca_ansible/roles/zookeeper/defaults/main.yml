@@ -1,0 +1,48 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+monasca_log_level: WARN
+# In MB
+zookeeper_log_max_size: 10
+monasca_log_rotation_backup_count: 4
+monasca_wait_for_period: 30
+run_mode: Deploy
+# Select default tunings based on system RAM
+# RAM < 32GB, use demo
+# RAM < 64GB, use small
+# RAM < 128GB, use medium
+# RAM >= 128GB, use large
+tuning_selector: "{% if ansible_memtotal_mb < 32086 %}demo{% elif ansible_memtotal_mb < 64172 %}small{% elif ansible_memtotal_mb < 128344 %}medium{% else %}large{%endif %}"
+zookeeper_possible_tunings:
+    demo:
+        zookeeper_heap_opts: "-Xmx64m"
+        zookeeper_maxClientCnxns: 60
+    small:
+        zookeeper_heap_opts: "-Xmx128m"
+        zookeeper_maxClientCnxns: 60
+    medium:
+        zookeeper_heap_opts: "-Xmx256m"
+        zookeeper_maxClientCnxns: 60
+    large:
+        zookeeper_heap_opts: "-Xmx512m"
+        zookeeper_maxClientCnxns: 120
+zookeeper_tunings: "{{ zookeeper_possible_tunings[tuning_selector] }}"
+zookeeper_client_port: "{{ FND_ZOO.members.private[0].port }}"
+zookeeper_nodes: "{{ FND_ZOO.members.private }}"
+zookeeper_hosts: "{% for node in zookeeper_nodes | sort(attribute='member_id') %}{{ node.host }}:{{ node.port }}{% if not loop.last %},{% endif %}{% endfor %}"
+zookeeper_id: "{{ host.vars.member_id | int - 1 }}"
+zookeeper_heap_opt: "{{ zookeeper_tunings.zookeeper_heap_opts }}"
+zookeeper_maxClientCnxns: "{{ zookeeper_tunings.zookeeper_maxClientCnxns }}"

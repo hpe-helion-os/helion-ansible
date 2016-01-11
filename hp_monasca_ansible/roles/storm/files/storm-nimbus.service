@@ -1,0 +1,14 @@
+[Unit]
+Description=Storm Nimbus daemon
+After=zookeeper.service
+
+[Service]
+Type=simple
+User=storm
+Group=storm
+Restart=on-failure
+WorkingDirectory=/opt/storm/current
+ExecStart=/opt/storm/current/bin/storm nimbus
+
+[Install]
+WantedBy=multi-user.target

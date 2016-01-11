@@ -1,0 +1,46 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: heat-monitoring | monasca monitoring | Run monasca agent heat detection plugin
+  monasca_agent_plugin:
+    name="Heat"
+    args="disable_http_check=yes"
+
+# Setup Monasca http check on heat local http url
+- name: heat-monitoring | monasca monitoring | Setup active check against local heat-api url
+  monasca_agent_plugin:
+    name: "httpcheck"
+    args: >
+        url={{ heat_api_local_url }}
+        match_pattern=.*v1.0.*
+        dimensions=service:orchestration,component:heat-api,monitored_host_type:instance
+
+- name: heat-monitoring | monasca monitoring | Setup active check against local heat-api-cfn url
+  monasca_agent_plugin:
+    name: "httpcheck"
+    args: >
+        url={{ heat_api_cfn_local_url }}
+        match_pattern=.*v1.0.*
+        dimensions=service:orchestration,component:heat-api-cfn,monitored_host_type:instance
+
+- name: heat-monitoring | monasca monitoring | Setup active check against local heat-api-cloudwatch url
+  monasca_agent_plugin:
+    name: "httpcheck"
+    args: >
+        url={{ heat_api_cloudwatch_local_url }}
+        match_pattern=.*v1.0.*
+        dimensions=service:orchestration,component:heat-api-cloudwatch,monitored_host_type:instance

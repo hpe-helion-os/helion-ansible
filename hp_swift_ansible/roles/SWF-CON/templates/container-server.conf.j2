@@ -1,0 +1,57 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+# This file has the HOS values that apply only to the Swift service.
+# You may make changes to this file by adding sections/options below.
+
+[DEFAULT]
+bind_ip = {{ container_bind_ip }}
+bind_port = {{ container_bind_port }}
+mount_check = {{ mount_check }}
+devices = {{ swift_devices }}
+
+[pipeline:main]
+pipeline = healthcheck recon container-server
+
+[filter:healthcheck]
+use = egg:swift#healthcheck
+
+[filter:recon]
+use = egg:swift#recon
+recon_cache_path = {{ recon_cache_path }}
+
+[app:container-server]
+use = egg:swift#container
+allow_versions = true
+# TODO setting the reserved space small for now.
+fallocate_reserve = 1099511627
+
+[filter:xprofile]
+use = egg:swift#xprofile
+
+[container-auditor]
+recon_cache_path = {{ recon_cache_path }}
+
+[container-replicator]
+recon_cache_path = {{ recon_cache_path }}
+
+[container-updater]
+recon_cache_path = {{ recon_cache_path }}
+
+[container-sync]
+
+## Do NOT put anything after this line ##

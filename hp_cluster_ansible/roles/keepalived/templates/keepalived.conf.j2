@@ -1,0 +1,62 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+# Configuration file for keepalived
+# This configuration is described in http://www.keepalived.org/pdf/UserGuide.pdf
+
+vrrp_script chk_haproxy {
+  script "killall -0 haproxy"
+  interval 2
+}
+
+vrrp_sync_group VG_{{ keepalived_cluster_name }} {
+  group {
+{% for intf in network_interfaces %}
+    VI_{{ loop.index }}
+{% endfor %}
+  }
+}
+
+{% for intf in network_interfaces %}
+{% if intf.has_key('vip_address') %}
+vrrp_instance VI_{{ loop.index }} {
+  state BACKUP
+  {% set max_vips_per_tier = 20 -%}
+  virtual_router_id {{ keepalived_vrrp_index|int * max_vips_per_tier|int + keepalived_vrrp_offset|int + loop.index}}
+  priority 200
+  nopreempt
+  garp_master_refresh 2
+  interface {{ intf.device }}{% if intf.has_key('vlan') %}.{{ intf.vlan }}{% endif %}
+
+  {% if keepalive_vrrp_password -%}
+  authentication {
+    auth_type AH
+    auth_pass {{ keepalive_vrrp_password }}
+  }
+  {% endif %}
+
+  virtual_ipaddress {
+    {{ intf.vip_address }}{% if intf.has_key('vlan') %} dev {{ intf.device }}.{{ intf.vlan }}{% endif %}
+
+  }
+  track_script {
+    chk_haproxy
+  }
+  notify /usr/local/bin/keepalived_vip_change.sh
+}
+{% endif %}
+{% endfor %}

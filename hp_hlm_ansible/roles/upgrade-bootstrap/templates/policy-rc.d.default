@@ -1,0 +1,17 @@
+{# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP #}
+# Default actions to block for all services listed
+#
+DEFAULT_BLOCK_ACTIONS="stop start restart reload"
+
+# Services to apply policy actions on when called via invoke.rc-d
+#
+# SERVICES is a space separated list of services that should have a
+# policy applied.
+SERVICES=""
+
+# It is possible to modify the actions to prevent on a per service basis
+# by setting variables in the form <SERVICE>_block
+#
+# This would prevent the additional out of runlevel restart action from
+# being executed in addtion to the start, restart and stop actions.
+#testservice_block="start restart stop (restart)"

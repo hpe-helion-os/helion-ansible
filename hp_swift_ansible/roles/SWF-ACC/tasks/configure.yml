@@ -1,0 +1,56 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- include: ../../_SWF-CMN/tasks/configure.yml
+- include: ../../_SWF-RSY/tasks/configure.yml
+
+- set_fact:
+    swift_account_server_role: true
+
+- name: SWF-ACC | configure | Create swift_devices directory
+  file:
+    path: "{{ swift_devices }}"
+    owner: root
+    group: root
+    mode: 0755
+    state: directory
+
+- name: SWF-ACC | configure | Enable the swift account services to start on boot
+  command: systemctl enable "{{ item.key }}"
+  with_dict: swift_account_services
+
+# Note, this .conf file should NOT be in the service specific etc dir
+- name: SWF-ACC | configure | Copy swift.conf
+  template:
+    src: ../../_SWF-CMN/templates/swift.conf.j2
+    dest: "{{ swift_dir }}/swift.conf"
+    owner: "{{ swift_user }}"
+    group: "{{ swift_group }}"
+    mode: 0400
+  notify:
+    - swift_config_change
+
+- name: SWF-ACC | configure | Copy account-server.conf
+  template:
+    src: account-server.conf.j2
+    dest: "{{ swift_account_server_conf_dir }}/account-server.conf"
+    owner: "{{ swift_user }}"
+    group: "{{ swift_group }}"
+    mode: 0400
+  notify:
+    - swift_account_config_change
+
+- include: ../../_SWF-CMN/tasks/provision_storage.yml

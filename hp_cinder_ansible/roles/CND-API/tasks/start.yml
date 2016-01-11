@@ -1,0 +1,47 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- include: ../../_CND-CMN/tasks/_activate.yml
+
+# Restart or start Cinder API
+- name: Cinder API | start | Activate the latest install
+  install_package:
+    name: cinder
+    service: cinder-api
+    activate: act_on
+    version: "{{ cinder_api_install_result.version }}"
+  when: cinder_api_install_result is defined
+
+- name: Cinder API | start | Update conf dir symlinks
+  file:
+    src: "{{ cinder_api_conf_dir}}/{{ item.src }}"
+    dest: "{{ item.dst }}"
+    owner: "{{ cinder_user }}"
+    group: "{{ cinder_group }}"
+    state: link
+  when: cinder_api_install_result is defined
+  with_items: cinder_api_conf_symlinks
+
+- name: Cinder API | start | Restart cinder-api service
+  service:
+    name: cinder-api
+    state: restarted
+  when: cinder_restart_required or cinder_api_restart_required
+
+- name: Cinder API | start | Ensure cinder-api service is started
+  service:
+    name: cinder-api
+    state: started

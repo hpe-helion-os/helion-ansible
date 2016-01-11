@@ -1,0 +1,32 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+keystone:
+  service_tenant : "{{ KEY_API.vars.keystone_service_tenant }}"
+  heat_admin_user : "{{ HEA_API.consumes_KEY_API.vars.keystone_heat_user }}"
+  heat_admin_password : "{{ HEA_API.consumes_KEY_API.vars.keystone_heat_password | quote }}"
+  role: "{{ KEY_API.vars.keystone_admin_role }}"
+  default_domain : "Default"
+  endpoint: "{{ HEA_API.consumes_KEY_API.vips.admin[0].url }}/v3"
+  admin_user: "{{ KEY_API.vars.keystone_admin_user }}"
+  admin_password: "{{ KEY_API.vars.keystone_admin_pwd | quote }}"
+
+endpoints:
+  region : "{{ HEA_API.advertises.vips.public[0].region_name }}"
+  adminurl: "{{ HEA_API.advertises.vips.private[0].url }}/v1/%(tenant_id)s"
+  internalurl: "{{ HEA_API.advertises.vips.private[0].url }}/v1/%(tenant_id)s"
+  publicurl: "{{ HEA_API.advertises.vips.public[0].url }}/v1/%(tenant_id)s"

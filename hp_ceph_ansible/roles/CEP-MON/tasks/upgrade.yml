@@ -1,0 +1,45 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- include: _get_public_hostname.yml
+
+- include: ../../_CEP-CMN/tasks/_check_upgraded_packages.yml
+  when: ceph_restart_packages is defined
+
+- name: CEP-MON | upgrade | Check if ceph packages were upgraded
+  set_fact: ceph_mon_restart_required=True
+  when: ceph_check_upgraded_packages_result.changed
+
+- name: CEP-MON | upgrade | Restart monitor service if ceph packages were upgraded
+  include: start.yml
+  when: ceph_mon_restart_required
+
+- name: CEP-MON | upgrade | Give monitor some post upgrade settle time
+  pause: seconds="{{ mon_upgrade_settle_time }}"
+  when: ceph_mon_restart_required
+
+- name: CEP-MON | upgrade | Fetch ceph cluster quorum status
+  command: ceph --cluster {{ ceph_cluster }} -f json quorum_status
+  register: ceph_quorum_status_result
+
+- name: CEP-MON | upgrade | Fetch monitors that have formed quorum
+  set_fact: ceph_mons_in_quorum="{{ (ceph_quorum_status_result.stdout|from_json).quorum_names }}"
+
+- name: CEP-MON | upgrade | Ensure that monitor is in the quorum
+  fail: msg="Monitor on {{ ceph_public_hostname }} failed to form quorum!"
+  when: '"{{ ceph_public_hostname }}" not in "{{ ceph_mons_in_quorum }}"'
+

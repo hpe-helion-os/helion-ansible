@@ -1,0 +1,36 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+{% for entry in item.value.logging_options %}{% for f in entry.files %}{{f}}
+{% endfor %}
+{{ '{' }}
+{% for option in entry.log_rotate %}
+  {{option}}
+{% if option.strip().startswith('create') and 'nosu' not in entry %}
+  su {{ option.strip().split()[-2] }} {{ option.strip().split()[-1] }}
+{% endif %}
+{% endfor %}
+{% if " ".join(entry.log_rotate).find("maxsize") == -1 %}
+  maxsize {{logr_maxsize}}
+{% endif %}
+{% if " ".join(entry.log_rotate).find("rotate") == -1 %}
+  rotate {% if " ".join(entry.files).find("json") == -1 %}{{logr_rotate}}{% else %}{{logr_json_rotate}}{% endif %}
+{% endif %}
+{{ '}' }}
+
+{% endfor %}
+

@@ -1,0 +1,113 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+# This .yml sets all facts related to neutron_conf_dir and neutron_bin_dir
+- include: _set_service_directories.yml
+
+- name: Neutron Common | configure | copy sudoers
+  copy: src=sudoers dest=/etc/sudoers.d/neutron owner=root group=root mode=0440
+
+- name: Neutron Common | configure | configure sudoers
+  lineinfile: dest=/etc/sudoers.d/neutron line='Defaults:neutron secure_path="{{ neutron_bin_dir }}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"'
+
+- name: Neutron Common | configure | Check for presence of group '{{ neutron_group }}'
+  command: "grep -q {{ neutron_group }} /etc/group"
+  register: group_chk_result
+  ignore_errors: True
+
+- name: Neutron Common | configure | Add group '{{ neutron_group }}'
+  group: name={{ neutron_group }} system=yes
+  when: group_chk_result|failed
+
+- name: Neutron Common | configure | Check for presence of user '{{ neutron_user }}'
+  command: "id {{ neutron_user }}"
+  register: user_chk_result
+  ignore_errors: True
+
+- name: Neutron Common | configure | Add user '{{ neutron_user }}'
+  user: name={{ neutron_user }} group={{ neutron_group }} system=yes createhome=no home=/var/lib/neutron shell=/bin/false
+  when: user_chk_result|failed
+
+- name: Neutron Common | configure | Set permissions of {{ installation_directory }}/neutron hierarchy
+  file: path={{ installation_directory }}/neutron owner={{ neutron_user }} group={{ neutron_group }} state=directory recurse=yes
+
+- name: Neutron Common | configure | Set permissions of {{ installation_directory }}/neutron files
+  file: path={{ installation_directory }}/neutron owner={{ neutron_user }} group={{ neutron_group }} mode=0755 state=directory
+
+- name: Neutron Common | configure | Create logging directory
+  file: path=/var/log/neutron owner={{ neutron_user }} group={{ neutron_group }} mode=0775 state=directory
+
+- name: Neutron Common | configure | Create /var/lib/neutron directory
+  file: path=/var/lib/neutron owner={{ neutron_user }} group={{ neutron_group }} mode=0775 state=directory
+
+# Note this also sets the ownership and mode if the directory already exists.
+- name: Neutron Common | configure | Create systemd service directory if not exists
+  file:
+    path: "{{ systemd_service_dir }}"
+    state: directory
+    mode: 0755
+    owner: "root"
+    group: "root"
+
+- name: Neutron Common | configure | Create common run directory service file
+  template:
+    dest: "{{ systemd_service_dir }}{{ neutron_common_rundir_service }}"
+    owner: "root"
+    group: "root"
+    mode: 0644
+    src: "{{ neutron_common_rundir_service }}.j2"
+
+- name: Neutron Common | configure | Create dnsmasq config directory
+  file: path={{ neutron_dnsmasq_conf_dir }} owner={{ neutron_user }} group={{ neutron_group }} mode=0750 state=directory
+
+- include: _configure_rootwrap.yml
+
+- include: _write_conf.yml
+  src: "../templates/neutron.conf.j2"
+  dest: "neutron.conf"
+
+- name: Neutron Common | configure | neutron.conf change
+  set_fact:
+    neutron_restart_required: true
+  when: write_conf_result.changed==true
+
+- include: _write_conf.yml
+  src: "../templates/ml2_conf.ini.j2"
+  dest: "ml2_conf.ini"
+
+- name: Neutron Common | configure | ml2_conf.ini change
+  set_fact:
+    neutron_ovs_agent_restart_required: true
+    neutron_server_restart_required: true
+  when: write_conf_result.changed==true
+
+- include: _configure_ovsvapp_agent.yml
+  when: "'NEU-OVSVAPP' in group.services"
+
+- include: _configure_neutron_server.yml
+
+- include: _configure_openvswitch_agent.yml
+
+- include: _configure_dhcp_agent.yml
+
+- include: _configure_metadata_agent.yml
+
+- include: _configure_l3_agent.yml
+
+- include: _configure_vpn_agent.yml
+
+- include: _configure_lbaas_agent.yml

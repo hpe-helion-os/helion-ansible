@@ -1,0 +1,41 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+# This file has the HOS values that apply only to the KVM hypervisor.
+# You may make changes to this file by adding sections/options below.
+
+[DEFAULT]
+# Compute
+compute_driver = libvirt.LibvirtDriver
+
+[libvirt]
+block_migration_flag = VIR_MIGRATE_LIVE,VIR_MIGRATE_PEER2PEER,VIR_MIGRATE_NON_SHARED_INC,VIR_MIGRATE_UNDEFINE_SOURCE
+inject_partition = 1
+live_migration_bandwidth = 1000
+live_migration_flag = VIR_MIGRATE_LIVE,VIR_MIGRATE_PEER2PEER
+snapshots_directory = {{ libvirt_snapshots_directory }}
+snapshot_image_format = qcow2
+
+# If you have configured ceph backend storage for cinder you
+# must uncomment the below lines under libvirt section to attach
+# rbd volumes to kvm instances and replace all strings in angle
+# brackets with the correct values for the ceph you have configured.
+#
+#rbd_user = <ceph-user>
+#rbd_secret_uuid = <secret-uuid>
+#
+## Do NOT put anything after this line ##

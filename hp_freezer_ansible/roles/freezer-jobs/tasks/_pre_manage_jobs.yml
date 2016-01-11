@@ -1,0 +1,66 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: freezer-jobs | pre_manage_backup | Set ready_to_upload fact
+  set_fact:
+    ready_to_upload: true
+  when: ( 'FRE-API' in groups ) and ( ( groups['FRE-API'] | length ) > 0 ) and
+        ( 'FRE-AGN' in groups ) and ( ( groups['FRE-AGN'] | length ) > 0 )
+
+- include_vars: ../../freezer-agent/defaults/main.yml
+  when: ready_to_upload
+
+- name: freezer-jobs | pre_manage_backup | Check for freezer-agent's presence
+  become: yes
+  stat:
+    path: "/usr/bin/freezer-scheduler"
+  register: freezer_scheduler_bin_result
+  when: ready_to_upload
+
+- name: freezer-jobs | pre_manage_backup | Report freezer-agent's absence
+  fail:
+    msg: |
+      You are trying to use the freezer-agent to create a backup or restore job.
+      However the freezer-agent does not seem to be installed on this server.
+      This could be caused by an error in your model or because the concerned node failed earlier in the deployment process.
+      Concerned server: hostname: {{ ansible_hostname }} / inventory_hostname: {{ inventory_hostname }}
+  when: ready_to_upload and not freezer_scheduler_bin_result.stat.exists
+
+- name: freezer-jobs | pre_manage_backup | Create directory
+  become: yes
+  file:
+    path: /etc/freezer/scheduler/to_upload
+    owner: root
+    group: root
+    mode: 0600
+    state: directory
+  when: ready_to_upload
+
+- name: freezer-jobs | pre_manage_backup | List current freezer jobs
+  become: yes
+  shell: "{{ freezer_scheduler_command }} job-list | grep -E '^\\| [a-z0-9]{32}' | cut -d '|' -f2,3 ; exit ${PIPESTATUS[0]}"
+  args:
+    executable: /bin/bash
+  register: jobs_list_result
+  when: ready_to_upload
+  until: "jobs_list_result.rc == 0"
+  retries: 5
+  delay: 10
+
+- name: freezer-jobs | pre_manage_backup | Debug job-list if failed
+  debug: var=jobs_list_result.stderr
+  when: "ready_to_upload and ( jobs_list_result.rc != 0 )"

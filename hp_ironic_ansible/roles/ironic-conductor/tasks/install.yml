@@ -1,0 +1,45 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: Ironic Conductor | install | update venv cache
+  install_package:
+    cache: update
+
+- name: ironic-conductor | install | install ironic-conductor service
+  install_package:
+    name: ironic
+    service: ironic-conductor
+    state: present
+    activate: act_off
+  register: ironic_conductor_install_result
+  notify: ironic_conductor_venv_change
+
+- include: ../../ironic-common/tasks/_set_directories.yml
+  vars:
+    ironic_install_package_result: "{{ ironic_conductor_install_result }}"
+
+- name: Ironic Conductor | install | Install dependencies
+  apt: name={{ item }} install_recommends=no state=latest force=yes
+  with_items:
+    - ipxe
+    - syslinux-common
+    - pxelinux
+    - ipmitool
+    - tftpd-hpa
+    - qemu-utils
+    - dosfstools
+
+- include: ../../ironic-common/tasks/install.yml

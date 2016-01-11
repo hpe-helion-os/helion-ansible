@@ -1,0 +1,48 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+# During an upgrade a service restart notification may be set by:
+#    install - e.g. new code, new package
+#    configure - e.g. change to a configuration file
+---
+- include: nova-status.yml
+# TODO: does status set a result?
+#       should this only run if the status of nova is healthy?
+
+# Install and configure services in a new venv
+- include: _nova-install.yml
+- include: _nova-configure.yml
+
+# Perform any database expand operations
+- hosts: NOV-API
+  become: yes
+  roles:
+    - nova-post-configure
+  tasks:
+    - include: roles/nova-post-configure/tasks/db_expand.yml
+
+# Restart services based on notifications set earlier
+- include: nova-start.yml
+
+# Perform any database contract operations
+- hosts: NOV-API
+  become: yes
+  roles:
+    - nova-post-configure
+  tasks:
+    - include: roles/nova-post-configure/tasks/db_contract.yml
+
+- include: nova-status.yml

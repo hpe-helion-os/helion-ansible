@@ -1,0 +1,86 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+# Prepare a scratch directory to run the deployment from
+#
+# Parameters:
+#   repo: ~/helion
+#   target_dir: ~/cp-run (subdirs of this used as work dirs)
+#   branches:
+#     site:
+#       - from: some relative path
+#         to: some relative path
+#       - ... etc ...
+#     ansible-persistent:
+#       - ... etc ...
+---
+
+- name: git-operations | _ready-deployment-tree | Compute previously deployed version
+  shell: >
+    git tag -l 'deployment-*-{{ git_operations.site_branch }}' |
+    sort |
+    tail -1 |
+    sed -re 's/^deployment-(.*)-.*$/\1/'
+  args:
+    chdir: "{{ git_operations.main_repo }}"
+  register: last_deployment_timestamp
+
+- name: git-operations | _ready-deployment-tree | Promote working branches
+  include: _promote-from-staging.yml
+  vars:
+    repo: "{{ git_operations.main_repo }}"
+    work_dir: "{{ git_operations.ansible_scratch_dir }}"
+    merge_msg: "Merging promotion of saved output"
+    branches:
+      - from: "{{ git_operations.temp_cp_branch }}"
+        to: "{{ git_operations.cp_branch }}"
+      - from: "{{ git_operations.temp_ansible_branch }}"
+        to: "{{ git_operations.ansible_branch }}"
+
+- name: git-operations | _ready-deployment-tree | Assemble CP contents
+  include: _assemble-working-directory.yml
+  vars:
+    repo: "{{ git_operations.main_repo }}"
+    target_dir: "{{ git_operations.ansible_target_dir }}"
+    branches:
+      - name: "{{ git_operations.site_branch }}"
+        copies:
+          - from: .
+            to: next/.
+      - name: "{{ git_operations.ansible_branch }}"
+        copies:
+          - from: "{{ git_operations.ansible_subdir }}/."
+            to: "next/{{ git_operations.ansible_subdir }}/."
+      # We may also want to check out a previous version
+      - name: "deployment-{{ last_deployment_timestamp.stdout }}-{{ git_operations.site_branch }}"
+        copies:
+          - from: .
+            to: last/.
+      - name: "deployment-{{ last_deployment_timestamp.stdout }}-{{ git_operations.ansible_branch }}"
+        copies:
+          - from: "{{ git_operations.ansible_subdir }}/."
+            to: "last/{{ git_operations.ansible_subdir }}/."
+
+
+- name: git-operations | _ready-deployment-tree | Lay down deployment tags
+  include: _tag-branches-for-deployment.yml
+  vars:
+    repo: "{{ git_operations.main_repo }}"
+    timestamp: "{{ '%Y%m%dT%H%M%SZ' | time_format }}"
+    branches:
+      - "{{ git_operations.site_branch }}"
+      - "{{ git_operations.ansible_branch }}"
+      - "{{ git_operations.cp_branch }}"

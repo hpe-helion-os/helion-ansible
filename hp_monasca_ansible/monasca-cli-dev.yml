@@ -1,0 +1,27 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+# This playbook sets up a credentials file to ease use of the monasca cli, it should be run with --limit to only apply to select dev boxes
+- name: Setup credentials for using the monasca cli
+  hosts: all
+  gather_facts: no
+  vars:
+    keystone_url: "{{KEY_API.advertises.vips.private[0].url}}/v2.0"
+    monasca_user: "{{ MON_API.consumes_KEY_API.vars.keystone_monasca_user }}"
+    monasca_password: "{{ MON_API.consumes_KEY_API.vars.keystone_monasca_password | quote }}"
+    monasca_project: "{{KEY_API.vars.keystone_admin_tenant}}"
+  tasks:
+    - copy: dest="~/monasca-env.sh" content=". /opt/stack/service/monasca-agent/venv/bin/activate\nexport OS_USERNAME='{{monasca_user}}'\nexport OS_PASSWORD='{{monasca_password}}'\nexport OS_PROJECT_NAME='{{monasca_project}}'\nexport OS_AUTH_URL={{keystone_url}}"

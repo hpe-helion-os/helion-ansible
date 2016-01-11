@@ -1,0 +1,50 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+Listen {{ inventory_hostname }}:{{ kibana_port }}
+
+<VirtualHost *:{{ kibana_port }}>
+
+    LogLevel info
+    ErrorLog {{ kibana_log_path }}/kibana_error.log
+    CustomLog {{ kibana_log_path }}/kibana_access.log combined
+
+    # Configure auth for both Kibana and Elasticsearch
+    # Skip auth for Elasticsearch health checks
+    <Location />
+        SetEnvIf Request_URI "/elasticsearch/_cluster/health" noauth
+        AuthType Basic
+        AuthName "Authenticated proxy"
+        AuthUserFile {{ kibana_path }}/kibana.htpasswd
+        <RequireAny>
+            Require env noauth
+            Require user {{ kibana_user }}
+        </RequireAny>
+    </Location>
+
+    # Turn off forward proxies, only using reverse proxies
+    ProxyRequests Off
+
+    <Proxy http://{{ kibana_host }}:{{ kibana_port }}>
+        ProxySet connectiontimeout=5 timeout=90
+    </Proxy>
+    <Location />
+        ProxyPass http://{{ kibana_host }}:{{ kibana_port }}/
+        ProxyPassReverse http://{{ kibana_host }}:{{ kibana_port }}/
+    </Location>
+
+</VirtualHost>

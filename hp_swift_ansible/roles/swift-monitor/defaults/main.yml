@@ -1,0 +1,22 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+keystone_url: "{{ keystone_identity_uri }}/v3"
+keystone_user: "{{ KEY_API.vars.keystone_admin_user }}"
+keystone_password: "{{ KEY_API.vars.keystone_admin_pwd | quote }}"
+keystone_project: "{{ KEY_API.vars.keystone_admin_tenant }}"
+monasca_alarm_definition_api_url: "{{ MON_AGN.consumes_MON_API.vips.private[0].url }}/v2.0"
+monasca_agent_user: mon-agent

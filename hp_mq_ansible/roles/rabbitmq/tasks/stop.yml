@@ -1,0 +1,41 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+# Wait for queues to synchronise, during synchronisation the queues will
+# pause and not allow any messages to be placed in the queue that is
+# synchronising.
+- include: _wait-for-cluster-sync.yml
+  vars:
+    rabbitmq_secondary_host_count: "{{ ( groups[ 'FND-RMQ' ] | length ) - 1 }}"
+  when: ( groups[ 'FND-RMQ' ] | length ) > 1
+
+# This will disable/stop all running plugins. This must be performed before
+# leaving a cluster (gracefully exit) as we must inform all cluster node
+# of our plugin states before we exit so not to have restart issues.
+#
+# Note: For non-gracefully we should work as we do not do a host reset
+#       and hence we use the internal Rabbit HA mechanism to get back
+#       online.
+- include: _disable-plugins.yml
+- include: _reset-host.yml
+  when: ( groups[ 'FND-RMQ' ] | length ) > 1
+
+# Stop the RabbitMQ application including Erlang.
+- name: rabbitmq | stop | Ensure that RabbitMQ service is stopped
+  service:
+    name: rabbitmq-server
+    enabled: no
+    state: stopped

@@ -1,0 +1,108 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- include: ../../_GLA-CMN/tasks/configure.yml
+
+- name: glance-api | configure | Create Glance directories
+  file: >
+    path={{ glance_api_conf_dir }}
+    owner={{ glance_system_user }}
+    group={{ glance_system_group }}
+    mode=0755
+    state=directory
+
+- name: glance-api | configure | Copy configuration files
+  copy: >
+    src=etc/{{ item }}
+    dest={{ glance_api_conf_dir }}/{{ item }}
+    owner={{ glance_system_user }}
+    group={{ glance_system_group }}
+    mode=0400
+    force=True
+  with_items:
+    - 'schema-image.json'
+  notify:
+    - glance_api_config_change
+
+- name: glance-api | configure | Create glance api log and json log files
+  file: >
+    path={{ item }}
+    owner={{ glance_system_user }}
+    group="adm"
+    mode=0640
+    state=touch
+  with_items:
+    - "{{ glance_api_log_file }}"
+    - "{{ glance_api_log_json_file }}"
+
+- name: glance-api | configure | Create glance-api-paste.ini from template
+  template: >
+    src=glance-api-paste.ini.j2
+    dest={{ glance_api_conf_dir }}/glance-api-paste.ini
+    owner={{ glance_system_user }}
+    group={{ glance_system_group }}
+    mode=0400
+  notify:
+    - glance_api_config_change
+
+- name: glance-api | configure | Create policy.json from template
+  template: >
+    src=policy.json.j2
+    dest={{ glance_api_conf_dir }}/policy.json
+    owner={{ glance_system_user }}
+    group={{ glance_system_group }}
+    mode=0400
+  notify:
+    - glance_api_config_change
+
+- name: glance-api | configure | Create glance-api.conf from template
+  template: >
+    src=glance-api.conf.j2
+    dest={{ glance_api_conf_dir }}/glance-api.conf
+    owner={{ glance_system_user }}
+    group={{ glance_system_group }}
+    mode=0400
+  notify:
+    - glance_api_config_change
+
+- name: glance-api | configure | Create Swift store config from template
+  template: >
+    src=glance-swift-store.conf.j2
+    dest={{ glance_api_conf_dir }}/{{ glance_store_swift_store_config_file }}
+    owner={{ glance_system_user }}
+    group={{ glance_system_group }}
+    mode=0400
+  notify:
+    - glance_api_config_change
+
+- name: glance-api | configure | Create glance-api-logging.conf from template
+  template: >
+    src=glance-api-logging.conf.j2
+    dest={{ glance_api_conf_dir }}/glance-api-logging.conf
+    owner={{ glance_system_user }}
+    group={{ glance_system_group }}
+    mode=0400
+  notify:
+    - glance_api_config_change
+
+- name: glance-api | configure | Register glance-api with systemd
+  setup_systemd:
+    service: "glance-api"
+    cmd: "glance-api"
+    user: "{{ glance_system_user }}"
+    group: "{{ glance_system_group }}"
+    args: "--config-file {{ glance_api_conf_dir }}/glance-api.conf --log-file {{ glance_api_log_file }}"

@@ -1,0 +1,40 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: Update config
+  template: src=influxdb.conf.j2 dest=/etc/opt/influxdb/influxdb.conf
+  when: influxdb_version|version_compare('0.9', '>=')
+  notify:
+    - influxdb | restart | restart all influxdb services
+
+- name: Copy ssl key
+  copy: dest={{influxdb_ssl_certificate}} src={{influxdb_ssl_certificate_src}} owner=influxdb group=root mode=0440
+  when: influxdb_ssl_certificate_src is defined
+  notify:
+    - influxdb | restart | restart all influxdb services
+
+- name: Detect if this is a systemd based system
+  command: cat /proc/1/comm
+  register: init
+- set_fact: use_systemd=True
+  when: init.stdout == 'systemd'
+- set_fact: use_systemd=False
+  when: init.stdout != 'systemd'
+
+- command: systemctl daemon-reload
+  when: use_systemd
+
+- meta: flush_handlers

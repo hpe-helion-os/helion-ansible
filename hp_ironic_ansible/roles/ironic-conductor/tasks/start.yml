@@ -1,0 +1,53 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+# Install Ironic Conductor
+
+# Enable virtual host for ironic
+- name:  Ironic Conductor | start | Enable Ironic vhost
+  command: a2ensite ironic
+
+# Make sure apache is running
+- name: Ironic Conductor | start | Start apache if it is not running
+  service:
+    name: apache2
+    state: started
+  register: ironic_start_apache
+
+- name: Ironic Conductor | reload | Reload if the server did not need starting
+  service:
+    name: apache2
+    state: reloaded
+  when: not ironic_start_apache.changed
+
+- name: Ironic Conductor | start | Allow installed Apache services (keystone) to settle
+  pause:
+    seconds: 5
+
+- name: Ironic Conductor | start | activate the latest installed version
+  install_package:
+    name: ironic
+    service: ironic-conductor
+    activate: act_on
+    version: "{{ ironic_conductor_install_result.version }}"
+  when: ironic_conductor_install_result is defined
+
+- name: ironic-conductor | start | restart ironic-conductor service
+  service: name=ironic-conductor state=restarted
+  when: ironic_common_restart_required or ironic_conductor_restart_required
+
+- name: ironic-conductor | start | start ironic-conductor service
+  service: name=ironic-conductor state=started

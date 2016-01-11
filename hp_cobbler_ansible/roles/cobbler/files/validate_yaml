@@ -1,0 +1,22 @@
+#!/usr/bin/python
+
+import json
+import jsonschema
+import sys
+import yaml
+
+with open(sys.argv[1], 'r') as schema:
+    schema_yml = yaml.load(schema)
+    schema_json = json.dumps(schema_yml)
+    schema_contents = json.loads(schema_json)
+
+with open(sys.argv[2], 'r') as data_file:
+    data_yml = yaml.load(data_file)
+    data_json = json.dumps(data_yml)
+    data_contents = json.loads(data_json)
+
+try:
+    jsonschema.validate(data_contents, schema_contents)
+except Exception as e:
+    print "ERROR: " + str(e)
+    sys.exit(1)

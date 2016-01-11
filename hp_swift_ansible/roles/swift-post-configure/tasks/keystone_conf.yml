@@ -1,0 +1,132 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: swift-post-configure | keystone_conf | Get a domain scoped token
+  keystone_v3:
+    endpoint: "{{ keystone_admin_endpoint }}/v3"
+    login_username: "{{ keystone_admin_user }}"
+    login_password: "{{ keystone_admin_password }}"
+    login_user_domain_name: "{{ keystone_default_domain }}"
+    login_domain_name: "{{ keystone_default_domain }}"
+    action: "token_get"
+  register: domain_scoped_token
+
+- name: swift-post-configure | keystone_conf | Create Swift Service User in service tenant
+  keystone_v3:
+    login_token: "{{ domain_scoped_token.result }}"
+    endpoint: "{{ keystone_admin_endpoint }}/v3"
+    action: "create_user"
+    user_name: "{{ swift_user_name }}"
+    user_password: "{{ swift_user_password }}"
+    description: "Swift service user"
+    user_domain_name: "{{ keystone_user_domain_name }}"
+  run_once: true
+
+- name: swift-post-configure | keystone_conf | Grant the admin role to swift user
+  keystone_v3:
+    login_token: "{{ domain_scoped_token.result }}"
+    endpoint: "{{ keystone_admin_endpoint }}/v3"
+    action: "grant_project_role"
+    user_name: "{{ swift_user_name }}"
+    project_name: "{{ keystone_service_project_name }}"
+    role_name: "{{ keystone_admin_role }}"
+    user_domain_name: "{{ keystone_user_domain_name }}"
+    project_domain_name: "{{ keystone_project_domain_name }}"
+  run_once: true
+
+# Temporary hack to allow replacing the role Member in the model with
+# _member_
+- name: swift-post-configure | keystone_conf | Create role Member
+  keystone_v3:
+    login_token: "{{ domain_scoped_token.result }}"
+    endpoint: "{{ keystone_admin_endpoint }}/v3"
+    action: "create_role"
+    role_name: "Member"
+    description: "Swift Member role"
+  run_once: true
+
+- name: swift-post-configure | keystone_conf | Create Swift Service
+  keystone_v3:
+    login_token: "{{ domain_scoped_token.result }}"
+    endpoint: "{{ keystone_admin_endpoint }}/v3"
+    action: "create_service"
+    service_type: "{{ swift_service_type }}"
+    service_name: "{{ swift_service_name }}"
+    description: "Swift Object Storage Service"
+  run_once: true
+
+- name: swift-post-configure | keystone_conf | Create Swift Endpoint
+  keystone_v3:
+    login_token: "{{ domain_scoped_token.result }}"
+    endpoint: "{{ keystone_admin_endpoint }}/v3"
+    action: "create_endpoint"
+    service_name: "{{ swift_service_name }}"
+    region: "{{ keystone_region }}"
+    admin_url: "{{ swift_admin_endpoint }}"
+    internal_url: "{{ swift_internal_endpoint }}"
+    public_url: "{{ swift_public_endpoint }}"
+  run_once: true
+
+- name: swift-post-configure | keystone_conf | Create role swiftoperator
+  keystone_v3:
+    login_token: "{{ domain_scoped_token.result }}"
+    endpoint: "{{ keystone_admin_endpoint }}/v3"
+    action: "create_role"
+    role_name: "swiftoperator"
+    description: "Swift operator role"
+  run_once: true
+
+- name: swift-post-configure | keystone_conf | Create role ResellerAdmin
+  keystone_v3:
+    login_token: "{{ domain_scoped_token.result }}"
+    endpoint: "{{ keystone_admin_endpoint }}/v3"
+    action: "create_role"
+    role_name: "ResellerAdmin"
+    description: "Swift reseller admin role"
+  run_once: true
+
+- name: swift-post-configure | keystone_conf | Create Swift Monitor tenant
+  keystone_v3:
+    login_token: "{{ domain_scoped_token.result }}"
+    endpoint: "{{ keystone_admin_endpoint }}/v3"
+    action: "create_project"
+    project_name: "{{ swift_monitor_tenant }}"
+    project_domain_name: "{{ keystone_project_domain_name }}"
+    description: "Swift monitor project"
+  run_once: true
+
+- name: swift-post-configure | keystone_conf | Create Swift Monitor user
+  keystone_v3:
+    login_token: "{{ domain_scoped_token.result }}"
+    endpoint: "{{ keystone_admin_endpoint }}/v3"
+    action: "create_user"
+    user_name: "{{ swift_monitor_user }}"
+    user_password: "{{ swift_monitor_password }}"
+    description: "Swift monitor user"
+    user_domain_name: "{{ keystone_user_domain_name }}"
+  run_once: true
+
+- name: swift-post-configure | keystone_conf | Assign admin to Swift Monitor user
+  keystone_v3:
+    login_token: "{{ domain_scoped_token.result }}"
+    endpoint: "{{ keystone_admin_endpoint }}/v3"
+    action: "grant_project_role"
+    user_name: "{{ swift_monitor_user }}"
+    project_name: "{{ swift_monitor_tenant }}"
+    role_name: "admin"
+    user_domain_name: "{{ keystone_user_domain_name }}"
+    project_domain_name: "{{ keystone_project_domain_name }}"
+  run_once: true

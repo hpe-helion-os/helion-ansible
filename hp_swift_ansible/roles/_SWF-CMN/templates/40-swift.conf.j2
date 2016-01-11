@@ -1,0 +1,56 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+template(name="swift_json" type="list" option.json="on") {
+    constant(value="{")
+    constant(value="\"tags\": \"") property(name="programname")
+    constant(value="\", \"color\": \"")
+    constant(value="\", \"@timestamp\": \"") property(name="timereported" dateFormat="rfc3339")
+    constant(value="\", \"@version\": 1")
+    constant(value=", \"version\": \"unknown")
+    constant(value="\", \"user_identity\": null")
+    constant(value=", \"project\": \"unknown")
+    constant(value="\", \"instance\": \"")
+    constant(value="\", \"host\": \"") property(name="hostname")
+    constant(value="\", \"logger\": \"swift.wsgi.server")
+    constant(value="\", \"type\": \"swift")
+    constant(value="\", \"message\": \"") property(name="msg")
+    constant(value="\", \"levelname\": \"") property(name="syslogseverity-text" CaseConversion="upper")
+    constant(value="\"}\n")
+}
+:programname, contains, "swiftlm-uptime" action(type="omfile" fileCreateMode="0640" FileGroup="adm" file="/var/log/swiftlm/uptime-mon-json.log" template="swift_json")
+:programname, contains, "swiftlm-uptime" /var/log/swiftlm/uptime-mon.log
+& ~
+:programname, contains, "swift" action(type="omfile" fileCreateMode="0640" FileGroup="adm" file="{{ swift_logs_dir }}/swift-json.log" template="swift_json")
+:programname, contains, "account" action(type="omfile" fileCreateMode="0640" FileGroup="adm" file="{{ swift_logs_dir }}/swift-json.log" template="swift_json")
+:programname, contains, "container" action(type="omfile" fileCreateMode="0640" FileGroup="adm" file="{{ swift_logs_dir }}/swift-json.log" template="swift_json")
+:programname, contains, "object" action(type="omfile" fileCreateMode="0640" FileGroup="adm" file="{{ swift_logs_dir }}/swift-json.log" template="swift_json")
+:programname, contains, "proxy-server" action(type="omfile" fileCreateMode="0640" FileGroup="adm" file="{{ swift_logs_dir }}/swift-json.log" template="swift_json")
+
+# The "& ~" is included after each of the following swift rules to ensure
+# that the msg is discarded after being written to the swift log. As a
+# result it does not get logged to other logs such as /var/log/syslog.
+:programname, contains, "swift" {{ swift_logs_dir }}/swift.log
+& ~
+:programname, contains, "account" {{ swift_logs_dir }}/swift.log
+& ~
+:programname, contains, "container" {{ swift_logs_dir }}/swift.log
+& ~
+:programname, contains, "object" {{ swift_logs_dir }}/swift.log
+& ~
+:programname, contains, "proxy-server" {{ swift_logs_dir }}/swift.log
+& ~

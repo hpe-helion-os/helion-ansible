@@ -1,0 +1,46 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: Cinder Volume | stop | Stop tgt service
+  service: name=tgt state=stopped
+
+- name: Cinder Volume | stop | Stop Cinder Volume service
+  service: name=cinder-volume state=stopped
+
+- name: Cinder Volume | stop | Check if cindervolume.fact file is present
+  stat: path=/etc/ansible/facts.d/cindervolume.fact
+  register: cinder_fact_result
+
+- name: Cinder Volume | stop | Create cindervolume.fact file
+  template: >
+    src=cindervolume.fact.j2
+    dest=/etc/ansible/facts.d/cindervolume.fact
+    owner=root
+    group=root
+    mode=0644
+  when: cinder_fact_result.stat.exists == False
+
+# Set the cindervolume running local fact based on the cinder_volume_flag value
+# passed in.
+- name: Cinder Volume | stop | Set cinder-volume running status in fact file
+  ini_file:
+    dest=/etc/ansible/facts.d/cindervolume.fact
+    section=status
+    option=running
+    value={{ cinder_volume_flag }}
+
+- name: Cinder Volume | stop | Re-read facts after adding custom fact
+  setup: filter=ansible_local

@@ -1,0 +1,36 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#
+
+# Receive a new HOS code drop
+
+# (a) create new commit on the hos branch
+# This works identically with the first and subsequent drops, assuming initialisation is complete.
+# clone the hos branch to a working directory.
+# replace its contents with an exploded helion/ directory from the new deployment.
+# create a commit that accepts all the new stuff (be sure to delete any unwanted old files)
+# push this back to ~/helion (hos branch)
+
+# (b) merge site and hos tips
+# in ~/helion, triger a git commit to the site branch of the hos branch.
+# The user may need to massage this merge (using the usual git tooling) as appropriate.
+---
+- hosts: localhost
+  connection: local
+  roles:
+    - git-operations
+  tasks:
+    - include: roles/git-operations/tasks/receive-drop.yml

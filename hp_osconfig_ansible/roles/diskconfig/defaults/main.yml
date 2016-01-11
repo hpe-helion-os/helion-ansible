@@ -1,0 +1,53 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Variables used in diskconfig play
+---
+
+diskconfig_apt_dependencies:
+    - lvm2
+    - xfsprogs
+    - e2fsprogs
+
+# Extract list of PV devices from the volume_groups entries, stripping
+# off any partition suffixes, real or logical, in the process.
+_diskconfig_vg_pvs: "{{ host.my_disk_models.volume_groups |
+                        map(attribute='physical_volumes') | chain |
+                        map('regex_replace', '[0-9]*$', '') |
+                        map('regex_replace', '_root', '') | list }}"
+
+# Look for a cinder-volume device_group entry assigned to cinder and
+# extract list of associated devices.
+_diskconfig_cnd_dg: "{{ host.my_disk_models |
+                        device_group('cinder-volume', 'cinder') }}"
+_diskconfig_cnd_pvs: "{{ _diskconfig_cnd_dg.devices | default([]) |
+                         map(attribute='name') | list }}"
+
+# Combine the VG PV device and Cinder PV device lists, sorting and
+# uniqifying them as part of the process.
+_diskconfig_all_pvs: "{{ _diskconfig_vg_pvs + _diskconfig_cnd_pvs |
+                         sort | unique }}"
+
+# Construct the accept and reject filter text entry lists
+_diskconfig_lvm_accepts: "{{ _diskconfig_all_pvs |
+                             map('regex_replace', '(.*)',
+                                 'a|^\\\\1[0-9]*|') | list }}"
+_diskconfig_lvm_rejects:
+  - "r|.*|"
+
+# Finally combine the accept and reject lists such that we accept only
+# the desired devices when scanning for VGs and reject all other devices.
+diskconfig_lvm_filter_entries: "{{ _diskconfig_lvm_accepts +
+                                   _diskconfig_lvm_rejects }}"

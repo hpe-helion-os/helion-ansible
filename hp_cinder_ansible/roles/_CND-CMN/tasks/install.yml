@@ -1,0 +1,76 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: Cinder Common | install | Check for presence of group '{{ cinder_group }}'
+  command: "grep -q {{ cinder_group }} /etc/group"
+  ignore_errors: True
+  register: group_chk_result
+
+- name: Cinder Common | install | Add group '{{ cinder_group }}'
+  group: name={{ cinder_group }}
+  when: group_chk_result|failed
+
+- name: Cinder Common | install | Check for presence of user '{{ cinder_user }}'
+  command: "id {{ cinder_user }}"
+  ignore_errors: True
+  register: user_chk_result
+
+- name: Cinder Common | install | Add user '{{ cinder_user }}'
+  user: name={{ cinder_user }} group={{ cinder_group }} createhome=no home=/tmp shell=/bin/true
+  when: user_chk_result|failed
+
+- name: Cinder Common | install | Update venv cache
+  install_package:
+    cache: update
+
+# no real service here, just apply the venv
+- name: Cinder Common | install | Install Cinder Common
+  install_package:
+    name: cinder
+    service: cinder-common
+    state: present
+    activate: act_off
+  register: cinder_common_install_result
+
+- name: Cinder Common | install | Set service directories
+  set_fact:
+    cinder_common_bin_dir: "{{ 'cinder-common' | bin_dir(cinder_common_install_result.version) }}"
+    cinder_common_venv_share_dir: "{{ 'cinder-common' | share_dir(cinder_common_install_result.version) }}/cinder"
+
+- name: Cinder Common | install | Install cinderlm venv
+  install_package:
+    name: cinderlm
+    service: cinderlm
+    state: present
+    activate: act_off
+  register: cinderlm_install_result
+
+- name: Cinder Common | install | Create symlink to cinder_check
+  file:
+      src: "{{ 'cinderlm' | bin_dir(cinderlm_install_result.version) }}/cinder_check"
+      dest: "/usr/local/bin/cinder_check"
+      owner: root
+      group: root
+      state: link
+
+- name: Cinder Common | install | Create symlink to cinder_diag
+  file:
+      src: "{{ 'cinderlm' | bin_dir(cinderlm_install_result.version) }}/cinder_diag"
+      dest: "/usr/local/bin/cinder_diag"
+      owner: root
+      group: root
+      state: link

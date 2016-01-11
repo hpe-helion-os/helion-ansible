@@ -1,0 +1,50 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: config_processor | clean | Clean V2 hosts file
+  file:
+    path: "{{ config_processor_runtime.target }}/generated_files/etc/hosts"
+    state: absent
+
+- name: config_processor | clean | Clean V2 group and host vars
+  file:
+    path: "{{ config_processor_runtime.target }}/{{ item }}"
+    state: absent
+  with_items:
+    - group_vars
+    - host_vars
+
+- name: config_processor | clean | Clean V2  cloud_hosts and verb_hosts
+  file:
+    path: "{{ config_processor_runtime.target }}/hosts/{{ item }}"
+    state: absent
+  with_items:
+    - cloud_hosts
+    - verb_hosts
+
+- name: config_processor | clean | Clean  net directory
+  file:
+    path: "{{ config_processor_runtime.target }}/net"
+    state: absent
+
+- name: config_processor | clean | Clean V2 persistent and stage directories
+  file:
+    path: "{{ config_processor_runtime_work }}/{{ item }}"
+    state: absent
+  with_items:
+    - persistent_state
+    - stage

@@ -1,0 +1,79 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+influxdb_schema_enabled: true
+kafka_topics_enabled: true
+mysql_schema_enabled: true
+winchester_schema_enabled: true
+influxdb_admin: root
+influxdb_admin_password: root
+influxdb_dbname: mon
+influxdb_replication_factor: 1
+influxdb_retention_policy: "90d"
+influxdb_shard_duration: "7d"
+mysql_admin: root
+vertica_database_name: mon
+vertica_env: {LC_ALL: en_US.UTF-8, LANG: en_US.UTF-8}
+vertica_schema_enabled: true
+vertica_retention_period: 30
+
+mysql_root_dir: /var/lib/mysql
+monasca_schema_file: "{{mysql_root_dir}}/mon.sql"
+winchester_schema_file: "{{mysql_root_dir}}/winchester.sql"
+
+kafka_events_partitions: 12
+kafka_metrics_partitions: 64
+# This should be the number of systems running the Notification Engine
+kafka_retry_notifications_partitions: 3
+kafka_replicas: 3
+
+kafka_topics:
+  metrics: { replicas: "{{ kafka_replicas }}", partitions: "{{ kafka_metrics_partitions }}" }
+  events: { replicas: "{{ kafka_replicas }}", partitions: "{{ kafka_events_partitions }}" }
+  raw-events: { replicas: "{{ kafka_replicas }}", partitions: "{{ kafka_events_partitions }}" }
+  transformed-events: { replicas: "{{ kafka_replicas }}", partitions: "{{ kafka_events_partitions }}" }
+  stream-definitions: { replicas: "{{ kafka_replicas }}", partitions: "{{ kafka_events_partitions }}" }
+  transform-definitions: { replicas: "{{ kafka_replicas }}", partitions: "{{ kafka_events_partitions }}" }
+  alarm-state-transitions: { replicas: "{{ kafka_replicas }}", partitions: "{{ kafka_events_partitions }}" }
+  alarm-notifications: { replicas: "{{ kafka_replicas }}", partitions: "{{ kafka_events_partitions }}" }
+  stream-notifications: { replicas: "{{ kafka_replicas }}", partitions: "{{ kafka_events_partitions }}" }
+  retry-notifications: { replicas: "{{ kafka_replicas }}", partitions: "{{ kafka_retry_notifications_partitions }}" }
+
+mon_mysql_users:
+  - username: "{{ MON_NTF.consumes_FND_MDB.vars.mysql_monasca_notifier_user }}"
+    password: "{{ MON_NTF.consumes_FND_MDB.vars.mysql_monasca_notifier_password | quote }}"
+  - username: "{{ MON_API.consumes_FND_MDB.vars.mysql_monasca_api_user }}"
+    password: "{{ MON_API.consumes_FND_MDB.vars.mysql_monasca_api_password | quote }}"
+  - username: "{{ MON_THR.consumes_FND_MDB.vars.mysql_monasca_thresh_user }}"
+    password: "{{ MON_THR.consumes_FND_MDB.vars.mysql_monasca_thresh_password | quote }}"
+
+kafka_node_count: "{{ FND_KFK.members.private | length }}"
+kafka_replicas: "{% if kafka_node_count | int > 3 %}3{% else %}{{ kafka_node_count }}{% endif %}"
+
+zookeeper_nodes: "{{ FND_KFK.consumes_FND_ZOO.members.private }}"
+zookeeper_hosts: "{% for node in zookeeper_nodes %}{{ node.host }}:{{ node.port }}{% if not loop.last %},{% endif %}{% endfor %}"
+
+influxdb_replication_factor: "{{ FND_IDB.members.private | length }}"
+influxdb_url: "{% if database_type == 'influxdb' %}{{ MON_API.consumes_FND_IDB.vips.private[0].url }}{% endif %}"
+mon_influxdb_users:
+  - username: "{{ MON_API.consumes_FND_IDB.vars.influxdb_monasca_api_user }}"
+    password: "{{ MON_API.consumes_FND_IDB.vars.influxdb_monasca_api_password | quote }}"
+  - username: "{{ MON_PST.consumes_FND_IDB.vars.influxdb_monasca_persister_user }}"
+    password: "{{ MON_PST.consumes_FND_IDB.vars.influxdb_monasca_persister_password | quote }}"
+
+vertica_nodes: "{{ FND_VDB.members.private }}"
+vertica_cluster: "{% for node in vertica_nodes %}{{ node.host }}{% if not loop.last %},{% endif %}{% endfor %}"
+rebuild: False

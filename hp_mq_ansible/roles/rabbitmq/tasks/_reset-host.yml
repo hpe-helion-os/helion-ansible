@@ -1,0 +1,45 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+# NOTE: THIS PLAY MUST NOT RUN ON SINGLETON RABBITMQ NODE.
+# TODO (NickR) remove all 'default('false')' when Ansible bug is fixed:
+# https://github.com/ansible/ansible/issues/12306
+- name: rabbitmq | _reset-host | Stop the RabbitMQ application to enable reset
+  command: |
+    timeout {{ rabbitmq_stop_app_timeout }}
+    rabbitmqctl stop_app
+  ignore_errors: "{{ rabbitmq_tolerate_error | default('false') }}"
+
+- include: _wait-for-cluster-sync.yml
+  vars:
+    rabbitmq_secondary_host_count: "{{ ( groups[ 'FND-RMQ' ] | length ) - 2 }}"
+
+# Return a RabbitMQ node to its virgin state
+#
+# if rabbitmq_reset_option=reset (the default), this removes the node from
+# any cluster it belongs to, removes all data from the mnesia database, such
+# as configured users and vhosts, and deletes all persistent messages.
+#
+# If rabbitmq_reset_option=force_reset, it totally resets the state.
+#
+# For this command to succeed the RabbitMQ application must have been
+# stopped. If the reset fails due to the timeout the cluster is generally
+# unrecoverable.
+- name: rabbitmq | _reset-host | Reset the RabbitMQ node
+  command: |
+    timeout {{ rabbitmq_reset_timeout }}
+    rabbitmqctl {{ rabbitmq_reset_option }}
+  ignore_errors: "{{ rabbitmq_tolerate_error | default('false') }}"

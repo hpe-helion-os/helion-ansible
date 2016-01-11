@@ -1,0 +1,67 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: logging-server | start | Restart Elasticsearch
+  service: name=elasticsearch state=restarted
+  when: elasticsearch_restart
+
+- name: logging-server | start | Start Elasticsearch
+  service: name=elasticsearch state=started
+  register: elasticsearch_started
+
+# Logstash will automatically be restarted by Elasticsearch via systemd dependencies
+# so we don't need to do that here if elasticsearch is already being restarted
+- name: logging-server | start | Restart Logstash
+  service: name=logstash state=restarted
+  when: logstash_restart and not elasticsearch_restart and not elasticsearch_started.changed
+  ignore_errors: true
+
+- name: logging-server | start | Start Logstash
+  service: name=logstash state=started
+  ignore_errors: true
+
+- name: logging-server | start | Activate Kibana
+  install_package: name=logging service=logging activate=act_on version={{ kibana_install.version }}
+  when: kibana_activate
+
+- name: logging-server | start | Restart Kibana
+  service: name=kibana state=restarted
+  when: kibana_restart
+
+- name: logging-server | start | Start Kibana
+  service: name=kibana state=started
+
+# This check is to see if apache is started, if not then
+# we expect that start_reload.yml will start it
+- name: logging-server | start | Check is apache started
+  command: "systemctl status apache2"
+  ignore_errors: yes
+  register: logging_is_apache_up
+
+# Set logging_apache_start to true as we now expect it to be started next
+- name: logging-server | start | Set logging_apache_started
+  set_fact:
+    logging_apache_started: true
+  when: logging_is_apache_up |failed
+
+- include: "{{ playbook_dir }}/roles/FND-AP2/tasks/start_reload.yml"
+  vars:
+    apache_reload_requested: kibana_restart or logging_apache_reload
+
+# Prime Kibana if required
+- name: logging-server | start | Prime Kibana
+  shell: nohup python {{ kibana_path }}/prime_kibana.py &
+  run_once: true

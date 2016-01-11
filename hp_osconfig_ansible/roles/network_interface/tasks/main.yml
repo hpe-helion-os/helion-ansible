@@ -1,0 +1,182 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+---
+
+- name: Add the OS specific variables
+  include_vars: "{{ ansible_os_family }}.yml"
+
+- name: Install the required  packages in Redhat derivatives
+  yum: name={{ item }} state=installed
+  with_items: network_pkgs
+  when: ansible_os_family == 'RedHat'
+
+- name: Install the required packages in Debian derivatives
+  apt: name={{ item }} state=installed update_cache=yes
+  with_items: network_pkgs
+  environment: env
+  when: ansible_os_family == 'Debian'
+
+- name: Install openvswitch if needed
+  apt: name=openvswitch-switch install_recommends=no state=latest force=yes
+  when: ovs_bridge_interfaces is defined and ovs_bridge_interfaces != [] and ansible_os_family == 'Debian'
+
+- name: Install bridge-utils if needed
+  apt: name=bridge-utils install_recommends=no state=latest force=yes
+  when: network_bridge_interfaces is defined and network_bridge_interfaces != [] and ansible_os_family == 'Debian'
+
+- name: Configure the PCI->NIC mappings
+  template:
+    src: nic_mapping.j2
+    dest: /etc/udev/rules.d/{{ udev_prefix_nic_mapping }}-helion-nic-mapping.rules
+    owner: root
+    group: root
+    mode: 0644
+  when: nic_mappings is defined and nic_mappings != [] and ansible_os_family == 'Debian'
+  register: udev_config
+
+- name: Make sure the include line is there in interfaces file
+  lineinfile: >
+     regexp="^source-directory\ \/etc\/network\/interfaces.d"
+     line="source-directory /etc/network/interfaces.d"
+     dest=/etc/network/interfaces
+     state=present
+     insertafter=EOF
+  when: ansible_os_family == "Debian"
+
+- name: Make sure other include forms are not in interfaces file
+  lineinfile: >
+     regexp="^source\ \/etc\/network\/interfaces.d\/\*"
+     dest=/etc/network/interfaces
+     state=absent
+  when: ansible_os_family == "Debian"
+
+- name: Create the directory for interface cfg files
+  file: path=/etc/network/interfaces.d  state=directory
+  when: ansible_os_family == "Debian"
+
+- name: Remove the shadow directory
+  file: path=/etc/network/{{ shadow_dir }} state=absent
+  when: ansible_os_family == "Debian"
+
+- name: Generate a new shadow directory
+  file: path=/etc/network/{{ shadow_dir }} state=directory
+  when: ansible_os_family == "Debian"
+
+- name: Get all routing table list
+  command: echo {{ item.routing_table }}
+  register: rt_table_result
+  when: item.routing_table is defined
+  with_flattened:
+    - [network_ether_interfaces]
+    - [network_bond_interfaces]
+    - [network_vlan_interfaces]
+    - [ovs_bridge_interfaces]
+    - [network_bridge_interfaces]
+
+- name: Delete all helion defined rt_tables
+  shell: |
+    ip route flush table {{ item.stdout }}
+    sed -i '/ #helion$/d' /etc/iproute2/rt_tables
+  when: item.changed and item.stdout is defined
+  with_items: rt_table_result.results
+
+- name: Create routing tables for routing policies
+  shell: |
+    {% set rt_table = '/etc/iproute2/rt_tables' %}
+    {% for routeid in range(routeid_starting,  routeid_ending) %}
+    if (! grep -Enq '^\b{{ routeid }}\b'  {{ rt_table }} ) && (! grep -q '{{ item.stdout }} #helion'$ {{ rt_table }}); then
+      echo {{ routeid }} {{ item.stdout }}' #helion' >> {{ rt_table }}
+    fi
+    {% endfor %}
+  when: item.changed and item.stdout is defined
+  with_items: rt_table_result.results
+
+- name: Check if route table ID added for routing tables
+  shell: ip route list table {{ item.stdout }}
+  register: route_result
+  when: item.changed and item.stdout is defined
+  with_items: rt_table_result.results
+
+- name: Fail if no route table ID for routing tables
+  fail:
+    msg: "Error, there is no route table ID for routing table."
+  when: item.rc is defined and item.rc != 0
+  with_items: route_result.results
+
+- name: Create an ovs bridge and ports
+  template: src=ovs_bridge_{{ ansible_os_family }}.j2 dest=/etc/network/{{ shadow_dir }}/{{ order_prefix_bridge }}-{{ item.device }}
+  with_items: ovs_bridge_interfaces
+  when: ovs_bridge_interfaces is defined
+  register: ovs_bridge_result
+
+- name: Create the network configuration file for ethernet devices
+  template: src=ethernet_{{ ansible_os_family }}.j2 dest=/etc/network/{{ shadow_dir }}/{{ order_prefix_ether }}-{{ item.device }}
+  with_items: network_ether_interfaces
+  when: network_ether_interfaces is defined
+  register: ether_result
+
+- name: Write configuration files for rhel route configuration
+  template: src=route_{{ ansible_os_family }}.j2 dest=/etc/network/{{ shadow_dir }}/route-{{ item.device }}
+  with_items: network_ether_interfaces
+  when: network_ether_interfaces is defined and item.route is defined and ansible_os_family == 'RedHat'
+
+- name: Create the network configuration file for bridge devices
+  template: src=bridge_{{ ansible_os_family }}.j2 dest=/etc/network/{{ shadow_dir }}/{{ order_prefix_bridge }}-{{ item.device }}
+  with_items: network_bridge_interfaces
+  when: network_bridge_interfaces is defined
+  register: bridge_result
+
+- name: Write configuration files for rhel route configuration
+  template: src=route_{{ ansible_os_family }}.j2 dest=/etc/network/{{ shadow_dir }}/route-{{ item.device }}
+  with_items: network_bridge_interfaces
+  when: network_bridge_interfaces is defined and item.route is defined and ansible_os_family == 'RedHat'
+
+- name: Create the network configuration file for bond devices
+  template: src=bond_{{ ansible_os_family }}.j2 dest=/etc/network/{{ shadow_dir }}/{{ order_prefix_bond }}-{{ item.device }}
+  with_items: network_bond_interfaces
+  when: network_bond_interfaces is defined
+  register: bond_result
+
+- name: Make sure the bonding module is loaded
+  modprobe: name=bonding state=present
+  when: bond_result|changed
+
+- name: Write configuration files for route configuration
+  template: src=route_{{ ansible_os_family }}.j2 dest=/etc/network/{{ shadow_dir }}/route-{{ item.device }}
+  with_items: network_bond_interfaces
+  when: network_bond_interfaces is defined and item.route is defined and ansible_os_family == 'RedHat'
+
+- name: Create the network configuration file for slave in the bond devices
+  template: src=bond_slave_{{ ansible_os_family }}.j2 dest=/etc/network/{{ shadow_dir }}/{{ order_prefix_ether }}-{{ item.1 }}
+  with_subelements:
+   - network_bond_interfaces
+   - bond_slaves
+  when: network_bond_interfaces is defined
+  register: bond_port_result
+
+- name: Create network configuration file for vlan interfaces
+  template: src=vlan_{{ ansible_os_family }}.j2 dest=/etc/network/{{ shadow_dir }}/{{ order_prefix_vlan }}-{{ item.device }}
+  with_items: network_vlan_interfaces
+  when: network_vlan_interfaces is defined
+  register: vlan_interface_result
+
+- name: Disable remote root login over ssh
+  lineinfile: >
+     regexp="^#?PermitRootLogin "
+     line="PermitRootLogin no"
+     dest=/etc/ssh/sshd_config
+     state=present
+
+- name: Restart networking if required
+  debian_restart_networking:
+    shadow_path: "/etc/network/{{ shadow_dir }}"
+    force_restart: "{{ udev_config.changed }}"
+    restart_ovs: "{{ ovs_bridge_interfaces is defined and ovs_bridge_interfaces != [] }}"
+    management_pattern: "{{ interface_file_marker }}"
+  when: ansible_os_family == 'Debian'
+  register: net_restart
+
+- name: Set network restart fact for later use
+  set_fact:
+    network_restarted: "{{ net_restart.changed }}"

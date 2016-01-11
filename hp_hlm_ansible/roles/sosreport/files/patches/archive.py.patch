@@ -1,0 +1,11 @@
+--- archive.py	2015-10-08 11:56:01.541015064 +0000
++++ archive.py	2015-10-08 11:56:09.948974383 +0000
+@@ -188,7 +188,7 @@
+     def add_link(self, source, link_name):
+         dest = self.dest_path(link_name)
+         self._check_path(dest)
+-        if not os.path.exists(dest):
++        if not os.path.lexists(dest):
+             os.symlink(source, dest)
+         self.log_debug("added symlink at '%s' to '%s' in FileCacheArchive '%s'"
+                        % (dest, source, self._archive_root))

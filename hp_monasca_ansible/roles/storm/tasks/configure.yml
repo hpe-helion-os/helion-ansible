@@ -1,0 +1,95 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: Setup group
+  group: name={{storm_group}} system=yes
+  notify:
+    - storm | restart | restart all storm services
+
+- name: Setup user
+  user: name={{storm_user}} system=yes group={{storm_group}}
+  notify:
+     - storm | restart | restart all storm services
+
+- name: Create Storm root directory
+  file: path={{storm_root_dir}} state=directory owner={{storm_user}} group={{storm_group}} mode=755
+  notify:
+    - storm | restart | restart all storm services
+
+- name: Test which version of storm exists
+  stat: path={{ storm_tarball_location }}/{{ storm_tarball_name }}
+  register: storm_file_path
+
+- name: Change to old version
+  set_fact: storm_version=0.9.2-incubating
+  when: not storm_file_path.stat.exists
+
+- name: Uncompress the storm tar
+  unarchive: copy=no creates={{storm_root_dir}}/apache-storm-{{storm_version}} dest={{storm_root_dir}} src="{{ storm_tarball_location }}/{{ storm_tarball_name }}"
+  notify:
+    - storm | restart | restart all storm services
+
+- name: Link current version
+  file: path={{storm_root_dir}}/current state=link src={{storm_root_dir}}/apache-storm-{{storm_version}}
+  notify:
+    - storm | restart | restart all storm services
+
+- name: Create Storm log and local directories
+  file: path={{item}} state=directory owner={{storm_user}} group={{storm_group}} mode=775
+  with_items:
+    - "{{storm_local_dir}}"
+    - "/var/log/storm"
+  notify:
+    - storm | restart | restart all storm services
+
+- name: Copy custom logback cluster.xml over the default one, if present
+  shell: cp {{storm_cluster_logback_xml}} {{storm_root_dir}}/current/logback/cluster.xml
+  when: storm_cluster_logback_xml is defined
+  notify:
+    - storm | restart | restart all storm services
+
+- name: Check if Storm log directory already exists
+  stat: path={{storm_root_dir}}/current/logs get_md5=False
+  register: storm_logs_dir
+  notify:
+    - storm | restart | restart all storm services
+
+- name: Create Storm log symlink to /var/log/storm if directory does not exist
+  file: path={{storm_root_dir}}/current/logs state=link src=/var/log/storm
+  when: not storm_logs_dir.stat.exists
+  notify:
+    - storm | restart | restart all storm services
+
+- name: Detect if this is a systemd based system
+  command: cat /proc/1/comm
+  register: init
+- set_fact: use_systemd=True
+  when: init.stdout == 'systemd'
+- set_fact: use_systemd=False
+  when: init.stdout != 'systemd'
+
+- name: Configure cluster.xml for setting log level
+  template: dest="{{storm_root_dir}}/apache-storm-{{storm_version}}/logback/cluster.xml" owner={{storm_user}} group={{storm_group}} mode=644 src=cluster.xml.j2
+  notify:
+    - storm | restart | restart all storm services
+
+- include: configure_nimbus.yml tags=storm_nimbus
+  when: storm_nimbus_enabled
+
+- include: configure_supervisor.yml tags=storm_supervisor
+  when: storm_supervisor_enabled
+
+- meta: flush_handlers

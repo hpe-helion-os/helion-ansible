@@ -1,0 +1,58 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- hosts: KEY-CLI
+  sudo: yes
+  roles:
+    - swift-post-configure
+  # This task should be set to run-once
+  tasks:
+    - include: roles/swift-post-configure/tasks/keystone_conf.yml
+      ansible_python_interpreter: "{{ KEY_CLI.vars.keystone_client_python_interpreter }}"
+      when: ( 'SWF-PRX' in groups ) and ( ( groups['SWF-PRX'] | length ) > 0 )
+
+- hosts:
+  - SWF-ACC
+  - SWF-CON
+  - SWF-OBJ
+  - SWF-PRX
+  sudo: yes
+  roles:
+    - swift-post-configure
+  tasks:
+  - include: roles/swift-post-configure/tasks/swiftlm.yml
+
+- include: swiftlm-uptime-monitor.yml
+- include: swift-start.yml
+
+# The monasca agent tasks need to run after swift has started
+- hosts: SWF-*
+  sudo: yes
+  no_log: True
+  roles:
+    - {role: monasca-agent, run_mode: Use}
+    - monasca-default-alarms
+    - swift-monitor
+  tasks:
+  - include: roles/swift-monitor/tasks/monasca_custom_plugins.yml
+  - include: roles/swift-monitor/tasks/monasca_agents.yml
+    when: swiftlm_uptime_monitor_enabled is not defined
+  - include: roles/swift-monitor/tasks/monasca_agents.yml
+    vars:
+      swiftlm_check_metrics_files: "{{ swiftlm_uptime_monitor_stats_file }}"
+    when: swiftlm_uptime_monitor_enabled is defined
+  - include: roles/swift-monitor/tasks/monasca_alarms.yml

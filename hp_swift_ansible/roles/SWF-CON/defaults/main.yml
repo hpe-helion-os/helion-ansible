@@ -1,0 +1,65 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+swift_component: swift_container
+
+# Flag to track restart requirement
+swift_container_restart_required: false
+swift_container_reload_required: false
+swift_container_reconciler_reload_required: false
+swift_container_sync_reload_required: false
+
+# Default service directories
+swift_container_server_conf_dir: "{{ 'swift-container-server' | config_dir() }}"
+swift_container_reconciler_conf_dir: "{{ 'swift-container-reconciler' | config_dir() }}"
+
+# cmd          Identifies the name of the binary used when starting the service
+# conf         Specifies the name of the conf file to pass on the cmd line
+#              when starting the service
+# conf_service Specifies the name of the service that contains the conf file
+# main         Identifies the "main" swift services. It is currently not used.
+swift_container_services:
+  swift-container-server:
+    cmd: swift-container-server
+    conf: container-server.conf
+    conf_service: swift-container-server
+    main: true
+  swift-container-auditor:
+    cmd: swift-container-auditor
+    conf: container-server.conf
+    conf_service: swift-container-server
+    main: false
+  swift-container-reconciler:
+    cmd: swift-container-reconciler
+    conf: container-reconciler.conf
+    conf_service: swift-container-reconciler
+    main: false
+  swift-container-sync:
+    cmd: swift-container-sync
+    conf: container-server.conf
+    conf_service: swift-container-server
+    main: false
+  swift-container-replicator:
+    cmd: swift-container-replicator
+    conf: container-server.conf
+    conf_service: swift-container-server
+    main: false
+  swift-container-updater:
+    cmd: swift-container-updater
+    conf: container-server.conf
+    conf_service: swift-container-server
+    main: false

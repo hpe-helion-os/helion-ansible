@@ -1,0 +1,51 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- hosts: NOV-CND
+  roles:
+    - NOV-CND
+  tasks:
+    - include: roles/NOV-CND/tasks/status.yml
+
+- hosts: NOV-API
+  roles:
+    - NOV-API
+  tasks:
+    - include: roles/NOV-API/tasks/status.yml
+
+- hosts: NOV-CAU
+  roles:
+    - NOV-CAU
+  tasks:
+    - include: roles/NOV-CAU/tasks/status.yml
+
+- hosts: NOV-SCH
+  roles:
+    - NOV-SCH
+  tasks:
+    - include: roles/NOV-SCH/tasks/status.yml
+
+- hosts: NOV-VNC
+  roles:
+    - NOV-VNC
+  tasks:
+  - include: roles/NOV-VNC/tasks/status.yml
+
+- hosts: NOV-CMP
+  roles:
+    - NOV-CMP
+  tasks:
+    - include: roles/NOV-CMP/tasks/status.yml

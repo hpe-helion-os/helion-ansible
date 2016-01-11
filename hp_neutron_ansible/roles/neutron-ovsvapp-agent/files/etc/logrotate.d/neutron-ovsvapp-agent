@@ -1,0 +1,9 @@
+/var/log/neutron/ovsvapp-agent/*.log
+{
+  daily
+  missingok
+  compress
+  delaycompress
+  notifempty
+}
+

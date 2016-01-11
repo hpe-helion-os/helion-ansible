@@ -1,0 +1,46 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+influxdb_db: mon
+persister_conf_file: "{{ 'monasca' | config_dir() }}/persister-config.yml"
+monasca_log_dir: /var/log/monasca
+monasca_log_level: WARN
+monasca_log_rotation_backup_count: 5
+persister_version: 1.1.0-SNAPSHOT
+run_mode: Deploy
+skip_install: False
+monasca_virtualenv_dir: /opt/monasca
+monasca_persister_alarm_max_batch_time: 15
+monasca_persister_metric_max_batch_time: 15
+
+monasca_persister_restart_required: False
+
+vertica_vip: "{% if database_type == 'vertica' %}{{ MON_PST.consumes_FND_VDB.vips.private[0].host }}{% endif %}"
+vertica_vip_port: "{% if database_type == 'vertica' %}{{ MON_PST.consumes_FND_VDB.vips.private[0].port }}{% endif %}"
+vertica_url: "{% if database_type == 'vertica' %}jdbc:vertica://{{ vertica_vip }}:{{ vertica_vip_port }}/mon{% endif %}"
+
+influxdb_url: "{% if database_type == 'influxdb' %}{{ MON_PST.consumes_FND_IDB.vips.private[0].url }}{% endif %}"
+influxdb_password: "{{ MON_PST.consumes_FND_IDB.vars.influxdb_monasca_persister_password | quote }}"
+
+kafka_nodes: "{{ MON_PST.consumes_FND_KFK.members.private }}"
+kafka_hosts: "{% for node in kafka_nodes %}{{ node.host }}:{{ node.port }}{% if not loop.last %},{% endif %}{% endfor %}"
+
+persister_admin_connector_port: "{{ MON_PST.members.admin[0].port }}"
+persister_app_connector_port:  "{{ MON_PST.members.private[0].port }}"
+monasca_persister_hostname: "{{ host.my_dimensions.hostname }}"
+
+zookeeper_nodes: "{{ MON_PST.consumes_FND_ZOO.members.private }}"
+zookeeper_hosts: "{% for node in zookeeper_nodes %}{{ node.host }}:{{ node.port }}{% if not loop.last %},{% endif %}{% endfor %}"

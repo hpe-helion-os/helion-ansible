@@ -1,0 +1,53 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+[
+  {kernel, [
+    {inet_dist_listen_min, {{ rabbitmq_cp.inet_dist_listen_port }}},
+    {inet_dist_listen_max, {{ rabbitmq_cp.inet_dist_listen_port }}},
+    {inet_default_listen_options, [
+      {nodelay,true},
+      {sndbuf,65535},
+      {recbuf,65535},
+      {keepalive, true}
+    ]},
+    {inet_default_connect_options, [
+      {nodelay,true},
+      {keepalive, true}
+    ]}
+  ]},
+  {rabbit, [
+    {tcp_listeners, [
+{% for addr in rabbitmq_cp.bind_addresses %}
+      {"{{ addr.ip }}", {{ addr.port }}}{% if not loop.last %},{% endif %}
+
+{% endfor %}
+    ]},
+{% if ( groups[ 'FND-RMQ' ] | length ) > 1 %}
+    {cluster_partition_handling, {{ rabbitmq_config.cluster_partition_handling }}},
+{% endif %}
+    {disk_free_limit, {{ rabbitmq_config.disk_free_limit}}},
+    {loopback_users, []},
+    {vm_memory_high_watermark, {{ rabbitmq_config.vm_memory_high_watermark }}}
+  ]},
+  {rabbitmq_management, [
+    {listener, [
+      {port, {{ rabbitmq_cp.management_address.port }}},
+      {ip, "{{ rabbitmq_cp.management_address.ip }}"}
+    ]}
+  ]}
+].

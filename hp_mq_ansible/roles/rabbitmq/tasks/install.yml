@@ -1,0 +1,52 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+# HLX-745 will remove the requirement for this code block.
+- name: rabbitmq | install | Install pkill application
+  apt:
+    name: procps
+    force: yes
+    state: present
+
+- name: rabbitmq | install | Install RabbitMQ application
+  apt:
+    name: rabbitmq-server
+    force: yes
+    state: present
+  register: _rabbitmq_install_result
+
+# Wait for the RabbitMQ application to start.
+- name: rabbitmq | install | Wait for the RabbitMQ application to start
+  command: |
+    timeout {{ rabbitmq_start_timeout }}
+    rabbitmqctl wait {{ rabbitmq_env.pid_file }}
+  when: _rabbitmq_install_result.changed and
+        not rabbitmq_restart_required
+
+# HLX-745 will remove the requirement for this code block.
+- name: rabbitmq | install | Update rabbitmq-server.service with pid file
+  template:
+    src: rabbitmq-server.service.j2
+    dest: "/lib/systemd/system/rabbitmq-server.service"
+    owner: root
+    group: root
+    mode: 0644
+  register: _rabbitmq_systemd_unit_result
+
+# HLX-745 will remove the requirement for this code block.
+- name:  rabbitmq | install | Run systemctl daemon-reload if required
+  command: systemctl daemon-reload
+  when: _rabbitmq_systemd_unit_result.changed

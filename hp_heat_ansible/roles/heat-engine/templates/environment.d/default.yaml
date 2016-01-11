@@ -1,0 +1,9 @@
+{# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP #}
+resource_registry:
+    # allow older templates with Quantum in them.
+    "OS::Quantum*": "OS::Neutron*"
+    # Choose your implementation of AWS::CloudWatch::Alarm
+    "AWS::CloudWatch::Alarm": "file://{{ heat_service_conf_dir }}/templates/AWS_CloudWatch_Alarm.yaml"
+    #"AWS::CloudWatch::Alarm": "OS::Heat::CWLiteAlarm"
+    "OS::Metering::Alarm": "OS::Ceilometer::Alarm"
+    "AWS::RDS::DBInstance": "file://{{ heat_service_conf_dir }}/templates/AWS_RDS_DBInstance.yaml"

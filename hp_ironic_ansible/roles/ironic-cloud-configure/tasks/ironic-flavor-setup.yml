@@ -1,0 +1,26 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: Ironic Conductor | _create_bm_flavor | check for baremetal flavor
+  shell: nova --os-username admin --os-project-name admin --os-password {{ keystone_admin_pwd }} --os-user-domain-name Default --os-project-domain-name Default --os-endpoint-type internalURL --os-auth-url {{ keystone_auth_url }} flavor-list
+  register: bm_flavor_check
+
+- name: Ironic Conductor | _create_bm_flavor | create baremetal flavor
+  command: nova --os-username admin --os-project-name admin --os-password {{ keystone_admin_pwd }} --os-user-domain-name Default --os-project-domain-name Default  --os-endpoint-type internalURL --os-auth-url {{ keystone_auth_url }} {{ item }}
+  with_items:
+  - "flavor-create {{ baremetal_flavor_name }} {{ baremetal_flavor_id }} {{ baremetal_flavor_ram_mb }} {{ baremetal_flavor_disk_gb }} {{ baremetal_flavor_vcpu }}"
+  - "flavor-key m1.baremetal set cpu_arch=amd64 baremetal_type={{ baremetal_flavor_type }} capabilities:boot_option={{ baremetal_flavor_boot_option }} capabilities:boot_mode={{ baremetal_flavor_boot_mode }}"
+  when: "not '{{ baremetal_flavor_name }}' in bm_flavor_check.stdout"

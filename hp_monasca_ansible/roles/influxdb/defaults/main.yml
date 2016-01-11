@@ -1,0 +1,30 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+influxdb_raft_port: 8088
+influxdb_hostname: "{{ ansible_default_ipv4.address }}"
+
+influxdb_use_apt: false
+influxdb_version: 0.9.1
+
+run_mode: Deploy
+skip_install: False
+
+influxdb_bind_address: "{{ host.bind.FND_IDB.internal.ip_address }}"
+influxdb_client_port: "{{ FND_IDB.members.private[0].port }}"
+influxdb_node_count: "{{ FND_IDB.members.private | length }}"
+influxdb_replication_factor: "{% if influxdb_node_count | int > 3 %}3{% else %}{{ influxdb_node_count }}{% endif %}"
+influxdb_peers: "[ {% for peer in FND_IDB.members.private%}'{{ peer.host }}:{{ influxdb_raft_port }}'{% if not loop.last %},{% endif %}{% endfor %} ]"

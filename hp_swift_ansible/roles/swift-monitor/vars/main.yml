@@ -1,0 +1,45 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+#
+# Define vars used during monasca custom agent install
+#
+project: swiftlm
+
+project_src:  /opt/stack/service/{{ project }}/venv/lib/python2.7/site-packages/{{ project }}
+
+# path where custom detect plugin(s) may be found (a valid path for 'find')
+detect_plugins_src: "{{ project_src }}/monasca/detect_plugins"
+
+# path where custom check plugin(s) may be found (a valid path for 'find')
+check_plugins_src: "{{ project_src }}/monasca/check_plugins"
+
+#
+# Define vars used during monasca custom agent configuration
+#
+
+# Default list of files from which swiftlm_check will read metrics.
+swiftlm_check_metrics_files: ""
+
+# Default list of subcommands that swiftlm_check will use with swiftlm-scan.
+# Note: this list must NOT contain whitespace
+# Note: drive-info is currently omitted.
+swiftlm_check_subcommands: "file-ownership,drive-audit,swift-services,check-mounts,connectivity,network-interface"
+
+# Default list of subcommands for which swiftlm_check not report measurements
+# with value OK (0).
+# Note: this list must NOT contain whitespace
+swiftlm_check_suppress_ok: ""

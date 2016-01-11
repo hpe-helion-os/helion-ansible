@@ -1,0 +1,105 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+kafka:
+    url: "{{kafka_hosts}}"
+    group: "{{notification_kafka_group}}"
+    alarm_topic: "{{alarm_topic}}"
+    notification_topic: "{{notification_topic}}"
+    notification_retry_topic: "{{notification_retry_topic}}"
+    max_offset_lag: 600  # In seconds, undefined for none
+
+mysql:
+    host: "{{mysql_host}}"
+    user: "{{monasca_notification_mysql_user}}"
+    passwd: "{{monasca_notification_mysql_password| quote }}"
+    db: "{{monasca_mysql_db}}"
+{% if mysql_ssl is defined %}
+    ssl: {{mysql_ssl}}
+{% endif %}
+
+notification_types:
+
+{% if notification_enable_email | bool %}
+    email:
+        server: "{{ smtp.server }}"
+        port: {% if smtp.port is defined %}{{ smtp.port }}{% else %}25{% endif %}
+
+        user: "{% if smtp.user is defined %}{{ smtp.user }}{% endif %}"
+        password: "{% if smtp.password is defined %}{{ smtp.password }}{% endif %}"
+        timeout: {% if smtp.timeout is defined %}{{ smtp.timeout }}{% else %}15{% endif %}
+
+        from_addr: "{{ email_from_address }}"
+{% endif %}
+
+{% if notification_enable_webhook | bool %}
+    webhook:
+        timeout: 5
+{% endif %}
+
+{% if notification_enable_pagerduty | bool %}
+    pagerduty:
+        timeout: 5
+        url: "https://events.pagerduty.com/generic/2010-04-15/create_event.json"
+{% endif %}
+
+processors:
+    alarm:
+        number: {{ monasca_notification_alarm_processors }}
+        ttl: 14400  # In seconds, undefined for none. Alarms older than this are not processed
+    notification:
+        number: {{ monasca_notification_notification_processors }}
+
+retry:
+    interval: {{retry_interval}}
+    max_attempts: {{retry_max_attempts}}
+
+queues:
+    alarms_size: 256
+    finished_size: 256
+    notifications_size: 256
+    sent_notifications_size: 50  # limiting this size reduces potential # of re-sent notifications after a failure
+
+zookeeper:
+    url: "{{zookeeper_hosts}}"
+    notification_path: "{{zookeeper_notification_path}}"
+    notification_retry_path: "{{zookeeper_notification_retry_path}}"
+
+logging: # Used in logging.dictConfig
+    version: 1
+    disable_existing_loggers: False
+    formatters:
+        default:
+            format: "%(asctime)s %(levelname)s %(name)s %(message)s"
+    handlers:
+        file:
+            class: logging.handlers.RotatingFileHandler
+            filename: "{{notification_log_dir}}/notification.log"
+            formatter: default
+            maxBytes: {{ 1024**2 * notification_log_max_size }}  # Rotate at file size ~10MB
+            backupCount: {{ monasca_log_rotation_backup_count }}  # Keep 5 older logs around
+    loggers:
+        kazoo:
+            level: WARN
+        kafka:
+            level: WARN
+        statsd:
+            level: WARN
+    root:
+        handlers:
+            - file
+        level: {{ monasca_log_level }}

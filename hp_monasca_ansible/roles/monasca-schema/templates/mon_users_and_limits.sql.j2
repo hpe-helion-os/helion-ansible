@@ -1,0 +1,51 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+CREATE ROLE monasca_persister;
+CREATE ROLE monasca_api;
+
+GRANT USAGE ON SCHEMA MonMetrics TO monasca_persister;
+GRANT USAGE ON SCHEMA MonAlarms TO monasca_persister;
+GRANT ALL ON TABLE MonMetrics.Measurements TO monasca_persister;
+GRANT ALL ON TABLE MonMetrics.Definitions TO monasca_persister;
+GRANT ALL ON TABLE MonMetrics.Dimensions TO monasca_persister;
+GRANT ALL ON TABLE MonMetrics.DefinitionDimensions TO monasca_persister;
+GRANT ALL ON TABLE MonAlarms.StateHistory TO monasca_persister;
+
+GRANT USAGE ON SCHEMA MonMetrics TO monasca_api;
+GRANT USAGE ON SCHEMA MonAlarms TO monasca_api;
+GRANT SELECT ON TABLE MonMetrics.Measurements TO monasca_api;
+GRANT SELECT ON TABLE MonMetrics.Definitions TO monasca_api;
+GRANT SELECT ON TABLE MonMetrics.Dimensions TO monasca_api;
+GRANT SELECT ON TABLE MonMetrics.DefinitionDimensions TO monasca_api;
+GRANT ALL ON TABLE MonAlarms.StateHistory TO monasca_api;
+
+{% for item in vertica_users %}
+CREATE USER {{ item.username }} IDENTIFIED BY '{{ item.password }}';
+{% if item.role == 'monitor'%}
+GRANT pseudosuperuser TO {{ item.username }};
+ALTER USER {{ item.username }} DEFAULT ROLE pseudosuperuser;
+{% else %}
+GRANT {{ item.role }} TO {{ item.username }};
+ALTER USER {{ item.username }} DEFAULT ROLE {{ item.role }};
+{% endif %}
+{% endfor %}
+{% if vertica_resource_pools_limits is defined %}
+{% for item in vertica_resource_pools_limits %}
+ALTER RESOURCE POOL {{ item.name }}  {% if item.memorysize is defined %}memorysize '{{ item.memorysize}}' {% endif %}maxmemorysize '{{ item.maxmemorysize }}';
+{% endfor %}
+{% endif %}

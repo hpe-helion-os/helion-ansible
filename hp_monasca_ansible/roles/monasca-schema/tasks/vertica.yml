@@ -1,0 +1,65 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: Check if database exists
+  command: /opt/vertica/bin/admintools -t list_db -d '{{ vertica_database_name }}'
+  sudo_user: dbadmin
+  ignore_errors: yes
+  register: create_database
+
+- name: Create database
+  command: /opt/vertica/bin/admintools --no-log -t create_db -s {{vertica_cluster | default('127.0.0.1')}} -l {{vertica_config_dir}}/license.key -d '{{ vertica_database_name }}' -p '{{vertica_dbadmin_password| quote }}'
+  sudo_user: dbadmin
+  environment: "{{vertica_env}}"
+  when: create_database|failed and not rebuild
+  no_log: True
+
+- name: Set restart policy
+  command: /opt/vertica/bin/admintools -t set_restart_policy -d {{ vertica_database_name }} -p always
+  sudo_user: dbadmin
+  environment: "{{vertica_env}}"
+  when: create_database|failed and not rebuild
+
+- name: Copy over vertica sql files
+  copy: src={{ item }} dest=/var/vertica/{{ item }} mode=660
+  sudo_user: dbadmin
+  with_items:
+    - mon_alarms_schema.sql
+    - mon_metrics_schema.sql
+  register: sql_file_status
+
+- name: Copy over template vertica sql files
+  template: src={{ item }}.j2 dest=/var/vertica/{{ item }} mode=660
+  sudo_user: dbadmin
+  with_items:
+    - mon_users_and_limits.sql
+  register: sql_template_status
+
+- name: Write schema to vertica
+  shell: /opt/vertica/bin/vsql -w  '{{vertica_dbadmin_password| quote }}' < /var/vertica/{{ item }}
+  sudo_user: dbadmin
+  environment: "{{vertica_env}}"
+  with_items:
+    - mon_metrics_schema.sql
+    - mon_alarms_schema.sql
+    - mon_users_and_limits.sql
+  when: sql_file_status|changed or sql_template_status|changed and not rebuild
+  no_log: True
+
+- name: Create cron job to clean up old partitions
+  template: src=vertica-cleanup.j2 dest=/etc/cron.daily/vertica-cleanup mode=750
+
+# TODO: ENABLE SSL

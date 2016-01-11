@@ -1,0 +1,54 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+# NOTE(andreaf) This task is not executed by tempest-deploy, as it should
+# only be executed on demand when a test run is requested.
+# This creates test resources and injects their ids/names in tempest.confß
+
+# NOTE(andreaf) This is almost empty for now as we only test keystone
+# When you services come along we may have to create guest images and flavours
+# and inject the corresponding values in the configuration.
+
+- name: tps-tst | test-resources | check if ext-net exists
+  shell: neutron --os-username "{{ keystone_admin_user }}" --os-tenant-name "{{ keystone_admin_tenant }}" --os-password "{{ keystone_admin_pwd }}" --os-cacert {{ cacert }} --os-auth-url "{{ tempest_auth_url }}"  net-external-list --os-endpoint-type internalURL |  awk '/ ext-net / {print $2}'
+  register: public_network_id_result
+
+- name: tps-tst | test-resources | Check and fail if there is no external network
+  fail: msg="No ext-net found. Please create one."
+  when: public_network_id_result.stdout == ""
+
+- name: tps-tst | run | Grab Cirros image UUID from Glance
+  shell: glance --os-endpoint-type internalURL --os-tenant-name "{{ keystone_admin_tenant }}" --os-username "{{ keystone_admin_user }}" --os-password "{{ keystone_admin_pwd }}" --os-cacert {{ cacert }} --os-auth-url "{{ tempest_auth_url }}" image-list | grep -m 1 cirros | awk '{print $2}'
+  register: user_image_uuid_result
+
+- name: tps-tst | configure | Generate the lock_path variable
+  command: mktemp -d
+  register: lock_path_result
+
+- name: tps-tst | configure | Change rights of lock_path
+  command: chown -R {{ tempest_user }}:{{ tempest_group }} {{ lock_path_result.stdout }}
+
+- name: tps-tst | run | Update tempest.conf
+  ini_file:
+    dest: /{{ tempest_conf_dir }}/tempest.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { section: "DEFAULT", option: "lock_path", value: "{{ lock_path_result.stdout }}" }
+    - { section: "compute", option: "image_ref", value: "{{ user_image_uuid_result.stdout }}" }
+    - { section: "compute", option: "image_ref_alt", value: "{{ user_image_uuid_result.stdout }}" }
+    - { section: "network", option: "public_network_id", value: "{{ public_network_id_result.stdout }}" }

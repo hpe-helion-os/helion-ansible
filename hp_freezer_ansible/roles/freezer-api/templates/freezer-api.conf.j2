@@ -1,0 +1,60 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+[DEFAULT]
+# Show more verbose log output (sets INFO log level output)
+verbose = false
+
+# Show debugging output in logs (sets DEBUG log level output)
+#debug = False
+
+# If `log_file` is omitted and `use_syslog` is false, then log messages are
+# sent to stdout as a fallback.
+log_file = {{ freezer_api_log_python }}
+
+# ================= Syslog Options ============================
+
+# Send logs to syslog (/dev/log) instead of to file specified
+# by `log_file`
+use_syslogd = false
+
+# Facility to use. If unset defaults to LOG_USER.
+#syslog_log_facility = LOG_LOCAL0
+
+# ================= Authtoken Options ============================
+
+[keystone_authtoken]
+identity_uri = {{ freezer_keystone_identity_uri }}
+auth_uri = {{ freezer_keystone_auth_uri }}
+admin_user = {{ freezer_keystone_service_user }}
+admin_password = {{ freezer_keystone_service_password }}
+admin_tenant_name = {{ freezer_keystone_service_tenant_name }}
+include_service_catalog = False
+delay_auth_decision = False
+token_cache_time = {{ freezer_api_token_cache_time }}
+http_request_max_retries = {{ freezer_api_http_request_max_retries }}
+
+# ================= Storage Options ============================
+
+[storage]
+db = elasticsearch
+hosts = http://{{ elasticsearch_http_host }}:{{ elasticsearch_http_port }}
+timeout = {{ freezer_api_elasticsearch_timeout }}
+retries = {{ freezer_api_elasticsearch_retries }}
+number_of_replicas = 1
+#use_ssl=False
+#ca_certs=''

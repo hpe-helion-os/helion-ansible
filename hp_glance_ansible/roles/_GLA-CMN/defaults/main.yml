@@ -1,0 +1,80 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+# Layout of this file:
+# At the top of this file (following on from this text) are the root level
+# variables. Variables defined here have global scope.
+#
+# Files are defined by identifiers followed by a colon(:), with sections in
+# a file indented to the next level.
+
+# system level vars
+# -----------------
+# Values in this section relate to the build/install of glance
+# at a system level
+glance_system_group: glance
+glance_system_user: glance
+glance_system_createhome: false
+glance_system_shell: /bin/false
+
+glance_state_root_dir: ""
+
+### CA & SSL
+keys_path: "{{ glance_state_root_dir }}/var/lib/glance/keys"
+
+### common
+lock_path: "{{ glance_state_root_dir }}/var/lib/glance"
+my_ip : "{{ host.vars.my_network_address }}"
+my_host: "{{ host.vars.my_network_name }}"
+
+### Logging
+log_dir: "{{ glance_state_root_dir }}/var/log/glance"
+debug_logs: "True"
+
+## [keystone_authtoken]
+keystone_auth_uri: "{{ GLA_API.consumes_KEY_API.vips.public[0].url }}"
+keystone_identity_uri: "{{ GLA_API.consumes_KEY_API.vips.private[0].url }}"
+keystone_admin_user: "{{ KEY_API.vars.keystone_admin_user }}"
+keystone_admin_password: "{{ KEY_API.vars.keystone_admin_pwd | quote }}"
+keystone_admin_role: "{{ KEY_API.vars.keystone_admin_role }}"
+keystone_admin_endpoint: "{{ GLA_API.consumes_KEY_API.vips.admin[0].url }}/v3"
+glance_admin_password: "{{ GLA_API.consumes_KEY_API.vars.keystone_glance_password | quote }}"
+glance_admin_tenant_name: "{{ KEY_API.vars.keystone_service_tenant }}"
+glance_admin_user: "{{ GLA_API.consumes_KEY_API.vars.keystone_glance_user }}"
+
+## Swift Creds
+glance_swift_user: "{{ GLA_API.consumes_KEY_API.vars.keystone_glance_swift_user }}"
+glance_swift_tenant_name: "{{ GLA_API.consumes_KEY_API.vars.keystone_glance_swift_tenant }}"
+glance_swift_password: "{{ GLA_API.consumes_KEY_API.vars.keystone_glance_swift_password | quote }}"
+
+glance_registry_port: "{{ GLA_API.consumes_GLA_REG.vips.private[0].port }}"
+glance_api_port: "{{ GLA_API.advertises.vips.private[0].port }}"
+
+# WSGI Pipeline flavor
+glance_default_flavor: "keystone+healthcheck"
+
+## OSProfiler
+osprofiler_enabled: "False"
+
+## Notifications
+glance_default_notification_driver: "messaging"
+glance_default_notification_backend: "rabbit"
+
+### RabbitMQ
+rabbit_hosts: "{% for x in GLA_API.consumes_FND_RMQ.members.private %}{{ x.host }}:{{ x.port }}{%if not loop.last %},{% endif %}{% endfor %}"
+rabbit_password: "{{ GLA_API.consumes_FND_RMQ.vars.rmq_service_password }}"
+rabbit_userid: "{{ GLA_API.consumes_FND_RMQ.vars.rmq_service_user }}"

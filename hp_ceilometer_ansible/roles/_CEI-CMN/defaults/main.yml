@@ -1,0 +1,108 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+CEILOMETER_EXTRA_INSTALL_OPTS:
+CEILOMETER_LOG_DIR: /var/log/ceilometer
+ceilometer_global_conf_dir: /etc/ceilometer
+ceilometer_user: ceilometer
+ceilometer_group: ceilometer
+ceilometer_rabbit_is_ssl: false
+local_ip: 127.0.0.1
+keyston_ver: v2.0
+service_config_keystone_ver: v3
+signing_dir: /mnt/state/var/lib/ceilometer/keystone-signing
+ceilometer_common_conf_dir: "{{ 'ceilometer-common' | config_dir() }}"
+ceilometer_common_bin_dir: "{{ 'ceilometer-common' | bin_dir() }}"
+ceilometer_common_activate_required: false
+
+# Possible log levels are INFO/DEBUG/WARN/ERROR
+ceilometer_loglevel:  INFO
+ceilometer_logstash_loglevel:  INFO
+
+# Database variables
+db_admin_password: "{{ CEI_CMN.consumes_FND_MDB.vars.mysql_admin_password | quote }}"
+db_admin_user: "{{ CEI_CMN.consumes_FND_MDB.vars.mysql_admin_user }}"
+db_connection:
+ "mysql://\
+ {{ db_admin_user }}:{{ db_admin_password | quote }}@\
+ {{ db_login_host }}:{{ db_login_port }}"
+db_login_host: "{{ CEI_CMN.consumes_FND_MDB.vips.private[0].host }}"
+db_login_port: "{{ CEI_CMN.consumes_FND_MDB.vips.private[0].port }}"
+db_login_password: "{{ FND_MDB.vars.mysql_service_pwd | quote }}"
+db_login_user: "{{ FND_MDB.vars.mysql_service_user }}"
+
+
+# Message queue variables
+_mq_hosts_list: "{{ CEI_CMN.consumes_FND_RMQ.members.private }}"
+mq_hosts_port_pair:
+  "{% for x in _mq_hosts_list -%}
+   {{ x.host }}:{{ x.port }}
+   {%- if not loop.last -%},{% endif %}
+   {%- endfor %}"
+mq_password: "{{ CEI_CMN.consumes_FND_RMQ.vars.rmq_service_password }}"
+mq_user: "{{ CEI_CMN.consumes_FND_RMQ.vars.rmq_service_user }}"
+ceilometer_mq_user: "{{ CEI_CMN.vars.ceilometer_mq_user }}"
+ceilometer_mq_password: "{{ CEI_CMN.vars.ceilometer_mq_password }}"
+
+# Identity variables
+id_admin_protocol: "{{ tls_vars.keystone.api.admin.protocol }}"
+id_admin_host: "{{ CEI_CMN.consumes_KEY_API.vips.admin[0].host }}"
+id_admin_port: "{{ CEI_CMN.consumes_KEY_API.vips.admin[0].port }}"
+id_admin_role: "{{ KEY_API.vars.keystone_admin_role }}"
+id_admin_uri:  "{{ CEI_CMN.consumes_KEY_API.vips.admin[0].url }}"
+id_auth_url: "{{ id_priv_uri }}/"
+id_password: "{{ CEI_CMN.consumes_KEY_API.vars.keystone_ceilometer_password | quote }}"
+id_priv_host: "{{ CEI_CMN.consumes_KEY_API.vips.private[0].host }}"
+id_priv_port: "{{ CEI_CMN.consumes_KEY_API.vips.private[0].port }}"
+id_priv_protocol: "{{ tls_vars.keystone.api.private.protocol }}"
+id_priv_uri: "{{ CEI_CMN.consumes_KEY_API.vips.private[0].url }}"
+id_service_auth_url:  "{{ id_priv_uri }}/{{ keyston_ver }}"
+id_service_tenant: "{{ KEY_API.vars.keystone_service_tenant }}"
+
+# Ceilometer variables
+cm_region: "{{ CEI_API.advertises.vips.private[0].region_name }}"
+cm_priv_host: "{{ CEI_API.advertises.vips.private[0].host }}"
+cm_priv_port: "{{ CEI_API.advertises.vips.private[0].port }}"
+cm_pub_ip_addr: "{{ CEI_API.advertises.vips.public[0].ip_address }}"
+cm_pub_port: "{{ CEI_API.advertises.vips.public[0].port }}"
+cm_expirer_backend: "{{ db_connection }}"
+cm_database_connection: "{{ db_connection }}/ceilometer"
+_zoo_hosts_list: "{{ FND_ZOO.members.private }}"
+zoo_hosts_port_list:
+  "{% for h in _zoo_hosts_list -%}
+   {{ h.host }}:{{ h.port }}
+   {%- if not loop.last -%},{% endif %}
+   {%- endfor %}"
+cm_agent_ha_backend:
+  "kazoo://{{ zoo_hosts_port_list }}"
+
+# flag set in configure playbooks to trigger
+# ceilometer services handlers to restart
+ceilometer_restart_required: false
+
+#host and port bind variables
+ceilometer_api_bind_host: "{{ host.bind.CEI_API.internal.ip_address }}"
+ceilometer_api_bind_port: "{{ host.bind.CEI_API.internal.port }}"
+ceilometer_api_vip_public_url: "{{ CEI_API.advertises.vips.public[0].url }}"
+ceilometer_api_vip_admin_url: "{{ CEI_API.advertises.vips.admin[0].url }}"
+ceilometer_api_vip_private_url: "{{ CEI_API.advertises.vips.private[0].url }}"
+
+keystone:
+  admin_user: "{{ KEY_API.vars.keystone_admin_user }}"
+  admin_password: "{{ KEY_API.vars.keystone_admin_pwd | quote }}"
+  default_domain_name: "{{ KEY_API.vars.keystone_default_domain }}"
+
+

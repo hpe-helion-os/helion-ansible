@@ -1,0 +1,98 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: setup group
+  group: name={{kafka_group}} system=yes
+  notify:
+    - kafka | restart | restart all kafka services
+
+- name: Setup user
+  user: name={{kafka_user}} system=yes group={{kafka_group}}
+  notify:
+    - kafka | restart | restart all kafka services
+
+- name: Uncompress the kafka tar
+  unarchive: copy=no creates=/opt/kafka_2.9.2-{{kafka_version}} dest=/opt src="{{ kafka_tarball_location }}/{{ kafka_tarball_name }}"
+  notify:
+    - kafka | restart | restart all kafka services
+
+- name: Link /opt/kafka to the right version
+  file: path=/opt/kafka state=link src=/opt/kafka_2.9.2-{{kafka_version}}
+  notify:
+    - kafka | restart | restart all kafka services
+
+- name: Overwrite the start script so the Java Opts can be changed if Kafka 0.8.1.1
+  lineinfile: dest=/opt/kafka_2.9.2-{{kafka_version}}/bin/kafka-server-start.sh regexp="^export KAFKA_HEAP_OPTS=" line="export KAFKA_HEAP_OPTS=\"{{ kafka_heap_opts }}\""
+  notify:
+    - kafka | restart | restart all kafka services
+  when: kafka_version == "0.8.1.1"
+
+- name: Detect if this is a systemd based system
+  command: cat /proc/1/comm
+  register: init
+- set_fact: use_systemd=True
+  when: init.stdout == 'systemd'
+- set_fact: use_systemd=False
+  when: init.stdout != 'systemd'
+
+- name: create upstart config
+  template: dest={{kafka_upstart_conf}} owner=root group=root mode=644 src=kafka.conf.j2
+  notify:
+    - kafka | restart | restart all kafka services
+  when: not use_systemd
+
+- name: create systemd config
+  template: dest={{kafka_systemd_service}} owner=root group=root mode=644 src=kafka.service.j2
+  notify:
+    - kafka | restart | restart all kafka services
+  when: use_systemd
+
+- command: systemctl daemon-reload
+  when: use_systemd
+
+- name: Create data_dir
+  file: path={{kafka_data_dir}} state=directory owner={{kafka_user}} group={{kafka_group}} mode=755
+  notify:
+    - kafka | restart | restart all kafka services
+
+- name: Remove lost+found in the datadir
+  file: path="{{kafka_data_dir}}/lost+found" state=absent
+  notify:
+    - kafka | restart | restart all kafka services
+
+- name: Create log_dir
+  file: path={{kafka_log_dir}} state=directory owner={{kafka_user}} group={{kafka_group}} mode=755
+  notify:
+    - kafka | restart | restart all kafka services
+
+- name: link conf_dir to /opt/kafka/config
+  file: path={{kafka_conf_dir}} state=link src=/opt/kafka/config
+  notify:
+    - kafka | restart | restart all kafka services
+
+# Setup log4j.properties
+- name: create log4j.properties
+  template: dest="{{kafka_conf_dir}}/log4j.properties" owner={{kafka_user}} group={{kafka_group}} mode=644 src=log4j.properties.j2
+  notify:
+    - kafka | restart | restart all kafka services
+
+# Setup server.properties
+- name: create server.properties
+  template: dest="{{kafka_conf_dir}}/server.properties" owner={{kafka_user}} group={{kafka_group}} mode=640 src=server.properties.j2
+  notify:
+    - kafka | restart | restart all kafka services
+
+- meta: flush_handlers

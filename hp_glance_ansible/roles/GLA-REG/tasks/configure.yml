@@ -1,0 +1,112 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- include: ../../_GLA-CMN/tasks/configure.yml
+
+- name: glance-registry | configure | Create Glance directories
+  file: >
+    path={{ glance_registry_conf_dir }}
+    owner={{ glance_system_user }}
+    group={{ glance_system_group }}
+    mode=0755
+    state=directory
+
+- name: glance-registry | configure | Create glance registry log and json log files
+  file: >
+    path={{ item }}
+    owner={{ glance_system_user }}
+    group="adm"
+    mode=0640
+    state=touch
+  with_items:
+    - "{{ glance_registry_log_file }}"
+    - "{{ glance_registry_log_json_file }}"
+
+- name: glance-registry | configure | Create glance-registry-paste.ini from template
+  template: >
+    src=glance-registry-paste.ini.j2
+    dest={{ glance_registry_conf_dir }}/glance-registry-paste.ini
+    owner={{ glance_system_user }}
+    group={{ glance_system_group }}
+    mode=0400
+  notify:
+    - glance_registry_config_change
+
+- name: glance-registry | configure | Create glance-registry.conf from template
+  template: >
+    src=glance-registry.conf.j2
+    dest={{ glance_registry_conf_dir }}/glance-registry.conf
+    owner={{ glance_system_user }}
+    group={{ glance_system_group }}
+    mode=0400
+  notify:
+    - glance_registry_config_change
+
+- name: glance-registry | configure | Create glance-registry-logging.conf from template
+  template: >
+    src=glance-registry-logging.conf.j2
+    dest={{ glance_registry_conf_dir }}/glance-registry-logging.conf
+    owner={{ glance_system_user }}
+    group={{ glance_system_group }}
+    mode=0400
+  notify:
+    - glance_registry_config_change
+
+- name: glance-registry | configure | Create Glance metadefs directory
+  file: >
+    path={{ glance_registry_conf_dir }}/metadefs
+    owner={{ glance_system_user }}
+    group={{ glance_system_group }}
+    mode=0755
+    state=directory
+
+- name: glance-registry | configure | Copy Glance metadefs configuration files
+  copy: >
+    src=etc/metadefs/{{ item }}
+    dest={{ glance_registry_conf_dir }}/metadefs/{{ item }}
+    owner={{ glance_system_user }}
+    group={{ glance_system_group }}
+    mode=0400
+    force=True
+  with_items:
+    - 'compute-aggr-disk-filter.json'
+    - 'compute-aggr-iops-filter.json'
+    - 'compute-aggr-num-instances.json'
+    - 'compute-guest-shutdown.json'
+    - 'compute-host-capabilities.json'
+    - 'compute-hypervisor.json'
+    - 'compute-instance-data.json'
+    - 'compute-libvirt.json'
+    - 'compute-quota.json'
+    - 'compute-randomgen.json'
+    - 'compute-trust.json'
+    - 'compute-vcputopology.json'
+    - 'compute-vmware.json'
+    - 'compute-watchdog.json'
+    - 'compute-xenapi.json'
+    - 'glance-common-image-props.json'
+    - 'README'
+  notify:
+    - glance_registry_metadef_change
+
+- name: glance-registry | configure | Register glance-registry with systemd
+  setup_systemd:
+    service: "glance-registry"
+    cmd: "glance-registry"
+    user: "{{ glance_system_user }}"
+    group: "{{ glance_system_group }}"
+    args: "--config-file {{ glance_registry_conf_dir }}/glance-registry.conf --log-file {{ glance_registry_log_file }}"

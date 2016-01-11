@@ -1,0 +1,49 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: swift-monitor | monasca_agents | Allow sudo access to swiftlm-scan
+  become: yes
+  template:
+    src: swiftlm-scan-users
+    dest: /etc/sudoers.d/swiftlm-scan-users
+    owner: root
+    group: root
+    mode: 0440
+
+# TBD since monasca_agent_deploy is currently giving trouble, add the ignore_errors
+# until monasca agent is more stable.
+# The name value here is the name of Plugin class in the detect modules, not
+# the name of the module.
+- name: swift-monitor  | monasca_agents | Run Monasca agent Swift detection plugin
+  monasca_agent_plugin: name="swift"
+  ignore_errors: yes
+
+- name: swift-monitor  | monasca_agents | Run swiftlm custom detection plugin
+  monasca_agent_plugin:
+    name: "SwiftLMDetect"
+    # args should be a space separated list and can include:
+    #    metrics_files=<comma-separated (no spaces) list of files from
+    #                  which metrics will be read.
+    #    subcommands=<comma-separated (no spaces) list of subcommands with
+    #                which swiftlm-scan will be run.
+    #    suppress_ok=<comma-separated (no spaces) list of subcommands for
+    #                which swiftlm-scan will not report metrics with value
+    #                OK (0).
+    args: >
+      subcommands={{ swiftlm_check_subcommands }}
+      suppress_ok={{ swiftlm_check_suppress_ok }}
+      metrics_files={{ swiftlm_check_metrics_files }}
+  ignore_errors: yes

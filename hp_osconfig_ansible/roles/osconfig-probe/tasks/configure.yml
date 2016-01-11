@@ -1,0 +1,57 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: osconfig-probe | configure | Probe hardware configuration
+  sudo: yes
+  probe: ipaddr={{ ansible_default_ipv4.address }}
+                  hostname={{ host.vars.my_network_name }}
+
+- name: osconfig-probe | configure | Create /var/cache/ for probe
+  sudo: yes
+  file: >
+    path={{ probe_var_cache }}
+    owner=root
+    group=root
+    mode=0755
+    state=directory
+
+- name: osconfig-probe | configure | Update /var/cache yml files
+  sudo: yes
+  template:
+    src: "{{ item }}.j2"
+    dest: "{{ probe_var_cache }}/{{ item }}.yml"
+    owner: root
+    group: root
+    mode: "a=r"
+  with_items:
+  - drive_configuration
+  - interface_configuration
+  - dmi_data
+  - meminfo
+  - packages
+
+- name: osconfig-probe | configure | Upload data to deployer
+  fetch:
+    src={{ probe_var_cache}}/{{ item }}.yml
+    dest=osconfig-probe/{{ ansible_default_ipv4.address }}/
+    flat=yes
+  with_items:
+  - drive_configuration
+  - interface_configuration
+  - dmi_data
+  - meminfo
+  - packages

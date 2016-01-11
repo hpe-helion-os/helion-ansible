@@ -1,0 +1,35 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: freezer-agent | monitor | freezer-scheduler detection plugin directory creation
+  become: yes
+  file: path=/usr/lib/monasca/agent/custom_detect.d state=directory owner=root group=root mode=0755
+  when: '"MON-AGN" in group_names'
+
+- name: freezer-agent | monitor | freezer-scheduler detection plugin file copy
+  become: yes
+  copy: src=FreezerSchedulerDetect.py dest=/usr/lib/monasca/agent/custom_detect.d/FreezerSchedulerDetect.py owner=root group=root mode=0644
+  when: '"MON-AGN" in group_names'
+
+- name: freezer-agent | monitor | Restart freezer-scheduler Monitor Plugin
+  become: yes
+  monasca_agent_plugin: name="FreezerSchedulerDetect"
+  register: freezer_monitor_restart_result
+  until: "freezer_monitor_restart_result.rc == 0"
+  retries: 3
+  delay: 10
+  when: '"MON-AGN" in group_names'

@@ -1,0 +1,46 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- include: ../../_SWF-CMN/tasks/configure.yml
+
+- set_fact:
+    swift_proxy_server_role: true
+
+- name: SWF-PRX | configure | Enable the swift proxy services to start on boot
+  command: systemctl enable "{{ item.key }}"
+  with_dict: swift_proxy_services
+
+# Note, this .conf file should NOT be in a venv specific etc dir
+- name: SWF-PRX | configure | Copy swift.conf
+  template:
+    src: ../../_SWF-CMN/templates/swift.conf.j2
+    dest: "{{ swift_dir }}/swift.conf"
+    owner: "{{ swift_user }}"
+    group: "{{ swift_group }}"
+    mode: 0400
+  notify:
+    - swift_config_change
+
+- name: SWF-PRX | configure | Copy proxy-server.conf to service specific etc
+  template:
+    src: proxy-server.conf.j2
+    dest: "{{ swift_proxy_server_conf_dir }}/proxy-server.conf"
+    owner: "{{ swift_user }}"
+    group: "{{ swift_group }}"
+    mode: 0400
+  notify:
+    - swift_proxy_config_change
+

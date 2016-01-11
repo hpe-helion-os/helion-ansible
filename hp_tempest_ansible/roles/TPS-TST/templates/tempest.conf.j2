@@ -1,0 +1,85 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+# Basic configuration file
+# The keystone credentials and host need to be referenced here explicitly
+# because of https://github.com/ansible/ansible/issues/9008
+
+[DEFAULT]
+debug = true
+log_dir = {{ installation_directory }}
+log_file = tempest.log
+
+[compute]
+flavor_ref = 1
+flavor_ref_alt = 2
+fixed_nextwork_name = default-net
+allow_tenant_isolation = true
+
+[compute-feature-enabled]
+resize = false
+live_migration = true
+block_migration_for_live_migration = true
+block_migrate_cinder_iscsi = false
+disk_config = false
+vnc_console = true
+
+[dashboard]
+dashboard_url = {{ hostvars[groups['HZN-WEB'][0]].HZN_WEB.advertises.vips.private[0].url }}
+login_url = {{ hostvars[groups['HZN-WEB'][0]].HZN_WEB.advertises.vips.private[0].url }}/auth/login/
+
+[identity]
+username = {{ hostvars[groups['KEY-API'][0]].KEY_API.vars.keystone_demo_user }}
+tenant_name = {{ hostvars[groups['KEY-API'][0]].KEY_API.vars.keystone_demo_tenant }}
+password = {{ hostvars[groups['KEY-API'][0]].KEY_API.vars.keystone_demo_pwd }}
+alt_username = {{ hostvars[groups['KEY-API'][0]].KEY_API.vars.keystone_demo_user }}
+alt_tenant_name = {{ hostvars[groups['KEY-API'][0]].KEY_API.vars.keystone_demo_tenant }}
+alt_password = {{ hostvars[groups['KEY-API'][0]].KEY_API.vars.keystone_demo_pwd }}
+admin_username = {{ hostvars[groups['KEY-API'][0]].KEY_API.vars.keystone_admin_user }}
+admin_tenant_name = {{ hostvars[groups['KEY-API'][0]].KEY_API.vars.keystone_admin_tenant }}
+admin_password = {{ hostvars[groups['KEY-API'][0]].KEY_API.vars.keystone_admin_pwd }}
+admin_domain_name = Default
+disable_ssl_certificate_validation = true
+uri = {{ hostvars[groups['KEY-API'][0]].KEY_API.advertises.vips.admin[0].url }}/v2.0
+uri_v3 = {{ hostvars[groups['KEY-API'][0]].KEY_API.advertises.vips.admin[0].url }}/v3
+region = region-ccp
+
+[identity-feature-enabled]
+api_v3 = true
+
+[service_available]
+cinder = {{ cinder_available }}
+neutron = {{ neutron_available }}
+glance = {{ glance_available }}
+swift = {{ swift_available }}
+nova = {{ nova_available }}
+heat = {{ heat_available }}
+ceilometer = {{ ceilometer_available }}
+horizon = {{ horizon_available }}
+sahara = {{ sahara_available }}
+ironic = {{ ironic_available }}
+trove = {{ trove_available }}
+zaqar = {{ zaqar_available }}
+
+[network]
+tenant_network_cidr = 10.10.0.0/16
+tenant_networks_reachable = false
+floating_network_name = ext-net
+
+[network-feature-enabled]
+ipv6 = true
+api_extensions = security-group, router, quotas, l3_agent_scheduler, ext-gw-mode, binding, provider, agent, dhcp_agent_scheduler, multi-provider, external-net, allowed-address-pairs, extra_dhcp_opt, extraroute, dvr, l3-ha

@@ -1,0 +1,83 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+tempest_auth_url: "{{ hostvars[groups['KEY-API'][0]].KEY_API.advertises.vips.admin[0].url }}"
+
+keystone_admin_user: "{{ hostvars[groups['KEY-API'][0]].KEY_API.vars.keystone_admin_user }}"
+keystone_admin_tenant: "{{ hostvars[groups['KEY-API'][0]].KEY_API.vars.keystone_admin_tenant }}"
+keystone_admin_pwd: "{{ hostvars[groups['KEY-API'][0]].KEY_API.vars.keystone_admin_pwd }}"
+keystone_demo_user: "{{ hostvars[groups['KEY-API'][0]].KEY_API.vars.keystone_demo_user }}"
+keystone_demo_tenant: "{{ hostvars[groups['KEY-API'][0]].KEY_API.vars.keystone_demo_tenant }}"
+keystone_demo_pwd: "{{ hostvars[groups['KEY-API'][0]].KEY_API.vars.keystone_demo_pwd }}"
+
+# The installation_directory is where the configuration files are deployed,
+# e.g. .testr.conf, etc/tempest.conf
+installation_directory: "{{ 'tempest' | config_dir }}/.."
+tempest_conf_dir: "{{ 'tempest' | config_dir }}"
+tempest_bin_dir: "{{ 'tempest' | bin_dir }}/../lib/python2.7/site-packages"
+
+tempest_user: tempest
+tempest_group: tempest
+
+# The default run concurrency is determined by the number of the CPU cores on
+# the test driver
+run_concurrency: 0
+
+# This is the file that includes the regex to filter the tests to be executed
+run_filter: ci
+
+# tempest tests timeout in seconds
+tempest_timeout_secs: 32400
+tempest_poll_secs: 60
+
+# Services available for test
+cinder_available: true
+neutron_available: true
+glance_available: true
+swift_available: true
+nova_available: true
+heat_available: true
+ceilometer_available: false
+horizon_available: true
+sahara_available: false
+ironic_available: false
+trove_available: false
+zaqar_available: false
+
+# Defaults for test resources
+username: helion_tempest
+alt_username: helion_tempest_alt
+password: helion
+
+ext_net_cidr: "172.31.0.0/16"
+
+# TLS vars
+cacert: /etc/ssl/certs/ca-certificates.crt
+
+# Service endpoints to use
+
+tempest_service_endpoints:
+    - { section: "identity", option: "v2_public_endpoint_type", value: "internalURL" }
+    - { section: "compute", option: "endpoint_type", value: "internalURL" }
+    - { section: "volume", option: "endpoint_type", value: "internalURL" }
+    - { section: "network", option: "endpoint_type", value: "internalURL" }
+    - { section: "image", option: "endpoint_type", value: "internalURL" }
+    - { section: "object-storage", option: "endpoint_type", value: "internalURL" }
+    - { section: "orchestration", option: "endpoint_type", value: "internalURL" }
+    - { section: "telemetry", option: "endpoint_type", value: "internalURL" }
+    - { section: "data_processing", option: "endpoint_type", value: "internalURL" }
+    - { section: "baremetal", option: "endpoint_type", value: "internalURL" }

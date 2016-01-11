@@ -1,0 +1,49 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: Install common apt packages
+  become: yes
+  apt: name={{ item }} install_recommends=no state=latest force=yes
+  with_items:
+    common_apt_packages | default([])
+
+- name: check irqbalance config
+  become: yes
+  shell: lsmod | grep {{ item }}
+  with_items: irq_affinity_drivers
+  register: is_driver_loaded
+  ignore_errors: yes
+
+- name: Set irqbalance hint policy default
+  set_fact:
+      hlm_irq_hint_policy: OPTIONS="--hintpolicy=ignore"
+  when: "{{ item.rc == 0 }}"
+  with_items: "{{ is_driver_loaded.results }}"
+
+- name : Set irqbalance config file
+  become: yes
+  template:
+      src: default-irqbalance.j2
+      dest: /etc/default/irqbalance
+  register: new_default_irqbalance
+
+- name: restart irqbalance if necesary
+  become: yes
+  service:
+      name: irqbalance
+      state: restarted
+  when: new_default_irqbalance.changed

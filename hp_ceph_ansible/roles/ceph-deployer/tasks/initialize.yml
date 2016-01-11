@@ -1,0 +1,68 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: ceph-deployer | configure | Create ceph directory /etc/ceph
+  file:
+    path: /etc/ceph
+    state: directory
+    owner: "{{ ceph_user }}"
+    group: "{{ ceph_group }}"
+    mode: 0777
+
+- name: ceph-deployer | configure | Check /etc/ceph/ceph.mon.keyring exists in deployer
+  stat:
+    path: /etc/ceph/ceph.mon.keyring
+  register: ceph_deployer_mon_keyring_result
+
+- name: ceph-deployer | configure | Fetch /etc/ceph/ceph.mon.keyring from admin node to /etc/ceph
+  fetch:
+    src: /etc/ceph/ceph.mon.keyring
+    dest: /etc/ceph/ceph.mon.keyring
+    flat: yes
+  delegate_to: "{{ ceph_admin_node }}"
+  when: ceph_deployer_mon_keyring_result.stat.exists == False
+
+- name: ceph-deployer | configure | Check /etc/ceph/ceph.client.admin.keyring exists in deployer
+  stat:
+    path: /etc/ceph/ceph.client.admin.keyring
+  register: ceph_deployer_admin_keyring_result
+
+- name: ceph-deployer | configure | Fetch /etc/ceph/ceph.client.admin.keyring from admin node to /etc/ceph
+  fetch:
+    src: /etc/ceph/ceph.client.admin.keyring
+    dest: /etc/ceph/ceph.client.admin.keyring
+    flat: yes
+  delegate_to: "{{ ceph_admin_node }}"
+  when: ceph_deployer_admin_keyring_result.stat.exists == False
+
+- name: ceph-deployer | configure | Change keyring permissions
+  file:
+    path: "{{ item }}"
+    owner: "{{ ceph_user }}"
+    group: "{{ ceph_group }}"
+    mode: 0644
+  with_items:
+    - "/etc/ceph/ceph.client.admin.keyring"
+    - "/etc/ceph/ceph.mon.keyring"
+
+- name: ceph-deployer | configure | Restrict other users from writing into /etc/ceph directory
+  file:
+    path: /etc/ceph
+    state: directory
+    owner: "{{ ceph_user }}"
+    group: "{{ ceph_group }}"
+    mode: 0755

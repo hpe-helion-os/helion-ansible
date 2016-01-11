@@ -1,0 +1,82 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Playbook for setting variables used in the cobbler deploy
+---
+
+- name: cobbler | set variables | Get baremetal server information
+  local_action: bmconfig file={{ baremetal_config }}
+  register: baremetal
+
+- name: cobbler | set variables | Set baremetal network subnet
+  set_fact:
+    cobbler_subnet: "{{ baremetal.network.subnet }}"
+  when: cobbler_subnet is not defined
+
+- name: cobbler | set variables | Set baremetal network netmask
+  set_fact:
+    cobbler_netmask: "{{ baremetal.network.netmask }}"
+  when: cobbler_netmask is not defined
+
+- name: cobbler | set variables | Set baremetal network cidr
+  set_fact:
+    cobbler_cidr: "{{ baremetal.network.cidr }}"
+  when: cobbler_cidr is not defined
+
+- name: cobbler | set variables | List available nics
+  local_action: shell ip a | awk '/^[0-9]/ { sub(":","",$2) ; iface=$2 } $1 == "inet" {print iface, $2 }'
+  register: _candidates
+  when: cobbler_server_interface is not defined
+
+- name: cobbler | set variables | Find baremetal nic
+  match-cidr: cidr="{{ cobbler_cidr }}" ips="{{ _candidates.stdout }}"
+  register: _selected
+  when: cobbler_server_interface is not defined
+
+# We want this in the log for debug purposes, in case it's wrong and needs manual override.
+- debug: var=_selected
+  when: _selected is defined
+
+- name: cobbler | set variables | Set baremetal network server interface
+  set_fact:
+    cobbler_server_interface: "{{ _selected.stdout }}"
+  when: cobbler_server_interface is not defined
+
+- name: cobbler | set variables | Find baremetal network server interface ip
+  set_fact:
+    cobbler_server_ip_addr: "{{ _selected.ip }}"
+  when: cobbler_server_ip_addr is not defined
+
+# An override gateway  for CI
+- name: cobbler | set variables | Set baremetal network gateway
+  set_fact:
+    cobbler_gateway: "{{ cobbler_server_ip_addr }}"
+  when: cobbler_gateway is not defined
+
+# An override nameserver for CI
+- name: cobbler | set variables | Set baremetal network name server
+  set_fact:
+    cobbler_name_server: "{{ cobbler_server_ip_addr }}"
+  when: cobbler_name_server is not defined
+
+- name: cobbler | set variables | Set local hlinux repo ip url
+  set_fact:
+    hlinux_server: "http://{{ cobbler_server_ip_addr }}:{{ hlinux_server_port }}"
+  when: hlinux_server is not defined
+
+- name: cobbler | set variables | Set local hlinux repo url
+  set_fact:
+    hlinux_installer_url: "{{ hlinux_url }}/dists/{{ hlinux_distro }}/{{ hlinux_url_postfix }}"
+  when: hlinux_installer_url is not defined

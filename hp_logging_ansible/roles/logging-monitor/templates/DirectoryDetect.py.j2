@@ -1,0 +1,56 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+import logging
+
+import monasca_setup.agent_config
+import monasca_setup.detection
+
+log = logging.getLogger(__name__)
+
+class DirectoryDetect(monasca_setup.detection.Plugin):
+    """Detect Elasticsearch and setup configuration to monitor it.
+    """
+
+    def _detect(self):
+        """Run detection, always set self.available True
+        """
+        self.available = True
+
+    def build_config(self):
+        """Build the config as a Plugins object and return.
+        """
+        log.info("\tEnabling the directory plugin to get the metrics for each log file.")
+        config = monasca_setup.agent_config.Plugins()
+        config['directory'] = {'init_config': None, 'instances': [
+{% for service in logr_services %}
+{% for logging_option in logr_services[service]['logging_options'] %}
+                    {'service': '{{ service }}',
+                     'directory': '{{ (logr_services[service]['logging_options'][loop.index0]['files'][0]|split('/'))[:-1]|join('/') }}',
+                     'pattern': '{{ (logr_services[service]['logging_options'][loop.index0]['files'][0]|split('/'))[-1] }}'
+                    },
+{% endfor %}
+{% endfor %}
+                    {'directory': '/var/log',
+                     'pattern': 'messages'
+                    }
+                ]}
+        return config
+
+    def dependencies_installed(self):
+        return True
+

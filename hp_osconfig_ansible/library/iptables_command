@@ -1,0 +1,284 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+#
+# Copyright 2011 OpenStack Foundation.
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+DOCUMENTATION = '''
+---
+module: iptables
+short_description: A module for adding non-persistent iptables rules.
+
+'''
+
+import contextlib
+import errno
+import fcntl
+import logging
+import logging.handlers
+import os
+import signal
+
+
+LOG = logging.getLogger(__name__)
+
+# lock_path is defined in neutron.conf.j2
+LOCK_PATH = '/var/run/neutron/lock'
+LOCK_NAME = 'iptables'
+SYNCHRONIZED_PREFIX = 'neutron-'
+LOCK_TIMEOUT = 120
+
+
+def main():
+    module = AnsibleModule(
+        argument_spec=dict(
+            command=dict(required=True)
+        ),
+        supports_check_mode=False
+    )
+    init_logging()
+
+    command = module.params['command']
+    changed = False
+
+    try:
+        LOG.info("Install non-persistent iptable rule")
+
+        with lock(LOCK_NAME, SYNCHRONIZED_PREFIX, LOCK_PATH):
+            rc, stdout, stderr = run_iptables_cmd(module, command)
+            changed = (rc == 0)
+
+    except Exception, e:
+        LOG.error("Installing non-persistent iptable rule: Failed")
+        module.fail_json(msg='Exception: %s' % e)
+
+    LOG.info("Installing non-persistent iptable rule: Done")
+    module.exit_json(command=command,
+                     changed=changed,
+                     stderr=stderr.rstrip("\r\n"),
+                     stdout=stdout.rstrip("\r\n"),
+                     rc=rc)
+
+
+def run_iptables_cmd(module, command):
+    cmd = 'iptables ' + command
+    rc, stdout, stderr = module.run_command(cmd)
+    if rc != 0:
+        LOG.error("cmd failed: %r", cmd)
+        LOG.debug("rc: %r", rc)
+        LOG.debug("stdout: %r", stdout)
+        LOG.debug("stderr: %r", stderr)
+
+    return rc, stdout, stderr
+
+
+def init_logging():
+    syslog_handler = logging.handlers.SysLogHandler(address='/dev/log')
+    formatter = logging.Formatter('%(module)s: %(message)s')
+    syslog_handler.setFormatter(formatter)
+    LOG.addHandler(syslog_handler)
+    LOG.setLevel(logging.INFO)
+#    LOG.setLevel(logging.DEBUG)        # comment out if not needed
+
+
+# NOTE: This entire class can be removed if we have the fasteners
+#       module, see oslo.concurrency code for more information.
+class InterProcessLock(object):
+    """An interprocess locking implementation.
+
+    This is a lock implementation which allows multiple locks, working around
+    issues like http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=632857 and
+    does not require any cleanup. Since the lock is always held on a file
+    descriptor rather than outside of the process, the lock gets dropped
+    automatically if the process crashes, even if ``__exit__`` is not
+    executed.
+
+    There are no guarantees regarding usage by multiple threads in a
+    single process here. This lock works only between processes.
+
+    Note these locks are released when the descriptor is closed, so it's not
+    safe to close the file descriptor while another thread holds the
+    lock. Just opening and closing the lock file can break synchronization,
+    so lock files must be accessed only using this abstraction.
+    """
+
+    def __init__(self, path, timeout):
+        self.lockfile = None
+        self.needlock = True
+        self.path = path
+        self.timeout = timeout
+
+    def _try_acquire(self):
+        # This method will set a timeout as trylock() will do a blocking
+        # lockf() call and we don't want to wait indefinitely.
+        class LockError(Exception):
+            pass
+
+        def handler(signum, frame):
+            raise LockError()
+
+        # set the timeout handler
+        signal.signal(signal.SIGALRM, handler)
+        signal.alarm(self.timeout)
+
+        try:
+            self.trylock()
+        except LockError:
+            msg = 'Unable to acquire lock on `%s` due to timeout' % self.path
+            raise LockError(msg)
+        except IOError as e:
+            msg = ('Unable to acquire lock on `%s` due to exception %s' %
+                   (self.path, e))
+            raise LockError(msg)
+        finally:
+            signal.alarm(0)
+
+    def _do_open(self):
+        self._ensure_tree()
+        if not self.needlock:
+            return
+
+        # Open in append mode so we don't overwrite any potential contents of
+        # the target file. This eliminates the possibility of an attacker
+        # creating a symlink to an important file in our lock path.
+        if self.lockfile is None or self.lockfile.closed:
+            self.lockfile = open(self.path, 'a')
+
+    def acquire(self):
+        """Attempt to acquire the given lock.
+
+        There are no re-attempts, errors will be raised!
+
+        :returns: whether or not the acquisition succeeded
+        :rtype bool
+        """
+        self._do_open()
+        if not self.needlock:
+            return
+
+        self._try_acquire()
+        LOG.debug('Acquired file lock `%s`', self.path)
+
+    def _do_close(self):
+        if self.lockfile is not None:
+            self.lockfile.close()
+            self.lockfile = None
+
+    def __enter__(self):
+        self.acquire()
+        return self
+
+    def release(self):
+        if not self.needlock:
+            return
+
+        """Release the previously acquired lock."""
+        try:
+            self.unlock()
+        except IOError:
+            LOG.exception("Could not unlock the acquired lock opened"
+                          " on `%s`", self.path)
+        else:
+            self.acquired = False
+            try:
+                self._do_close()
+            except IOError:
+                LOG.exception("Could not close the file handle"
+                              " opened on `%s`", self.path)
+            else:
+                LOG.debug("Unlocked and closed file lock open on"
+                          " `%s`", self.path)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.release()
+
+    def trylock(self):
+        fcntl.lockf(self.lockfile, fcntl.LOCK_EX)
+
+    def unlock(self):
+        fcntl.lockf(self.lockfile, fcntl.LOCK_UN)
+
+    def _ensure_tree(self):
+        basedir = os.path.dirname(self.path)
+
+        # If the directory doesn't exist, we don't need a lock
+        if not os.path.exists(basedir):
+            LOG.debug("Directory `%s` does not exist, file lock not needed",
+                      basedir)
+            self.needlock = False
+            return
+
+        """Create a directory (and any ancestor directories required)"""
+        try:
+            os.makedirs(basedir)
+        except OSError as e:
+            if e.errno == errno.EEXIST:
+                if not os.path.isdir(basedir):
+                    raise
+            elif e.errno != errno.EISDIR:
+                raise
+
+
+def _get_lock_path(name, lock_file_prefix, lock_path):
+    # NOTE(mikal): the lock name cannot contain directory
+    # separators
+    name = name.replace(os.sep, '_')
+    sep = '' if lock_file_prefix.endswith('-') else '-'
+    name = '%s%s%s' % (lock_file_prefix, sep, name)
+
+    return os.path.join(lock_path, name)
+
+
+def external_lock(name, lock_file_prefix, lock_path):
+    lock_file_path = _get_lock_path(name, lock_file_prefix, lock_path)
+
+    return InterProcessLock(lock_file_path, LOCK_TIMEOUT)
+
+
+@contextlib.contextmanager
+def lock(name, lock_file_prefix, lock_path, do_log=True):
+    """Context based lock
+
+    This function yields an InterProcessLock instance.
+
+    :param lock_file_prefix: The lock_file_prefix argument is used to provide
+      lock files on disk with a meaningful prefix.
+
+    :param lock_path: The path in which to store external lock files.  For
+      external locking to work properly, this must be the same for all
+      references to the lock.
+
+    :param do_log: Whether to log acquire/release messages.  This is primarily
+      intended to reduce log message duplication when `lock` is used from the
+      `synchronized` decorator.
+    """
+    if do_log:
+        LOG.debug('Acquiring "%(lock)s"', {'lock': name})
+    try:
+        ext_lock = external_lock(name, lock_file_prefix, lock_path)
+        ext_lock.acquire()
+        try:
+            yield ext_lock
+        finally:
+            ext_lock.release()
+    finally:
+        if do_log:
+            LOG.debug('Releasing lock "%(lock)s"', {'lock': name})
+
+
+from ansible.module_utils.basic import *
+if __name__ == '__main__':
+    main()

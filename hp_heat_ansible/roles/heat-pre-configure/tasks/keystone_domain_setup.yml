@@ -1,0 +1,65 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: heat-pre-configure | keystone_domain_setup | create heat_stack_user role
+  keystone_v3:
+    action: "create_role"
+    login_token: "{{ domain_scoped_token.result  }}"
+    endpoint: "{{ keystone.endpoint }}"
+    role_name: "{{ heat_stack_user_role }}"
+  run_once: true
+
+- name: heat-pre-configure | keystone_domain_setup | create heat domain
+  keystone_v3:
+    action: "create_domain"
+    login_token: "{{ domain_scoped_token.result  }}"
+    endpoint: "{{ keystone.endpoint }}"
+    domain_name: "{{ heat_stack_user_domain_name }}"
+    description: "Owns users and projects created by heat"
+  register: stack_domain_id
+  run_once: true
+
+- name: Set fact for heat domain id
+  set_fact:
+    stack_domain_id: "{{ stack_domain_id.result.id }}"
+  run_once: true
+
+- name: heat-pre-configure | keystone_conf | create heat domain admin user
+  keystone_v3:
+    action : "create_user"
+    endpoint: "{{ keystone.endpoint }}"
+    login_token: "{{ domain_scoped_token.result }}"
+    user_name: "{{ heat_stack_domain_admin_user }}"
+    user_password: "{{ heat_stack_domain_admin_user_password }}"
+    user_domain_name: "{{ heat_stack_user_domain_name }}"
+  register: stack_domain_user_id
+  run_once: true
+
+- name: Set fact for heat domain user id
+  set_fact:
+    stack_domain_user_id: "{{ stack_domain_user_id.result.id }}"
+
+- name: heat-pre-configure | keystone_conf | create heat service user-role assignment
+  keystone_v3:
+    action: "grant_domain_role"
+    endpoint: "{{ keystone.endpoint }}"
+    login_token: "{{ domain_scoped_token.result }}"
+    user_name: "{{ heat_stack_domain_admin_user }}"
+    role_name: "{{ keystone.role }}"
+    user_domain_name: "{{ heat_stack_user_domain_name }}"
+    domain_name: "{{ heat_stack_user_domain_name }}"
+  run_once: true

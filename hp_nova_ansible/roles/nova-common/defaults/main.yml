@@ -1,0 +1,119 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+# Layout of this file:
+# At the top of this file (following on from this text) are the root level
+# variables. Variables defined here have global scope.
+#
+# Files are defined by identifiers followed by a colon(:), with sections in
+# a file indented to the next level.
+
+# system level vars
+# -----------------
+# Values in this section relate to the build/install of nova
+# at a system level
+nova_system_group: nova
+nova_system_user: nova
+nova_system_createhome: false
+nova_system_shell: /bin/false
+
+# Some directories are set by _set_directories.yml as they need to be set after
+# install (the version is required in the path).
+nova_state_root_dir: /
+nova_system_home_folder: "{{ nova_state_root_dir }}/var/lib/nova"
+nova_lock_file_location: "{{ nova_state_root_dir }}/var/lib/nova"
+nova_log_file_location: "{{ nova_state_root_dir }}/var/log/nova"
+nova_keys_file_location: "{{ nova_state_root_dir }}/var/lib/nova/keys"
+nova_kernel_module_file: "{{ nova_component }}"
+
+# flag set in configure playbooks to trigger services handlers to restart
+nova_restart_required: false
+
+# nova.conf
+## [DEFAULT]
+### API
+api_paste_config: "{{ nova_service_conf_dir }}/api-paste.ini"
+osapi_compute_link_prefix: "{{ NOV_API.advertises.vips.public[0].url }}"
+osapi_compute_listen: >
+  {{ host | item('bind.NOV_API.internal.ip_address',
+                 default=host.vars.my_network_address) }}
+osapi_compute_workers: 20
+
+### CA & SSL
+keys_path: "{{ nova_state_root_dir }}/var/lib/nova/keys"
+
+### common
+lock_path: "{{ nova_state_root_dir }}/var/lib/nova"
+my_ip: "{{ host.vars.my_network_address }}"
+rootwrap_config: "{{ nova_service_conf_dir }}/rootwrap.conf"
+state_path: "{{ nova_state_root_dir }}/var/lib/nova"
+
+### Logging
+log_dir: "{{ nova_state_root_dir }}/var/log/nova"
+
+### Metadata
+metadata_listen: "{% if host.bind.NOV_MTD is defined %}{{ host.bind.NOV_MTD.internal.ip_address }}{% else %}{{ NOV_API.advertises.vips.admin[0].host }}{% endif %}"
+metadata_workers: 10
+
+### Network
+dhcpbridge: "{{ nova_service_bin_dir }}/nova-dhcpbridge"
+dhcpbridge_flagfile: "{{ nova_service_conf_dir }}/nova.conf"
+
+### RabbitMQ
+rabbit_hosts: "{% for x in NOV_API.consumes_FND_RMQ.members.private %}{{ x.host }}:{{ x.port }}{%if not loop.last %},{% endif %}{% endfor %}"
+rabbit_password: "{% if NOV_API.consumes_FND_RMQ.vars.rmq_nova_password is defined and
+                        NOV_API.consumes_FND_RMQ.vars.rmq_nova_user is defined -%}
+                          {{ NOV_API.consumes_FND_RMQ.vars.rmq_nova_password }}
+                  {%- else -%}
+                          {{ NOV_API.consumes_FND_RMQ.vars.rmq_service_password }}
+                  {%- endif %}"
+rabbit_userid: "{% if NOV_API.consumes_FND_RMQ.vars.rmq_nova_password is defined and
+                      NOV_API.consumes_FND_RMQ.vars.rmq_nova_user is defined -%}
+                        {{ NOV_API.consumes_FND_RMQ.vars.rmq_nova_user }}
+                {%- else -%}
+                        {{ NOV_API.consumes_FND_RMQ.vars.rmq_service_user }}
+                {%- endif %}"
+
+### VNC
+novncproxy_host: "{{ host.vars.my_network_address }}"
+novncproxy_port: "{{ NOV_VNC.advertises.vips.public[0].port }}"
+vncserver_listen: "{{ host.vars.my_network_address }}"
+vncserver_proxyclient_address: "{{ NOV_VNC.advertises.vips.public[0].host }}"
+
+## [database]
+database_connection: "mysql://{{ NOV_API.consumes_FND_MDB.vars.mysql_admin_user }}:{{ NOV_API.consumes_FND_MDB.vars.mysql_admin_password | urlencode }}@{{ NOV_API.consumes_FND_MDB.vips.private[0].host }}/nova"
+
+## [glance]
+glance_api_servers: "{{ NOV_API.consumes_GLA_API.vips.private[0].url }}"
+
+## [keystone_authtoken]
+keystone_auth_uri: "{{ NOV_API.consumes_KEY_API.vips.admin[0].url }}"
+keystone_identity_uri: "{{ NOV_API.consumes_KEY_API.vips.private[0].url }}"
+nova_admin_password: "{{ NOV_API.consumes_KEY_API.vars.keystone_nova_password | quote }}"
+nova_admin_tenant_name: "{{ KEY_API.vars.keystone_service_tenant }}"
+nova_admin_user: "{{ NOV_API.consumes_KEY_API.vars.keystone_nova_user }}"
+
+## [libvirt]
+libvirt_snapshots_directory: "{{ nova_state_root_dir }}/var/lib/nova/tmp"
+
+## [neutron]
+neutron_admin_auth_url: "{{ NOV_API.consumes_KEY_API.vips.admin[0].url }}/v2.0"
+neutron_admin_tenant_name: "{{ KEY_API.vars.keystone_service_tenant }}"
+neutron_admin_password: "{{ NEU_SVR.consumes_KEY_API.vars.keystone_neutron_password | quote }}"
+neutron_admin_username: "{{ NEU_SVR.consumes_KEY_API.vars.keystone_neutron_user }}"
+neutron_url: "{{ NOV_API.consumes_NEU_SVR.vips.private[0].url }}"
+neutron_metadata_proxy_shared_secret: "{{ NOV_MTD.vars.metadata_proxy_shared_secret }}"

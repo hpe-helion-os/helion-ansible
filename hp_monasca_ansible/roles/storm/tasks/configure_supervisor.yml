@@ -1,0 +1,47 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: Configure storm.yaml
+  template: dest="{{storm_root_dir}}/apache-storm-{{storm_version}}/conf/storm.yaml" owner={{storm_user}} group={{storm_group}} mode=644 src=storm.yaml.j2
+  notify:
+    - storm | restart | restart all storm services
+
+- name: Setup Storm supervisor upstart script
+  copy: dest={{supervisor_upstart_conf}} owner=root group=root mode=644 src=storm-supervisor.conf
+  notify:
+    - storm | restart | restart all storm services
+  when: not use_systemd
+
+- name: Setup Storm supervisor systemd script
+  copy: dest={{supervisor_systemd_service}} owner=root group=root mode=644 src=storm-supervisor.service
+  notify:
+    - storm | restart | restart all storm services
+  when: use_systemd
+
+- name: Setup Storm Logviewer upstart script
+  copy: dest={{logviewer_upstart_conf}} owner=root group=root mode=644 src=storm-logviewer.conf
+  notify:
+     - storm | restart | restart all storm services
+  when: storm_logviewer_enabled and not use_systemd
+
+- name: Setup Storm Logviewer systemd script
+  copy: dest={{logviewer_systemd_service}} owner=root group=root mode=644 src=storm-logviewer.service
+  notify:
+    - storm | restart | restart all storm services
+  when: storm_logviewer_enabled and use_systemd
+
+- command: systemctl daemon-reload
+  when: use_systemd

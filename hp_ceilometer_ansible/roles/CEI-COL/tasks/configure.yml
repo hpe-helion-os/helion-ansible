@@ -1,0 +1,40 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+### Copying Configurations in right locations ###
+
+- include: ../../_CEI-CMN/tasks/configure.yml ceilometer_conf_dir="{{ ceilometer_collector_conf_dir }}"
+
+- include: ../../_CEI-CMN/tasks/_write_conf.yml
+  src: "../../CEI-COL/templates/collector.conf.j2"
+  dest: "{{ ceilometer_collector_conf_dir }}/collector.conf"
+  notify:
+    - ceilometer_collector_change
+
+- include: ../../_CEI-CMN/tasks/_write_conf.yml
+  src: "../../CEI-COL/templates/collector-logging.conf.j2"
+  dest: "{{ ceilometer_collector_conf_dir }}/collector-logging.conf"
+  notify:
+    - ceilometer_collector_change
+
+- name: CEI-COL | configure | create ceilometer-collector log
+  file:
+     path={{ CEILOMETER_LOG_DIR }}/{{ item }} state=touch owner={{ ceilometer_user }} group={{ ceilometer_group }} mode=0644
+  with_items:
+     - ceilometer-collector.log
+     - ceilometer-collector-json.log
+  notify:
+    - ceilometer_collector_change

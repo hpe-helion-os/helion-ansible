@@ -1,0 +1,31 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: NOV-MON | process_bounds_alarm | Process bounds alarm definition
+  monasca_alarm_definition:
+    name: "Process bound check"
+    description: "Check if the number of processes is within a specified range"
+    severity: "HIGH"
+    expression: >
+        process.pid_count{process_name=nova-api} < {{ process_count_lower_bound }}
+        or process.pid_count{process_name=nova-api} > {{ process_count_upper_bound }}
+    match_by: ["hostname"]
+    keystone_url: "{{ keystone_auth_url }}"
+    keystone_user: "{{ keystone_admin_user }}"
+    keystone_password: "{{ keystone_admin_password }}"
+    keystone_project: "{{ keystone_admin_project }}"
+    monasca_api_url: "{{ monasca_alarm_definition_api_url }}"
+  run_once: true

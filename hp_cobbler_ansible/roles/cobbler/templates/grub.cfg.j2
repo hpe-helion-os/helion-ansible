@@ -1,0 +1,25 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+#}
+set default=0
+loadfont /boot/grub/fonts/unicode.pf2
+set gfxmode=auto
+insmod efi_gop
+insmod efi_uga
+insmod gfxterm
+insmod legacycfg
+set locale_dir=/boot/grub/locale
+set lang=en_US
+set timeout=10
+insmod gettext
+terminal_output gfxterm
+eval "set hostname=\$net_${net_default_interface}_hostname"
+
+echo $hostname
+
+tr -s boot_name : - $net_default_mac
+tr -U -s config $boot_name
+
+legacy_source (tftp)/grub/01-$config

@@ -1,0 +1,93 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: cobbler | configure | Adding cobbler apache configuration
+  become: yes
+  copy: src=/etc/apache2/conf.d/cobbler.conf dest=/etc/apache2/conf-available/
+
+- name: cobbler | configure | Adding cobbler configuration
+  become: yes
+  template: src=cobbler.conf dest=/etc/apache2/conf-available/cobbler.conf
+
+- name: cobbler | configure | set default passwd
+  set_fact: cobbler_default_passwd="{{ item }}"
+  with_password: /tmp/cobbler_setup  encrypt=sha512_crypt
+
+- name: cobbler | configure | rm temp passwd file
+  file: path=/tmp/cobbler_setup state=absent recurse=no
+
+- name: cobbler | configure | Adding cobbler settings file
+  become: yes
+  template: src=settings.j2 dest=/etc/cobbler/settings
+
+# Create cobbler area in /opt/stack for content that will be used by preseed
+- name: cobbler | configure | Add hlm cobbler directory
+  become: yes
+  file: path=/opt/hlm_packager/preseed state=directory
+
+- name: cobbler | configure | Add hlm cobbler content
+  become: yes
+  copy: src={{ item }} dest=/opt/hlm_packager/preseed
+  with_items:
+     - configure_network.sh
+     - partition-pxe
+     - partition-uefi
+     - configure_partitioning
+     - configure_kdump
+
+- name: cobbler | configure | set timestamp for installs
+  become: yes
+  shell: date +%Y%m%d%H%M%S > {{ local_timestamp_file }}
+
+# Temp until CI updated
+- name: cobbler | configure | Set local stamp
+  become: yes
+  copy: src={{ local_timestamp_file }} dest=/etc/cobbler_hlm_installed
+
+# Get syslinux bootloader
+
+- name: cobbler | configure | Create bootloader directory
+  become: yes
+  file: path=/var/lib/cobbler/loaders state=directory
+
+- name: cobbler | configure | Copy menu.c32 to cobbler loaders dir
+  become: yes
+  copy: src=/usr/lib/syslinux/modules/bios/menu.c32 dest=/var/lib/cobbler/loaders
+
+- name: cobbler | configure | Copy pxelinux.0 to cobbler loaders dir
+  become: yes
+  copy: src=/usr/lib/debian-installer/images/8/amd64/gtk/pxelinux.0 dest=/var/lib/cobbler/loaders
+
+- name: cobbler | configure | Copy ldlinux.c32 to cobbler loaders dir
+  become: yes
+  copy: src=/usr/lib/debian-installer/images/8/amd64/gtk/ldlinux.c32 dest=/var/lib/cobbler/loaders
+
+- name: cobbler | configure | Adding cobbler dhcp template
+  become: yes
+  template: src=cobbler.dhcp.template.j2 dest=/etc/cobbler/dhcp.template
+
+- name: cobbler | configure | Enable cobbler and and cobbler web in apache
+  become: yes
+  command: a2enconf cobbler
+
+- name: cobbler | configure | Enable proxy in apache
+  become: yes
+  command: a2enmod proxy
+
+- name: cobbler | configure | Enable proxy_http in apache
+  become: yes
+  command: a2enmod proxy_http

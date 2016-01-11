@@ -1,0 +1,78 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+# This configuration file includes the default values for HOS
+# Changes may be made to this file by the customer.
+
+[DEFAULT]
+verbose = {{ verbose }}
+debug = {{ debug }}
+use_syslog = False
+log_dir = {{ log_dir }}
+region_name_for_services = {{ region_name_for_services }}
+rpc_backend = rabbit
+rabbit_userid = {{ heat_rabbit_userid }}
+rabbit_hosts = {{ heat_rabbit_hosts }}
+rabbit_password = {{ heat_rabbit_password }}
+auth_encryption_key = {{ auth_encryption_key }}
+deferred_auth_method = trusts
+stack_user_domain_id = {{ stack_domain_id }}
+stack_domain_admin = {{ heat_stack_domain_admin_user }}
+stack_domain_admin_password = {{ heat_stack_domain_admin_user_password }}
+heat_watch_server_url = {{ heat_watch_server_url }}
+heat_metadata_server_url = {{ heat_metadata_server_url }}
+heat_waitcondition_server_url = {{ heat_waitcondition_server_url }}
+notification_topic = {{ heat_notification_topic }}
+notification_driver = {{ heat_notification_driver }}
+environment_dir = {{ heat_environment_dir }}
+plugin_dirs = {{ heat_plugins_dir }}
+heat_stack_user_role = {{ heat_stack_user_role }}
+
+[database]
+connection = {{ heat_database_connection }}
+
+[keystone_authtoken]
+auth_uri = {{ heat_keystone_auth_uri }}
+admin_tenant_name = {{ heat_keystone_admin_tenant_name }}
+admin_password = {{ heat_keystone_admin_password }}
+admin_user = {{ heat_keystone_admin_user }}
+identity_uri = {{ heat_keystone_identity_uri }}
+
+[ec2authtoken]
+auth_uri = {{ ec2_auth_uri }}
+
+[heat_api]
+bind_port = 8004
+workers = {{ heat_api_workers }}
+bind_host = {{ heat_api_bind_host }}
+
+[heat_api_cfn]
+bind_port = 8000
+bind_host = {{ heat_api_cfn_bind_host }}
+
+[heat_api_cloudwatch]
+bind_port = 8003
+bind_host = {{ heat_api_cloudwatch_bind_host }}
+
+[paste_deploy]
+api_paste_config = {{ api_paste_config_path }}
+
+[clients]
+endpoint_type = {{ heat_endpoint_type }}
+
+### End of File  ###
+## Do NOT put anything after this line ##

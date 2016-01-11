@@ -1,0 +1,17 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+---
+nic_mapping: []
+network_ether_interfaces: []
+network_bridge_interfaces: []
+network_bond_interfaces: []
+ovs_bridge_interfaces: []
+network_vlan_interfaces: []
+udev_prefix_nic_mapping: 90
+order_prefix_bond: 15
+order_prefix_ether: 25
+order_prefix_vlan: 35
+order_prefix_bridge: 45
+interface_file_marker: '# HELION-MANAGED - Managed by Helion - Do not edit'
+shadow_dir: '.shadow'

@@ -1,0 +1,56 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: multipath | install | Load OS specific variables
+  include_vars: "{{ ansible_os_family }}.yml"
+
+- name: multipath | install | Load multipath configuration variables
+  include_vars: "multipath_vars.yml"
+
+- name: multipath | install | Get wwids of devices in disk model
+  get_wwid: hlm_host_info='{{ host | to_json }}'
+  register: disk_model_mappings
+
+- name: multipath | install | Set initial multipath configuration
+  template:
+    src: "multipath.conf.j2"
+    dest: "/etc/multipath.conf"
+  register: configuration_update
+
+- name: multipath | install | Install the required  packages in Redhat derivatives
+  yum: name={{ item }} state=installed
+  with_items: multipath_pkgs
+  environment: env
+  when: ansible_os_family == 'RedHat'
+
+- name: multipath | install | Install the required packages in Debian derivatives
+  apt: name={{ item }} state=installed update_cache=yes
+  with_items: multipath_pkgs
+  environment: env
+  when: ansible_os_family == 'Debian'
+
+- name: multipath | install | Restart if there is a configuration update
+  service:
+    name: "{{ item }}"
+    state: "restarted"
+    enabled: "yes"
+  with_items: service_daemons
+  when: configuration_update.changed
+
+- name: multipath | install | Update initramfs
+  command: "{{ initramfs_update_command }}"
+  when: initramfs_update_command is defined and configuration_update.changed

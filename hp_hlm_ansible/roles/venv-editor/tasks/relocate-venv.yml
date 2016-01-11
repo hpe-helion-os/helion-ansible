@@ -1,0 +1,48 @@
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Unpack an arbitrary venv into /opt/stack/venv.
+#
+# Parameters:
+#   source: path to the venv tarball
+#   suffix: string to add to the version number (eg, 001)
+---
+- name: venv-editor | relocate-venv | Remove target directory
+  file:
+    path: "{{ venv_editor_target_dir }}"
+    state: absent
+  become: yes
+
+- name: venv-editor | relocate-venv | Copy source to target directory
+  command: >
+    cp -a "{{ venv_editor_source_dir }}" "{{ venv_editor_target_dir }}"
+  become: yes
+
+- name: venv-editor | relocate-venv | Relocate the target venv shebang lines
+  shell: |
+    for file in *; do
+      if [ -x "$file" ]; then
+        sed -i -e "1s|^#!{{ venv_editor_source_dir }}|#!{{ venv_editor_target_dir }}|" "$file"
+      fi
+    done
+  args:
+    chdir: "{{ venv_editor_target_dir }}/bin"
+  become: yes
+
+- name: venv-editor | relocate-venv | Fix up activate script
+  lineinfile:
+    dest: "{{ venv_editor_target_dir }}/bin/activate"
+    regexp: '^VIRTUAL_ENV='
+    line: VIRTUAL_ENV="{{ venv_editor_target_dir }}"
+  become: yes

@@ -1,0 +1,54 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Top-level HLM deploy playbook
+---
+
+- include: sosreport-deploy.yml
+- include: upgrade-bootstrap.yml
+
+# HLM-1259: when disabling the monasca part of the deployment,
+# edit ~/.ansible.cfg and change the [default] / library setting
+# as outlined in that file.
+- include: monasca-agent-deploy.yml
+
+- include: tls-deploy.yml
+- include: clients-deploy.yml
+- include: percona-deploy.yml
+- include: rabbitmq-deploy.yml
+- include: FND-CLU-deploy.yml
+- include: FND-AP2-deploy.yml
+- include: memcached-deploy.yml
+- include: keystone-deploy.yml
+- include: ops-console-deploy.yml
+- include: zookeeper-deploy.yml
+- include: monasca-deploy.yml
+- include: swift-deploy.yml
+#- include: ironic-deploy.yml
+- include: nova-deploy.yml
+- include: glance-deploy.yml
+- include: neutron-deploy.yml
+- include: cinder-deploy.yml
+#- include: eon-deploy.yml
+- include: heat-deploy.yml
+- include: horizon-deploy.yml
+- include: logging-deploy.yml
+- include: ceilometer-deploy.yml
+- include: ceph-deploy.yml
+- include: vsa-deploy.yml
+- include: cmc-deploy.yml
+- include: freezer-deploy.yml
+- include: tempest-deploy.yml
+- include: sherpa-deploy.yml

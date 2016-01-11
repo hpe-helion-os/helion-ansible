@@ -1,0 +1,198 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+# This file has the HOS values that apply only to the MySQL service.
+#
+# The MySQL database server configuration file.
+#
+#
+# One can use all long options that the program supports.
+# Run program with --help to get a list of available options and with
+# --print-defaults to see which it would actually understand and use.
+#
+# For explanations see
+# http://dev.mysql.com/doc/mysql/en/server-system-variables.html
+
+# For custom site-specific configuration, please see the end of this file.
+
+[client]
+port = {{ mysql_client_port }}
+
+socket		= {{ mysql_client_socket }}
+
+# Here is entries for some specific programs
+# The following values assume you have at least 32M ram
+
+# This was formally known as [safe_mysqld]. Both versions are currently parsed.
+[mysqld_safe]
+socket		= {{ mysql_safe_socket }}
+nice		= {{ mysql_nice }}
+
+[mysqld]
+#
+# * Basic Settings
+#
+user		=  {{ mysql_user }}
+pid-file	=  {{ mysql_pid_file }}
+socket		=  {{ mysql_server_socket }}
+
+port = {{ mysql_server_port }}
+
+# port		= 3306
+
+basedir		= {{ mysql_basedir }}
+datadir		= {{ mysql_datadir }}
+tmpdir		= {{ mysql_tmpdir }}
+lc-messages-dir	= {{ mysql_lc_messages_dir }}
+skip-external-locking
+#
+# Instead of skip-networking the default is now to listen only on
+# localhost which is more compatible and is not less secure.
+# bind-address		= 127.0.0.1
+bind-address		= {{ mysql_bind_address }}
+
+#
+# * Fine Tuning
+#
+key_buffer		= 16M
+max_allowed_packet	= 16M
+thread_stack		= 192K
+thread_cache_size       = 8
+# This replaces the startup script and checks MyISAM tables if needed
+# the first time they are touched
+myisam-recover         = {{ mysql_myisam_recover }}
+max_connections        = 8000
+#table_cache            = 64
+#thread_concurrency     = 10
+#
+# * Query Cache Configuration
+#
+query_cache_limit	= 1M
+query_cache_size        = 16M
+#
+# * Logging and Replication
+#
+# Both location gets rotated by the cronjob.
+# Be aware that this log type is a performance killer.
+# As of 5.1 you can enable the log at runtime!
+#general_log_file        = /var/log/mysql/mysql.log
+#general_log             = 1
+#
+# Error log - should be very few entries.
+#
+log_error = {{ mysql_log_error }}
+#
+# Here you can see queries with especially long duration
+log_slow_queries	= /var/log/mysql/mysql-slow.log
+long_query_time = 2
+#log-queries-not-using-indexes
+#
+# The following can be used as easy to replay backup logs or for replication.
+# note: if you are setting up a replication slave, see README.Debian about
+#       other settings you may need to change.
+server-id		= {{ mysql_server_id }}
+#log_bin			= /var/log/mysql/mysql-bin.log
+expire_logs_days	= 10
+max_binlog_size         = 100M
+#binlog_do_db		= include_database_name
+#binlog_ignore_db	= include_database_name
+#
+# * InnoDB
+#
+# InnoDB is enabled by default with a 10MB datafile in /var/lib/mysql/.
+# Read the manual for more InnoDB related options. There are many!
+#
+# * Security Features
+#
+# Read the manual, too, if you want chroot!
+# chroot = /var/lib/mysql/
+#
+# For generating SSL certificates I recommend the OpenSSL GUI "tinyca".
+#
+# ssl-ca=/etc/mysql/cacert.pem
+# ssl-cert=/etc/mysql/server-cert.pem
+# ssl-key=/etc/mysql/server-key.pem
+
+# encoding
+collation-server = {{ mysql_collation_server }}
+init-connect = {{ mysql_init_connect }}
+character-set-server = {{ mysql_character_set_server }}
+
+# Galera library
+wsrep_provider = {{ mysql_wsrep_provider }}
+
+# In order for Galera to work correctly binlog format should be ROW
+binlog_format = {{ mysql_binlog_format }}
+
+# MyISAM storage engine has only experimental support
+default_storage_engine = {{ mysql_default_storage_engine }}
+
+# This changes how InnoDB autoincrement locks are managed and is a requirement for Galera
+innodb_autoinc_lock_mode = {{ mysql_innodb_autoinc_lock_mode }}
+
+# innodb settings
+innodb_log_buffer_size = 64M
+innodb_log_file_size = 128M
+
+# cluster name
+wsrep_cluster_name = {{ mysql_wsrep_cluster_name }}
+wsrep_node_address = {{ mysql_wsrep_node_address }}
+wsrep_provider_options = "gmcast.listen_addr=tcp://{{ mysql_gmcast_ip ~ ':' ~ mysql_gmcast_port }}"
+
+{% set cluster_addresses = [] %}
+{%- for host in mysql_mdb_servers %}
+    {%- set _ = cluster_addresses.append(host) -%}
+{% endfor -%}
+
+wsrep_cluster_address = gcomm://{{ ",".join(cluster_addresses) }}
+
+# SST method
+wsrep_sst_method = {{ mysql_wsrep_sst_method }}
+
+# authentication for SST method
+wsrep_sst_auth = {{ mysql_wsrep_sst_auth }}
+
+
+[mysqldump]
+quick
+quote-names
+max_allowed_packet	= 16M
+
+[mysql]
+#no-auto-rehash	# faster start of mysql but no tab completition
+
+[isamchk]
+key_buffer		= 16M
+
+
+#
+# BEGIN CUSTOM CONFIGURATION
+#
+# Place any custom mysql sections with their options here
+# options placed here will override earlier options in this file
+#
+# e.g.
+#
+# [section]
+# mysqloption = mysqlvalue
+#
+# MySQL options are detailed in MySQL documentation:
+#
+#    http://dev.mysql.com/doc/mysql/en/server-system-variables.html
+#
+# END CUSTOM CONFIGURATION
+#

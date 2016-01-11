@@ -1,0 +1,61 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: ceph-deployer | configure | Create ceph directory /etc/ceph
+  file:
+    path: /etc/ceph
+    state: directory
+    owner: "{{ ceph_user }}"
+    group: "{{ ceph_group }}"
+    mode: 0777
+
+- name: ceph-deployer | configure | Check /etc/ceph/ceph.client.admin.keyring exists in deployer
+  stat:
+    path: /etc/ceph/ceph.client.admin.keyring
+  register: ceph_deployer_admin_keyring_result
+
+- name: ceph-deployer | configure | Fetch /etc/ceph/ceph.client.admin.keyring from monitor node to /etc/ceph
+  fetch:
+    src: /etc/ceph/ceph.client.admin.keyring
+    dest: /etc/ceph/ceph.client.admin.keyring
+    flat: yes
+  delegate_to: "{{ ceph_admin_node }}"
+  when: ceph_deployer_admin_keyring_result.stat.exists == False
+
+- name: ceph-deployer | configure | Check "/etc/ceph/{{ ceph_cluster }}.conf" exists in "{{ ceph_active_mon_nodes }}"
+  stat:
+    path: "/etc/ceph/{{ ceph_cluster }}.conf"
+  register: ceph_monitor_conf_result
+  delegate_to: "{{ item }}"
+  with_items: "{{ ceph_active_monitors | default() }}"
+
+- name: ceph-deployer | configure | Fetch "/etc/ceph/{{ ceph_cluster }}.conf" from monitor node to /etc/ceph
+  fetch:
+    src: "/etc/ceph/{{ ceph_cluster }}.conf"
+    dest: "/etc/ceph/{{ ceph_cluster }}.conf"
+    flat: yes
+  delegate_to: "{{ ceph_monitor_conf_result.results | one_from_list }}"
+  when: ceph_monitor_conf_result.results | one_from_list != None
+
+- name: ceph-deployer | configure | Restrict other users from writing into /etc/ceph
+  file:
+    path: /etc/ceph
+    state: directory
+    owner: "{{ ceph_user }}"
+    group: "{{ ceph_group }}"
+    mode: 0755
+

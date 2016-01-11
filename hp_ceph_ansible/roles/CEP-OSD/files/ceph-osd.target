@@ -1,0 +1,6 @@
+[Unit]
+Description=ceph osd target allowing to start/stop all ceph osd service instances at once
+PartOf=ceph.target
+
+[Install]
+WantedBy=ceph.target

@@ -1,0 +1,53 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- include: ../../_SWF-CMN/tasks/install.yml
+
+- name: swiftlm-uptime-monitor | install | Update venv cache
+  install_package:
+    cache: update
+
+- name: swiftlm-uptime-monitor | install | Install Swiftlm Uptime Monitor Services
+  install_package:
+    name: swiftlm
+    service: "{{ item.key }}"
+    state: present
+    activate: act_off
+  with_dict: swiftlm_uptime_monitor_services
+  register: swiftlm_uptime_monitor_install_result
+  notify: swiftlm_uptime_monitor_venv_change
+
+# Get the swiftlm venv version, it is the same for all swiftlm services.
+- name: swiftlm-uptime-monitor | install | Set conf directory for the service
+  set_fact:
+    swiftlm_venv_version: "{{ item.version }}"
+  with_items: "{{ swiftlm_uptime_monitor_install_result.results }}"
+
+# Set the conf dir for the latest installed swift venv
+- set_fact:
+    swiftlm_uptime_monitor_conf_dir: "{{ 'swiftlm-uptime-monitor' |
+                                     config_dir(swiftlm_venv_version) }}"
+
+- name: swiftlm-uptime-monitor | install | Register the Swiftlm Uptime Monitor services
+  setup_systemd:
+    service: "{{ item.item.key }}"
+    cmd: "{{ item.item.value.cmd }}"
+    user: "{{ swift_user }}"
+    group: "{{ swift_group }}"
+    args: " --config {{ swiftlm_uptime_monitor_conf_dir }}/{{ item.item.value.conf }}"
+  when: item.changed
+  with_items: swiftlm_uptime_monitor_install_result.results
+

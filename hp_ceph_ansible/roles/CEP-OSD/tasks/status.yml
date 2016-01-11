@@ -1,0 +1,36 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- include: _fetch_osd_numbers.yml
+
+- name: CEP-OSD | status | Fetch the cluster osd map
+  shell: ceph --cluster {{ ceph_cluster }} osd dump | awk '{printf "%s %s %s\n", $1, $2, $3}' | grep "^osd"
+  register: ceph_osd_dump_result
+
+- name: CEP-OSD | status | Filter out the osds which are in a bad state
+  set_fact: ceph_failed_osd={{ item }}
+  when: '"osd.{{ item }} up in" not in "{{ ceph_osd_dump_result.stdout }}"'
+  with_items: ceph_osd_numbers
+  register: ceph_osd_status_result
+
+- name: CEP-OSD | status | Create a user friendly string of failed osds
+  set_fact: ceph_failed_osd_str="{{ ceph_osd_status_result.results | selectattr('ansible_facts', 'defined') | map(attribute='ansible_facts.ceph_failed_osd') | join(', ') }}"
+  when: ceph_failed_osd is defined
+
+- name: CEP-OSD | status | Fail if an osd is down
+  fail: msg='Following OSDs are either "down" or "out" -> "{{ ceph_failed_osd_str }}"!'
+  when: ceph_failed_osd_str is defined

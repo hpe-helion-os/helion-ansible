@@ -1,0 +1,13 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+---
+
+network_pkgs:
+  - python-selinux
+  - ifenslave-2.6
+  - vlan
+
+net_path: "/etc/network/interfaces.d"
+
+disable_lro: true

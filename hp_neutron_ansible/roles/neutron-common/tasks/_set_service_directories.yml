@@ -1,0 +1,53 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: Neutron Common | _set_service_directories | Set main configuration and bin directories - configure
+  set_fact:
+    neutron_conf_dir: "{{ 'neutron' | config_dir(neutron_install_result.version) }}"
+    neutron_bin_dir: "{{ 'neutron' | bin_dir(neutron_install_result.version) }}"
+  when: neutron_install_result.version is defined
+
+- name: Neutron Common | _set_service_directories | Set main configuration and bin directories - reconfigure
+  set_fact:
+    neutron_conf_dir: "{{ 'neutron' | config_dir() }}"
+    neutron_bin_dir: "{{ 'neutron' | bin_dir() }}"
+  when: neutron_install_result.version is undefined
+
+- name: Neutron Common | _set_service_directories | Set service directories and configuration files
+  set_fact:
+    neutron_rootwrap_filters_dir: "{{ neutron_conf_dir }}/rootwrap.d"
+    neutron_dnsmasq_conf_dir: "{{ neutron_conf_dir }}/dnsmasq"
+    neutron_dnsmasq_opts_file: dnsmasq-neutron.conf
+    ovsvapp_ini_dir: "{{ neutron_conf_dir }}/plugins/ovsvapp"
+    neutron_server_logging_config_file:  "{{ neutron_conf_dir }}/logging.conf"
+    neutron_ovs_agent_logging_config_file: "{{ neutron_conf_dir }}/openvswitch-agent-logging.conf"
+    neutron_dhcp_agent_logging_config_file:  "{{ neutron_conf_dir }}/dhcp-agent-logging.conf"
+    neutron_l3_agent_logging_config_file:  "{{ neutron_conf_dir }}/l3-agent-logging.conf"
+    neutron_metadata_agent_logging_config_file:  "{{ neutron_conf_dir }}/metadata-agent-logging.conf"
+    neutron_lbaas_agent_logging_config_file:  "{{ neutron_conf_dir }}/lbaas-agent-logging.conf"
+    neutron_vpn_agent_logging_config_file:  "{{ neutron_conf_dir }}/vpn-agent-logging.conf"
+    neutron_ovsvapp_agent_logging_config_file: "{{ neutron_conf_dir }}/ovsvapp-agent-logging.conf"
+    neutron_policy_file: "{{ neutron_conf_dir }}/policy.json"
+    neutron_root_helper: "sudo {{ neutron_bin_dir }}/neutron-rootwrap {{ neutron_conf_dir }}/rootwrap.conf"
+    neutron_root_helper_daemon: "sudo {{ neutron_bin_dir }}/neutron-rootwrap-daemon {{ neutron_conf_dir }}/rootwrap.conf"
+
+- name: Neutron Common | _set_service_directories | Set service directories and configuration files
+  set_fact:
+    neutron_dnsmasq_config_file: "{{ neutron_dnsmasq_conf_dir }}/{{ neutron_dnsmasq_opts_file }}"
+
+# This .yml will resolve neutron_bin_dir to real path name.
+- include: _get_real_bin_dir.yml

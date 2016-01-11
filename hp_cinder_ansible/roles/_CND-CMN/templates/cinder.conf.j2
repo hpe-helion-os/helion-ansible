@@ -1,0 +1,340 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+
+# TODO: for now assuming no ssl, no HAPROXY
+# TODO: establish mechanism to use site-specific config (e.g. vips)
+
+[DEFAULT]
+
+# Print more verbose output (set logging level to INFO instead
+# of default WARNING level). (boolean value)
+verbose={{ cinder_verbose }}
+# Print debugging output (set logging level to DEBUG instead
+# of default WARNING level). (boolean value)
+debug={{ cinder_debug }}
+
+osapi_volume_listen = {{ cinder_osapi_volume_listen }}
+bind_host = {{ cinder_bind_host }}
+rabbit_userid = {{ cinder_rabbit_userid }}
+rabbit_password = {{ cinder_rabbit_password }}
+rabbit_hosts = {{ cinder_rabbit_hosts }}
+glance_host = {{ cinder_glance_host }}
+glance_port = {{ cinder_glance_port }}
+
+swift_catalog_info = object-store:swift:internalURL
+
+#state_path = /var/lib/cinder
+
+# Versioned api-paste.ini specified via command line
+#api_paste_config = /etc/cinder/api-paste.ini
+
+auth_strategy = keystone
+
+state_path = {{ cinder_state_path }}
+{% if cinder_image_conversion_dir is defined %}
+image_conversion_dir={{ cinder_image_conversion_dir }}
+{% endif %}
+
+iscsi_helper={{ cinder_iscsi_helper }}
+
+
+rpc_backend=cinder.openstack.common.rpc.impl_kombu
+rabbit_use_ssl=False
+rabbit_ha_queues=False
+
+{% if cinder_keymgr_fixed_key is defined %}
+[keymgr]
+fixed_key = {{ cinder_keymgr_fixed_key }}
+{% endif %}
+
+control_exchange = {{ cinder_control_exchange }}
+notification_driver = {{ cinder_notification_driver }}
+rpc_response_timeout = 120
+
+# Common hostname to avoid singleton limitation of Cinder volume manager
+host = ha-volume-manager
+
+# Configure the enabled backends
+enabled_backends=
+{%- if cinder_lvm_device_group %},lvm-1{% endif %}
+
+[keystone_authtoken]
+# TODO need to figure out how to get the creds properly
+admin_tenant_name = {{ cinder_keystone.admin_tenant_name }}
+admin_user = {{ cinder_identity_admin_user }}
+admin_password = {{ cinder_identity_admin_password }}
+identity_uri = {{ cinder_keystone.internal_url }}
+
+[database]
+connection={{ cinder_db }}
+max_overflow={{ cinder_max_overflow }}
+max_pool_size={{ cinder_max_pool_size }}
+min_pool_size={{ cinder_min_pool_size }}
+
+[oslo_concurrency]
+lock_path = /var/lib/cinder
+
+{% if cinder_lvm_device_group %}
+# LVM thin provision. This way we don't dd the disk
+[lvm-1]
+volume-group = cinder-volumes
+lvm_type = thin
+volume_driver = cinder.volume.drivers.lvm.LVMISCSIDriver
+volume_backend_name = LVM_iSCSI
+{% endif %}
+
+# Start of section for StoreVirtual (VSA) cluster
+#
+# If you have configured StoreVirtual backend storage for cinder you
+# must uncomment this section, and replace all strings in angle
+# brackets with the correct values for the cluster you have
+# configured.  You must also add the section name to the list of
+# values in the 'enabled_backends' variable above.
+#
+# If you have more than one StoreVirtual cluster you must provide this
+# whole section for each cluster and provide a unique section name for
+# each cluster. For example, replace <unique-section-name> with
+# VSA_CLUSTER_1 for one cluster and VSA_CLUSTER_2 for the other.
+#
+# Note, if you want to group more than one cluster under a single
+# cinder backend then you can give the same value to <vsa-backend-name>
+# in sections for several clusters.
+#
+# Use this model if the StoreVirtual Storage array is running LeftHand OS
+# version 11 or higer
+#
+#[<unique-section-name>]
+# If adding a password here, then the password can be encrypted using the
+# mechanism specified in the documentation.  If the password has been encrypted
+# add the value and the hos_user_password_decrypt filter like so:
+#hplefthand_password: {{ '<encrypted vsa-cluster-password>' | hos_user_password_decrypt }}
+# Note that the encrypted value has to be enclosed in quotes
+# If you choose not to encrypt the password then the unencrypted password
+# must be set as follows:
+#hplefthand_password: <vsa-cluster-password>
+#hplefthand_clustername: <vsa-cluster-name>
+#hplefthand_api_url: https://<vsa-cluster-vip>:8081/lhos
+#hplefthand_username: <vsa-cluster-username>
+#hplefthand_iscsi_chap_enabled: true
+#volume_backend_name: <vsa-backend-name>
+#volume_driver: cinder.volume.drivers.san.hp.hp_lefthand_iscsi.HPLeftHandISCSIDriver
+#hplefthand_debug: false
+#
+#
+# Use this model if the StoreVirtual Storage array is running LeftHand OS
+# lower than version 11
+#
+# [<unique-section-name>]
+# volume_driver=cinder.volume.drivers.san.hp.hp_lefthand_iscsi.HPLeftHandISCSIDriver
+# volume_backend_name=lefthand-cliq
+# san_ip=<san-ip>
+# san_login=<san_username>
+# If adding a password here, then the password can be encrypted using the
+# mechanism specified in the documentation.  If the password has been encrypted
+# add the value and the hos_user_password_decrypt filter like so:
+# san_password= {{ '<encrypted san_password>' | hos_user_password_decrypt }}
+# Note that the encrypted value has to be enclosed in quotes
+# If you choose not to encrypt the password then the unencrypted password
+# must be set as follows:
+# san_password=<san_password>
+# san_ssh_port=16022
+# san_clustername=<vsa-cluster-name>
+#volume_backend_name: <vsa-backend-name>
+#
+#
+# End of section for StoreVirtual (VSA) cluster
+
+# Start of section for StoreServ (3par) iscsi cluster
+#
+# If you have configured StoreServ backend storage for cinder you must
+# uncomment this section, and replace all strings in angle brackets
+# with the correct values for the HP 3PAR you have configured.  You
+# must also add the section name to the list of values in the
+# 'enabled_backends' variable above. You must provide unique section
+# each time you configure a new backend for HP 3PAR.
+#
+# If you want to configure more than one CPG then you can do one of the
+# following:
+#   1) Create an unique section for each backend, or
+#   2) Provide a comma separated list of CPGs for hp3par_cpg
+#
+# In the second case, this set of CPGs will form a pool but will be seen as a
+# single device by Cinder.
+#
+#[<unique-section-name>]
+#hp3par_iscsi_chap_enabled: true
+#san_ip: <3par-san-ipaddr>
+#san_login: <3par-san-username>
+# If adding a password here, then the password can be encrypted using the
+# mechanism specified in the documentation.  If the password has been encrypted
+# add the value and the hos_user_password_decrypt filter like so:
+# san_password: {{ '<encrypted 3par-san-password>' | hos_user_password_decrypt }}
+# Note that the encrypted value has to be enclosed in quotes
+# If you choose not to encrypt the password then the unencrypted password
+# must be set as follows:
+# san_password: <3par-san-password>
+#hp3par_iscsi_ips: <3par-ip-address-1>[,<3par-ip-address-2>,<3par-ip-address-3>, ...]
+#hp3par_username: <3par-username>
+# If adding a password here, then the password can be encrypted using the
+# mechanism specified in the documentation.  If the password has been encrypted
+# add the value and the hos_user_password_decrypt filter like so:
+#hp3par_password: {{ '<encrypted hp3par_password>' | hos_user_password_decrypt }}
+# Note that the encrypted value has to be enclosed in quotes
+# If you choose not to encrypt the password then the unencrypted password
+# must be set as follows:
+#hp3par_password: <hp3par_password>
+#hp3par_api_url: https://<3par-san-ipaddr>:8080/api/v1
+#hp3par_cpg: <3par-cpg-name-1>[,<3par-cpg-name-2>, ...]
+#volume_backend_name: <3par-backend-name>
+#volume_driver: cinder.volume.drivers.san.hp.hp_3par_iscsi.HP3PARISCSIDriver
+#
+# End of section for StoreServ (3par) iscsi cluster
+
+
+# Start of section to enable a CPG  as a backend for StoreServ (3par)
+# using a fibre channel device
+#
+# If you have configured StoreServ backend storage for cinder you must
+# uncomment this section, and replace all strings in angle brackets
+# with the correct values for the cluster you have configured.  You
+# must also add the section name to the list of values in the
+# 'enabled_backends' variable above.
+#
+# If you want to configure more than one CPG then you can do one of the
+# following:
+#   1) Create an unique section for each backend, or
+#   2) Provide a comma separated list of CPGs for hp3par_cpg
+#
+# In second case, these sets of CPGs will form a pool but will seen as a
+# single device by Cinder.
+#
+#
+#[<unique-section-name>]
+#san_ip: <3par-san-ipaddr>
+#san_login: <3par-san-username>
+# If adding a password here, then the password can be encrypted using the
+# mechanism specified in the documentation.  If the password has been encrypted
+# add the value and the hos_user_password_decrypt filter like so:
+#san_password: {{ '<encrypted 3par-san-password>' | hos_user_password_decrypt }}
+# Note that the encrypted value has to be enclosed in quotes
+# If you choose not to encrypt the password then the unencrypted password
+# must be set as follows:
+#san_password: <3par-san-password>
+#hp3par_username: <3par-username>
+# If adding a password here, then the password can be encrypted using the
+# mechanism specified in the documentation.  If the password has been encrypted
+# add the value and the hos_user_password_decrypt filter like so:
+#hp3par_password: {{ '<encrypted 3par-password>' | hos_user_password_decrypt }}
+# Note that the encrypted value has to be enclosed in quotes
+# If you choose not to encrypt the password then the unencrypted password
+# must be set as follows:
+#hp3par_password: <3par-password>
+#hp3par_api_url: https://<3par-san-ipaddr>:8080/api/v1
+#hp3par_cpg: <3par-cpg-name-1>[,<3par-cpg-name-2>,...]
+#volume_backend_name: <3par-backend-name>
+#volume_driver: cinder.volume.drivers.san.hp.hp_3par_fc.HP3PARFCDriver
+#
+# End of section for StoreServ (3par) fibre channel cluster
+
+# Start of section for ceph
+#
+# If you have configured ceph backend storage for cinder you
+# must uncomment this section, and replace all strings in angle
+# brackets with the correct values for the ceph you have
+# configured.  You must also add the section name to the list of
+# values in the 'enabled_backends' variable above.
+#
+# If you have more than one ceph backend you must provide this
+# whole section for each ceph backend and provide a unique section name for
+# each. For example, replace <unique-section-name> with CEPH_1 for
+# one backend and CEPH_2 for the other.
+#
+#[<unique-section-name>]
+#rbd_secret_uuid = <secret-uuid>
+#rbd_user = <ceph-cinder-user>
+#rbd_pool = <ceph-cinder-volume-pool>
+#rbd_ceph_conf = <ceph-config-file>
+#volume_driver = cinder.volume.drivers.rbd.RBDDriver
+#volume_backend_name = <ceph-backend-name>
+#
+# End of section for ceph
+
+# Start of section for vmdk
+#
+# If you have configured vmdk storage for cinder you
+# must uncomment this section, and replace all strings in angle
+# brackets with the correct values for the cluster you have
+# configured.  You must also add the section name to the list of
+# values in the 'enabled_backends' variable above.
+#
+# If you have more than one vmdk backend you must provide this
+# whole section for each vmdk backend and provide a unique section name for
+# each. For example, replace <unique-section-name> with
+# VMDK_1 for one backend and VMDK_2 for the other.
+#
+#[<unique-section-name>]
+#vmware_host_ip = <vmware-host-ip>
+#vmware_host_password = <vmware-host-password>
+#vmware_host_username = <vmware-host-username>
+#volume_driver = cinder.volume.drivers.vmware.vmdk.VMwareVcVmdkDriver
+#volume_backend_name=<vmdk-backend-name>
+#
+# End of section for vmdk
+
+# Start of section for Broccade Fiber channel Zone Manager
+#
+# If you have configured Fibre Channel Volume Driver that supports Zone Manager for cinder you
+# must uncomment this section, and replace all strings in angle
+# brackets with the correct values you have configured.
+# In the below configuration fc_fabric_names can be mutilple names,
+# you have to define seperate section for each name with appropriate switch details
+
+#[DEFAULT]
+#zoning_mode=fabric
+
+#[fc-zone-manager]
+#brcd_sb_connector = cinder.zonemanager.drivers.brocade.brcd_fc_zone_client_cli.BrcdFCZoneClientCLI
+#fc_san_lookup_service = cinder.zonemanager.drivers.brocade.brcd_fc_san_lookup_service.BrcdFCSanLookupService
+#zone_driver = cinder.zonemanager.drivers.brocade.brcd_fc_zone_driver.BrcdFCZoneDriver
+#fc_fabric_names = <unique-fabric-name>
+
+#[<unique-fabric-name>]
+#fc_fabric_address = <switch-ip-address>
+#fc_fabric_user = <switch-user-name>
+#fc_fabric_password = <switch-password>
+#principal_switch_wwn = <switch-wwn>
+#zoning_policy = initiator-target
+#zone_activate = true
+#zone_name_prefix = <zone-name-prefix>
+
+# End of section for Broccade Fiber channel Zone Manager
+
+# Start of section for ceph backup
+#
+# If you have configured ceph backup storage for cinder you
+# must uncomment this section, and replace all strings in angle
+# brackets with the correct values for the ceph you have
+# configured.
+#
+#[DEFAULT]
+#backup_driver = cinder.backup.drivers.ceph
+#backup_ceph_conf = <ceph-config-file>
+#backup_ceph_user = <ceph-backup-user>
+#backup_ceph_pool = <ceph-backup-pool>
+#
+# End of section for ceph backup

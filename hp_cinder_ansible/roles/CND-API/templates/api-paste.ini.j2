@@ -1,0 +1,92 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+#############
+# OpenStack #
+#############
+
+[composite:osapi_volume]
+use = call:cinder.api:root_app_factory
+/: apiversions
+/v1: openstack_volume_api_v1
+/v2: openstack_volume_api_v2
+
+[composite:openstack_volume_api_v1]
+use = call:cinder.api.middleware.auth:pipeline_factory
+noauth = request_id faultwrap sizelimit osprofiler noauth apiv1
+keystone = request_id faultwrap sizelimit osprofiler authtoken keystonecontext
+{%- if cinder_api_audit_enable | bool %} audit{% endif %}
+ apiv1
+keystone_nolimit = request_id faultwrap sizelimit osprofiler authtoken keystonecontext
+{%- if cinder_api_audit_enable | bool %} audit{% endif %}
+ apiv1
+
+[composite:openstack_volume_api_v2]
+use = call:cinder.api.middleware.auth:pipeline_factory
+noauth = request_id faultwrap sizelimit osprofiler noauth apiv2
+keystone = request_id faultwrap sizelimit osprofiler authtoken keystonecontext
+{%- if cinder_api_audit_enable %} audit{% endif %}
+ apiv2
+keystone_nolimit = request_id faultwrap sizelimit osprofiler authtoken keystonecontext
+{%- if cinder_api_audit_enable %} audit{% endif %}
+ apiv2
+
+[filter:request_id]
+paste.filter_factory = oslo_middleware.request_id:RequestId.factory
+
+[filter:faultwrap]
+paste.filter_factory = cinder.api.middleware.fault:FaultWrapper.factory
+
+[filter:osprofiler]
+paste.filter_factory = osprofiler.web:WsgiMiddleware.factory
+hmac_keys = SECRET_KEY
+enabled = yes
+
+[filter:noauth]
+paste.filter_factory = cinder.api.middleware.auth:NoAuthMiddleware.factory
+
+[filter:sizelimit]
+paste.filter_factory = cinder.api.middleware.sizelimit:RequestBodySizeLimiter.factory
+
+[filter:ssl]
+paste.filter_factory = cinder.api.middleware.ssl:SSLMiddleware.factory
+
+[app:apiv1]
+paste.app_factory = cinder.api.v1.router:APIRouter.factory
+
+[app:apiv2]
+paste.app_factory = cinder.api.v2.router:APIRouter.factory
+
+[pipeline:apiversions]
+pipeline = ssl faultwrap osvolumeversionapp
+
+[app:osvolumeversionapp]
+paste.app_factory = cinder.api.versions:Versions.factory
+
+##########
+# Shared #
+##########
+
+[filter:keystonecontext]
+paste.filter_factory = cinder.api.middleware.auth:CinderKeystoneContext.factory
+
+[filter:authtoken]
+paste.filter_factory = keystonemiddleware.auth_token:filter_factory
+
+[filter:audit]
+paste.filter_factory = keystonemiddleware.audit:filter_factory
+audit_map_file = /etc/cinder/api_audit_map.conf

@@ -1,0 +1,51 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+# The following relative symlinks are created under the
+# my_cloud/config directory.
+---
+symlinks:
+  "glance/glance-registry.conf.j2": "roles/GLA-REG/templates/glance-registry.conf.j2"
+  "glance/glance-registry-paste.ini": "roles/GLA-REG/templates/glance-registry-paste.ini.j2"
+  "glance/glance-registry-logging.conf.j2": "roles/GLA-REG/templates/glance-registry-logging.conf.j2"
+  "glance/glance-api.conf.j2": "roles/GLA-API/templates/glance-api.conf.j2"
+  "glance/glance-api-paste.ini": "roles/GLA-API/templates/glance-api-paste.ini.j2"
+  "glance/glance-api-logging.conf.j2": "roles/GLA-API/templates/glance-api-logging.conf.j2"
+  "glance/policy.json.j2": "roles/GLA-API/templates/policy.json.j2"
+  "glance/metadefs/README": "roles/GLA-REG/files/etc/metadefs/README"
+  "glance/metadefs/compute-aggr-disk-filter.json": "roles/GLA-REG/files/etc/metadefs/compute-aggr-disk-filter.json"
+  "glance/metadefs/compute-aggr-iops-filter.json": "roles/GLA-REG/files/etc/metadefs/compute-aggr-iops-filter.json"
+  "glance/metadefs/compute-aggr-num-instances.json": "roles/GLA-REG/files/etc/metadefs/compute-aggr-num-instances.json"
+  "glance/metadefs/compute-guest-shutdown.json": "roles/GLA-REG/files/etc/metadefs/compute-guest-shutdown.json"
+  "glance/metadefs/compute-host-capabilities.json": "roles/GLA-REG/files/etc/metadefs/compute-host-capabilities.json"
+  "glance/metadefs/compute-hypervisor.json": "roles/GLA-REG/files/etc/metadefs/compute-hypervisor.json"
+  "glance/metadefs/compute-instance-data.json": "roles/GLA-REG/files/etc/metadefs/compute-instance-data.json"
+  "glance/metadefs/compute-libvirt-image.json": "roles/GLA-REG/files/etc/metadefs/compute-libvirt-image.json"
+  "glance/metadefs/compute-libvirt.json": "roles/GLA-REG/files/etc/metadefs/compute-libvirt.json"
+  "glance/metadefs/compute-quota.json": "roles/GLA-REG/files/etc/metadefs/compute-quota.json"
+  "glance/metadefs/compute-randomgen.json": "roles/GLA-REG/files/etc/metadefs/compute-randomgen.json"
+  "glance/metadefs/compute-trust.json": "roles/GLA-REG/files/etc/metadefs/compute-trust.json"
+  "glance/metadefs/compute-vcputopology.json": "roles/GLA-REG/files/etc/metadefs/compute-vcputopology.json"
+  "glance/metadefs/compute-vmware-flavor.json": "roles/GLA-REG/files/etc/metadefs/compute-vmware-flavor.json"
+  "glance/metadefs/compute-vmware-quota-flavor.json": "roles/GLA-REG/files/etc/metadefs/compute-vmware-quota-flavor.json"
+  "glance/metadefs/compute-vmware.json": "roles/GLA-REG/files/etc/metadefs/compute-vmware.json"
+  "glance/metadefs/compute-watchdog.json": "roles/GLA-REG/files/etc/metadefs/compute-watchdog.json"
+  "glance/metadefs/compute-xenapi.json": "roles/GLA-REG/files/etc/metadefs/compute-xenapi.json"
+  "glance/metadefs/glance-common-image-props.json": "roles/GLA-REG/files/etc/metadefs/glance-common-image-props.json"
+  "glance/metadefs/operating-system.json": "roles/GLA-REG/files/etc/metadefs/operating-system.json"
+  "glance/metadefs/software-databases.json": "roles/GLA-REG/files/etc/metadefs/software-databases.json"
+  "glance/metadefs/software-runtimes.json": "roles/GLA-REG/files/etc/metadefs/software-runtimes.json"
+  "glance/metadefs/software-webservers.json": "roles/GLA-REG/files/etc/metadefs/software-webservers.json"

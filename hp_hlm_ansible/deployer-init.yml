@@ -1,0 +1,99 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- hosts: localhost
+  connection: local
+  roles:
+    - deployer-setup
+  tasks:
+    - include: roles/deployer-setup/tasks/install.yml
+    - include: roles/deployer-setup/tasks/configure-bash.yml
+
+# Install and configure apache2 for venv and install hlm-input-model
+- hosts: localhost
+  connection: local
+  roles:
+    - cobbler
+    - FND-AP2
+  tasks:
+    # Deploy Apache
+    - include: roles/FND-AP2/tasks/install.yml
+    - include: roles/FND-AP2/tasks/configure.yml
+      vars:
+        host:
+          vars:
+        FND_AP2_sites_enabled:
+          deployer_venv_server.conf:
+            listen: "*"
+            port: "{{ hlinux_server_port }}"
+            document_root: "/opt/hlm_packager"
+
+# Start depends on a notification from above,
+# split it out to make sure the handler fires first
+- hosts: localhost
+  connection: local
+  roles:
+    - FND-AP2
+  tasks:
+    - include: roles/FND-AP2/tasks/start.yml
+
+# Install contents of repos
+- hosts: localhost
+  connection: local
+  roles:
+    - cobbler
+    - deployer-setup
+  tasks:
+    - include: roles/deployer-setup/tasks/install-my-cloud-directory.yml
+    - include: roles/deployer-setup/tasks/install-input-model-contents.yml
+    - include: roles/deployer-setup/tasks/install-venv-contents.yml
+    - include: roles/deployer-setup/tasks/init-deployer-from-iso.yml
+
+# Install & configure venv application
+- hosts: localhost
+  connection: local
+  roles:
+    - cobbler
+    - package-repo
+    - package-consumer
+  tasks:
+    - include: roles/package-repo/tasks/install.yml
+    - include: roles/package-repo/tasks/configure.yml
+    - include: roles/package-consumer/tasks/install.yml
+    - include: roles/package-consumer/tasks/configure.yml
+      vars:
+       host:
+         vars:
+       is_deployer: true
+
+# Install crudini and the other prerequisites for running ansible on the deployer
+- hosts: localhost
+  connection: local
+  roles:
+    - osconfig
+  tasks:
+    - include: roles/osconfig/tasks/install-ansible-prereqs.yml
+
+# Install config processor
+- hosts: localhost
+  connection: local
+  roles:
+    - config-processor
+  tasks:
+    - include: roles/config-processor/tasks/install.yml
+
+# Install Day Zero UI and run it
+- include: dayzero-deploy.yml

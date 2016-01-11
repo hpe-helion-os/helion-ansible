@@ -1,0 +1,66 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name:  KEY-API | distribute_fernet_keys | Change the permision of directories temporarilly
+  file: path="/etc/keystone/fernet-keys" mode="0757" recurse=true
+  when: inventory_hostname == keystone_hosts[0]
+  become: yes
+  tags:
+    - keystone
+
+- name: KEY-API | distribute_fernet_keys | Synchronize the keys to tmp directory of deployer
+  synchronize:
+    src: "{{ keystone_fernet_dir }}"
+    dest: "/tmp/fernet-keys"
+    archive: "yes"
+    mode: pull
+  when: inventory_hostname ==  keystone_hosts[0]
+  tags:
+    - keystone
+
+- name: KEY-API | distribute_fernet_keys | Synchronize the keys from deployer to /tmp in other nodes
+  synchronize:
+    dest: "/tmp/fernet-keys"
+    src: "/tmp/fernet-keys/"
+    archive: "yes"
+  when: inventory_hostname !=  keystone_hosts[0]
+  tags:
+    - keystone
+
+- name: KEY-API | distribute_fernet_keys | Distribute keys from from /tmp to keystone directory
+  command: "rsync -az  /tmp/fernet-keys/ {{ keystone_fernet_dir }}"
+  when: inventory_hostname != keystone_hosts[0]
+  delegate_to: "{{ inventory_hostname }}"
+  become: yes
+  tags:
+    - keystone
+
+
+- name: KEY-API |  distribute_fernet_keys | Revert the permision of directories changed temporarily
+  file: path="/etc/keystone/fernet-keys" mode="0711" recurse=true
+  when: inventory_hostname == keystone_hosts[0]
+  become: yes
+  tags:
+    - keystone
+
+- name: KEY-API |  distribute_fernet_keys | Remove the tmp directory from controller
+  file: path="/tmp/fernet-keys" state=absent
+
+- name: KEY-API |  distribute_fernet_keys | Remove the tmp directory from deployer
+  file: path="/tmp/fernet-keys" state=absent
+  delegate_to: localhost
+  run_once: True

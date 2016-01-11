@@ -1,0 +1,94 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+logr_services:
+  rsyslog:
+    logging_options:
+    - centralized_logging:
+        enabled: true
+        format: json
+      files:
+      - /var/log/syslog
+      log_rotate:
+      - daily
+      - rotate 7
+      - maxsize 500M
+      - missingok
+      - notifempty
+      - compress
+      - postrotate
+      - "  invoke-rc.d rsyslog rotate &> /dev/null || true"
+      - endscript
+      - create 640 root adm
+    - centralized_logging:
+        enabled: false
+        format: json
+      files:
+      - /var/log/daemon.log
+      log_rotate:
+      - rotate 7
+      - daily
+      - maxsize 500M
+      - missingok
+      - notifempty
+      - compress
+      - postrotate
+      - "  invoke-rc.d rsyslog rotate &> /dev/null || true"
+      - endscript
+      - create 640 root adm
+    - centralized_logging:
+        enabled: false
+        format: json
+      files:
+      - /var/log/mail.info
+      - /var/log/mail.warn
+      - /var/log/mail.err
+      - /var/log/mail.log
+      log_rotate:
+      - rotate 7
+      - weekly
+      - maxsize 10M
+      - missingok
+      - notifempty
+      - compress
+      - sharedscripts
+      - postrotate
+      - "  invoke-rc.d rsyslog rotate &> /dev/null || true"
+      - endscript
+      - create 640 root adm
+    - centralized_logging:
+        enabled: false
+        format: json
+      files:
+      - /var/log/auth.log
+      - /var/log/cron.log
+      - /var/log/debug
+      - /var/log/kern.log
+      - /var/log/lpr.log
+      - /var/log/messages
+      - /var/log/user.log
+      log_rotate:
+      - rotate 7
+      - weekly
+      - maxsize 45M
+      - missingok
+      - notifempty
+      - compress
+      - sharedscripts
+      - postrotate
+      - "  invoke-rc.d rsyslog rotate &> /dev/null || true"
+      - endscript
+      - create 640 root adm

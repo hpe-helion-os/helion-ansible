@@ -1,0 +1,109 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- include: ../../_CEP-CMN/tasks/configure.yml
+
+- name: CEP-OSD | configure | Check user defined disk model
+  set_fact: user_disk_model=item.consumer.name
+  when: item.consumer.name == "ceph"
+  with_items: "{{ host.my_disk_models.device_groups }}"
+
+- name: CEP-OSD | configure | Fail if disks for osd is not defined
+  fail: msg="osd disks are not defined in input model"
+  when: user_disk_model is not defined
+
+- name: CEP-OSD | configure | Create a temporary file
+  command: mktemp
+  register: ceph_mktemp_result
+  delegate_to: localhost
+
+- name: CEP-OSD | configure | Generate the user specified disk model yaml at "{{ ceph_mktemp_result.stdout }}"
+  template:
+    src: ceph_disk_model.j2
+    dest: "{{ ceph_mktemp_result.stdout }}"
+    owner: "{{ ceph_user }}"
+    group: "{{ ceph_group }}"
+    mode: 0644
+  delegate_to: localhost
+
+- name: CEP-OSD | configure | Load the disk model specification in ansible variables
+  include_vars: "{{ ceph_mktemp_result.stdout }}"
+  delegate_to: localhost
+
+- name: CEP-OSD | configure | Delete the temporary disk input model file
+  file: path="{{ ceph_mktemp_result.stdout }}" state=absent
+  delegate_to: localhost
+
+- include: _validate_disks.yml
+
+- name: CEP-OSD | configure | Fetch the path of ceph-disk **remove this once we start consuming firefly > 0.80.7
+  command: which ceph-disk
+  register: ceph_which_result
+
+- name: CEP-OSD | configure | Replace the ceph-disk utility with latest fixes **remove this once we start consuming firefly > 0.80.7
+  copy:
+    src: ceph-disk
+    dest: "{{ ceph_which_result.stdout }}"
+    owner: "{{ ceph_user }}"
+    group: "{{ ceph_group }}"
+    mode: 0755
+
+- name: CEP-OSD | configure | Remove the ceph udev rules to disable auto activation of osd
+  file: path=/lib/udev/rules.d/95-ceph-osd.rules state=absent
+
+- name: CEP-OSD | configure | Add osd to crush map
+  command: ceph --cluster {{ ceph_cluster }} osd crush add-bucket "{{ inventory_hostname }}" host
+
+- name: CEP-OSD | configure | Place osd node under root folder
+  command: ceph --cluster {{ ceph_cluster }} osd crush move "{{ inventory_hostname }}" root=default
+
+- name: CEP-OSD | configure | Ensure that the bootstrap-osd keyring /var/lib/ceph/bootstrap-osd/{{ ceph_cluster }}.keyring is available
+  command: ceph --cluster {{ ceph_cluster }} auth get-or-create -o "/var/lib/ceph/bootstrap-osd/{{ ceph_cluster }}.keyring" client.bootstrap-osd mon 'allow profile osd, allow *'
+
+- name: CEP-OSD | configure | Configure the osds of {{ inventory_hostname }}
+  osd_configure:
+    hostname: "{{ inventory_hostname }}"
+    data_disk: "{{ item.key }}"
+    journal_disk: "{{ item.value }}"
+    fstype: "{{ fstype }}"
+    cluster_name: "{{ ceph_cluster }}"
+    cluster_uuid: "{{ fsid }}"
+    persist_mountpoint: "{{ persist_mountpoint }}"
+    zap_data_disk: "{{ zap_data_disk }}"
+    data_disk_poll_attempts: "{{ data_disk_poll_attempts }}"
+    data_disk_poll_interval: "{{ data_disk_poll_interval }}"
+  with_dict: "{{ osd_disks }}"
+
+- name: CEP-OSD | configure | Copy the osd service definition file for systemd in /etc/systemd/system/
+  template:
+    src: ceph-osd@.service.j2
+    dest: /etc/systemd/system/ceph-osd@.service
+    owner: "{{ ceph_user }}"
+    group: "{{ ceph_group }}"
+    mode: 0644
+  when: ceph_release == "firefly"
+
+- name: CEP-OSD | configure | Create a separate systemd target for ceph osds
+  copy:
+    src: ceph-osd.target
+    dest: /etc/systemd/system/ceph-osd.target
+    owner: "{{ ceph_user }}"
+    group: "{{ ceph_group }}"
+    mode: 0644
+
+- name: CEP-OSD | configure | Enable ceph osd target to be executed on calling ceph.target
+  command: systemctl enable ceph-osd.target

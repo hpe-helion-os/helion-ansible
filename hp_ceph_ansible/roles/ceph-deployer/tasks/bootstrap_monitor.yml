@@ -1,0 +1,75 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: ceph-deployer | bootstrap_monitor | Install ceph client on ceph admin node
+  apt:
+    name: ceph-common
+    state: latest
+    force: yes
+  delegate_to: "{{ ceph_admin_node }}"
+
+- name: ceph-deployer | bootstrap_monitor | Create ceph directory /etc/ceph
+  file:
+    path: /etc/ceph
+    state: directory
+    owner: "{{ ceph_user }}"
+    group: "{{ ceph_group }}"
+    mode: 0755
+  delegate_to: "{{ ceph_admin_node }}"
+
+- name: ceph-deployer | bootstrap_monitor | Check /etc/ceph/ceph.client.admin.keyring exists
+  stat:
+    path: /etc/ceph/ceph.client.admin.keyring
+  register: ceph_admin_keyring_result
+  delegate_to: "{{ ceph_admin_node }}"
+
+- name: ceph-deployer | bootstrap_monitor | Create /etc/ceph/ceph.client.admin.keyring
+  command: ceph-authtool --create-keyring /etc/ceph/ceph.client.admin.keyring --gen-key -n client.admin --set-uid=0 --cap mon 'allow *' --cap osd 'allow *' --cap mds 'allow'
+  when: ceph_admin_keyring_result.stat.exists == False
+  delegate_to: "{{ ceph_admin_node }}"
+
+- name: ceph-deployer | bootstrap_monitor | Change  /etc/ceph/ceph.client.admin.keyring permissions
+  file:
+    path:  /etc/ceph/ceph.client.admin.keyring
+    owner: "{{ ceph_user }}"
+    group: "{{ ceph_group }}"
+    mode: 0644
+  delegate_to: "{{ ceph_admin_node }}"
+
+- name: ceph-deployer | bootstrap_monitor | Check /etc/ceph/ceph.mon.keyring exists
+  stat:
+    path: /etc/ceph/ceph.mon.keyring
+  register: ceph_mon_keyring_result
+  delegate_to: "{{ ceph_admin_node }}"
+
+- name: ceph-deployer | bootstrap_monitor | Create /etc/ceph/ceph.mon.keyring
+  command: ceph-authtool --create-keyring /etc/ceph/ceph.mon.keyring --gen-key -n mon. --cap mon 'allow *'
+  when: ceph_mon_keyring_result.stat.exists == False
+  delegate_to: "{{ ceph_admin_node }}"
+
+- name: ceph-deployer | bootstrap_monitor | Add client admin key to /etc/ceph/ceph.mon.keyring
+  command: ceph-authtool /etc/ceph/ceph.mon.keyring --import-keyring /etc/ceph/ceph.client.admin.keyring
+  when: ceph_mon_keyring_result.stat.exists == False
+  delegate_to: "{{ ceph_admin_node }}"
+
+- name: ceph-deployer | bootstrap_monitor | Change /etc/ceph/ceph.mon.keyring permissions
+  file:
+    path:  /etc/ceph/ceph.mon.keyring
+    owner: "{{ ceph_user }}"
+    group: "{{ ceph_group }}"
+    mode: 0644
+  delegate_to: "{{ ceph_admin_node }}"

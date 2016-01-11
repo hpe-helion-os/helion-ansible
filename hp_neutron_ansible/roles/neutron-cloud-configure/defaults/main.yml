@@ -1,0 +1,33 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+# Config Processor defined variables
+
+keystone_auth_url: "{{ NEU_SVR.consumes_KEY_API.vips.admin[0].url }}"
+neutron_admin_password: "{{ NEU_SVR.consumes_KEY_API.vars.keystone_neutron_password | quote }}"
+neutron_admin_tenant_name: "{{ KEY_API.vars.keystone_service_tenant }}"
+neutron_admin_user: "{{ NEU_SVR.consumes_KEY_API.vars.keystone_neutron_user }}"
+
+# Other
+
+EXT_NET_CIDR: "172.31.0.0/16"
+svc_net_name: "SVC"
+openstack_cmd_args: "--os-username {{ neutron_admin_user }} --os-project-name {{ neutron_admin_tenant_name }} --os-password {{ neutron_admin_password }} --os-user-domain-name Default --os-project-domain-name Default --os-auth-url {{ keystone_auth_url }}"
+neutron_cmd_args: "{{ openstack_cmd_args }} --os-endpoint-type internalURL"
+supported_prov_net_types:
+  - flat
+  - vlan

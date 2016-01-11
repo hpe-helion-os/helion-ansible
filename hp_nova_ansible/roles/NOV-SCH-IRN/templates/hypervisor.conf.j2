@@ -1,0 +1,33 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+# This file has the HOS values that apply only to the ironic hypervisor.
+# You may make changes to this file by adding sections/options below.
+
+[DEFAULT]
+# Scheduler
+scheduler_host_manager = nova.scheduler.ironic_host_manager.IronicHostManager
+scheduler_use_baremetal_filters = True
+
+[ironic]
+api_endpoint =  {{ ironic_api_endpoint_url }}
+admin_tenant_name = {{ admin_tenant_name }}
+admin_url = {{ ironic_admin_auth_uri }}
+admin_password = {{ keystone_ironic_password }}
+admin_username = {{ keystone_ironic_user }}
+
+## Do NOT put anything after this line ##

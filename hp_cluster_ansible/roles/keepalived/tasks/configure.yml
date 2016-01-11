@@ -1,0 +1,76 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: keepalived | configure | Configure keepalived daemon
+  template:
+    src: keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+    owner: root
+    group: root
+    mode: 0644
+  become: yes
+  notify:
+    - keepalived_change
+
+- name: keepalived | configure | Install keepalived_vip_change.sh script
+  template:
+    src: keepalived_vip_change.sh.j2
+    dest: /usr/local/bin/keepalived_vip_change.sh
+    owner: root
+    group: root
+    mode: 0744
+  become: yes
+
+- name: keepalived | configure | Install viritual_ips list
+  template:
+    src: virtual_ips.j2
+    dest: /etc/keepalived/virtual_ips
+    owner: root
+    group: root
+    mode: 0640
+  become: yes
+
+- name: keepalived | configure | Configure rsyslog settings
+  template:
+    src: 50-helion-keepalived.conf.j2
+    dest: /etc/rsyslog.d/50-helion-keepalived.conf
+    owner: root
+    group: root
+    mode: 0644
+  become: yes
+  notify:
+    - Restart rsyslog
+
+- name: keepalived | configure | Configure logrotate settings
+  template:
+    src: keepalived.logrotate.j2
+    dest: /etc/logrotate.d/keepalived
+    owner: root
+    group: root
+    mode: 0644
+  become: yes
+
+- name: keepalived | configure | Configure service defaults
+  template:
+    src: keepalived.default.j2
+    dest: /etc/default/keepalived
+    owner: root
+    group: root
+    mode: 0644
+  become: yes
+  notify:
+    - keepalived_change

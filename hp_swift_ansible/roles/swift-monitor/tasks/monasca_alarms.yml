@@ -1,0 +1,89 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+# TODO network_interface alarms
+# TODO swiftlm_uptime_monitor alarms
+
+- name: swift-monitor  | monasca_alarms | Create monasca alarm definitions
+  run_once: true
+  monasca_alarm_definition:
+    name: "{{ item.name }}"
+    description: "{{ item.description }}"
+    severity: "{{ item.severity }}"
+    expression: "{{ item.expression }}"
+    match_by: "{{ item.match_by }}"
+    keystone_url: "{{ keystone_url }}"
+    keystone_user: "{{ keystone_user }}"
+    keystone_password: "{{ keystone_password }}"
+    keystone_project: "{{ keystone_project }}"
+    monasca_api_url: "{{ monasca_alarm_definition_api_url }}"
+  with_items:
+    - { name: "swiftlm-scan monitor",
+        description: "Alarms if swiftlm-scan cannot execute a monitoring task",
+        severity: "HIGH",
+        expression: "swiftlm.swiftlm_check > 1",
+        match_by: ["hostname"]}
+
+    - { name: "Swift file ownership",
+        description: "Alarms if files/directories in /srv/node/ or /etc/swift are not owned by Swift.",
+        severity: "HIGH",
+        expression: "swiftlm.swift.file_ownership > 1",
+        match_by: ["hostname"]}
+
+    - { name: "Drive URE errors",
+        description: "Alarms if swift-drive-audit reports a unrecoverable read error on a drive used by Swift",
+        severity: "HIGH",
+        expression: "swiftlm.swift.drive_audit > 1",
+        match_by: ["hostname"]}
+
+    - { name: "Swift services",
+        description: "Alarms if a Swift process is not running.",
+        severity: "HIGH",
+        expression: "swiftlm.swift.swift_services > 1",
+        match_by: ["hostname"]}
+
+    - { name: "Swift filesystem mount status",
+        description: "Alarms if a filesystem/drive used by Swift in not correctly mounted",
+        severity: "HIGH",
+        expression: "swiftlm.systems.check_mounts > 1",
+        match_by: ["hostname"]}
+
+    - { name: "Swift host socket connect",
+        description: "Alarms if a socket cannot be opened to the specified host and port",
+        severity: "HIGH",
+        expression: "swiftlm.systems.connectivity.connect_check > 1",
+        match_by: ["hostname"]}
+
+    - { name: "Swift memcache connect",
+        description: "Alarms if a socket cannot be opened to the specified memcached server",
+        severity: "HIGH",
+        expression: "swiftlm.systems.connectivity.connect_check.memcache_check > 1",
+        match_by: ["hostname"]}
+
+- name: swift-monitor  | monasca_alarms | Remove old monasca alarm definitions
+  run_once: true
+  monasca_alarm_definition:
+    name: "{{ item.name }}"
+    state: "{{ item.state }}"
+    keystone_url: "{{ keystone_url }}"
+    keystone_user: "{{ keystone_user }}"
+    keystone_password: "{{ keystone_password }}"
+    keystone_project: "{{ keystone_project }}"
+    monasca_api_url: "{{ monasca_alarm_definition_api_url }}"
+  with_items:
+    - { name: "Swift host ping",
+        state: "absent"}
+  ignore_errors: yes

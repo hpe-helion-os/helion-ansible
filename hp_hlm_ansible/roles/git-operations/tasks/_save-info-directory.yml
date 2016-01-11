@@ -1,0 +1,36 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+# Copy the info directory into the repo
+#
+# This is a simple directory copy-and-replace:
+# the target is ignored by git.
+#
+# Parameters:
+#   repo: ~/helion
+#   work_dir: ~/scratch/cp
+#   from: my_cloud/stage/info
+#   to: my_cloud/info
+---
+
+- name: git-operations | _persist-to-git | Clear target directory
+  file:
+    dest: "{{ repo }}/{{ to }}"
+    state: absent
+
+- name: git-operations | _persist-to-git | Copy source
+  command: >
+    cp -R "{{ work_dir }}/{{ from }}" "{{ repo }}/{{ to }}"

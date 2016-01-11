@@ -1,0 +1,55 @@
+# Run all API tests (includes new ones as they pop-up via upstream merge
++tempest\.api\.*
+-tempest\.api\.compute\.test_networks*
+-tempest\.api\.compute\.test_tenant_networks*
+-tempest\.api\.compute\.admin\.test_agents*
+-tempest\.api\.compute\.admin\.test_floating_ips_bulk*
+-tempest\.api\.compute\.admin\.test_networks*
+-tempest\.api\.compute\.admin\.test_servers_negative\.ServersAdminNegativeTestJSON\.test_migrate_non_existent_server
+-tempest\.api\.compute\.certificates\.test_certificates\.*
+-tempest\.api\.compute\.floating_ips\.test_list_floating_ips\.FloatingIPDetailsTestJSON\.test_list_floating_ip_pools
+-tempest\.api\.compute\.servers\.test_servers_negative\.ServersNegativeTestJSON\.test_force_delete_nonexistent_server_id
+-tempest\.api\.compute\.servers\.test_servers_negative\.ServersNegativeTestJSON\.test_restore_nonexistent_server_id
+-tempest\.api\.compute\.servers\.test_servers_negative\.ServersNegativeTestJSON\.test_restore_server_invalid_state
+
+# API test exclusions (test specific)
+# Removing following test as the v3_endpoint_type flag is missing from the version of Tempest we're using.
+# This test can be put back when we have upstream Tempest.
+-tempest\.api\.identity\.admin\.v3\.test_default_project_id
+
+# Identity service test exclusions
+# Removing following 3 tests as they're not supported by HOS
+# Per policy difference in HOS and upstream
+# In HOS we only support update_user_password by owner: "identity:change_password": "rule:owner"
+# In HOS we require domain_id to list_users as per domain backend enabled "domain_specific_drivers_enabled = True"
+-tempest\.api\.identity\.admin\.v3\.test_list_users\.UsersV3TestJSON\.test_list_users
+-tempest\.api\.identity\.admin\.v3\.test_list_users\.UsersV3TestJSON\.test_list_users_with_name
+-tempest\.api\.identity\.admin\.v3\.test_users\.UsersV3TestJSON\.test_update_user_password
+
+# Remove tests that are consistently failing during Periodic baremetal
+# installations (tracked in HQA-438) and add them back in, once fixed.
+-tempest\.api\.compute.test_live_block_migration\.LiveBlockMigrationTestJSON\.test_live_block_migration
+-tempest\.api\.image\.v1\.test_images\.ListImagesTest
+-tempest\.api\.image\.v1\.test_images\.CreateRegisterImagesTest\.test_register_http_image
+-tempest\.api\.image\.v1\.test_images\.CreateRegisterImagesTest\.test_register_remote_image
+-tempest\.api\.object_storage\.test_object_formpost_negative\.ObjectFormPostNegativeTest\.test_post_object_using_form_expired
+-tempest\.api\.object_storage\.test_object_temp_url_negative\.ObjectTempUrlNegativeTest\.test_get_object_after_expiration_time
+-tempest\.api\.orchestration\.stacks\.test_non_empty_stack\.StacksTestJSON
+-tempest\.api\.network\.admin\.test_l3_agent_scheduler\.L3AgentSchedulerTestJSON\.test_add_list_remove_router_on_l3_agent
+-tempest\.api\.network\.test_networks\.NetworksTestJSON\.test_create_delete_subnet_with_gw
+-tempest\.api\.object_storage\.test_container_sync_middleware\.ContainerSyncMiddlewareTest\.test_container_synchronization
+-tempest\.api\.object_storage\.test_object_expiry\.ObjectExpiryTest\.test_get_object_after_expiry_time
+-tempest\.api\.object_storage\.test_object_expiry\.ObjectExpiryTest\.test_get_object_at_expiry_time
+-tempest\.scenario\.test_security_groups_basic_ops\.TestSecurityGroupsBasicOps\.test_cross_tenant_traffic
+-tempest\.scenario\.test_security_groups_basic_ops\.TestSecurityGroupsBasicOps\.test_in_tenant_traffic
+-tempest\.scenario\.test_security_groups_basic_ops\.TestSecurityGroupsBasicOps\.test_port_update_new_security_group
+-tempest\.scenario\.test_encrypted_cinder_volumes\.TestEncryptedCinderVolumes\.test_encrypted_cinder_volumes_cryptsetup
+-tempest\.scenario\.test_encrypted_cinder_volumes\.TestEncryptedCinderVolumes\.test_encrypted_cinder_volumes_luks
+-tempest\.scenario\.test_minimum_basic\.TestMinimumBasicScenario\.test_minimum_basic_scenario
+
+
+# Run all scenario tests (includes new ones as they pop-up via upstream merge
++tempest.scenario\.*
+
+# API test exclusions (test specific)
+# None so far

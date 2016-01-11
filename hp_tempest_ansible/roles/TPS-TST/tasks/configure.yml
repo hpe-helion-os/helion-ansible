@@ -1,0 +1,105 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+# Configure Tempest on the target node
+
+- name: tps-tst | configure | Add group '{{ tempest_group }}'
+  group: name={{ tempest_group }}
+
+- name: tps-tst | configure | Add user '{{ tempest_user }}'
+  user: name={{ tempest_user }} group={{ tempest_group }} createhome=yes home='{{ installation_directory }}' shell=/bin/bash
+
+- name: tps-tst | configure | Set ownership of {{ installation_directory }} root folder
+  file: path={{ installation_directory }} owner={{ tempest_user }} group={{ tempest_group }} state=directory recurse=yes
+
+- name: tps-tst | configure | Set ACLs of {{ installation_directory }} root folder
+  file: path={{ installation_directory }} mode=0755 recurse=no
+
+- name: tps-tst | configure | Create the configuration folder {{ tempest_conf_dir }}
+  file: path={{ tempest_conf_dir }} owner={{ tempest_user }} group={{ tempest_group }} mode=0755 state=directory
+
+- name: tps-tst | configure | Create the bin folder {{ installation_directory }}/bin
+  file: path={{ installation_directory }}/bin owner={{ tempest_user }} group={{ tempest_group }} mode=0755 state=directory
+
+- name: tps-tst | configure | Create testr config file
+  copy:
+    src: .testr.conf
+    dest: "{{ installation_directory }}/.testr.conf"
+    owner: "{{ tempest_user }}"
+    group: "{{ tempest_group }}"
+    mode: 0640
+
+- name: tps-tst | configure | Initialise the .testrepository directory if it doesn't exist
+  sudo: yes
+  sudo_user: "{{ tempest_user }}"
+  shell: "{{ installation_directory }}/venv/bin/testr init"
+  args:
+    chdir: "{{ installation_directory }}"
+    creates: "{{ installation_directory }}/.testrepository"
+
+- name: tps-tst | configure | Tempest {{ tempest_conf_dir }}/tempest.conf
+  template:
+    src: "tempest.conf.j2"
+    dest: "{{ tempest_conf_dir }}/tempest.conf"
+    owner: "{{ tempest_user }}"
+    group: "{{ tempest_group }}"
+    mode: 0644
+
+- name: tps-tst | configure | Deploy tests2skip.py
+  copy:
+    src: tests2skip.py
+    dest: "{{ installation_directory }}/tests2skip.py"
+    owner: "{{ tempest_user }}"
+    group: "{{ tempest_group }}"
+    mode: 0640
+
+- name: tps-tst | configure | Deploy run_filters
+  copy:
+    src: run_filters
+    dest: "{{ installation_directory }}"
+    owner: "{{ tempest_user }}"
+    group: "{{ tempest_group }}"
+    mode: 0640
+
+- name: tps-tst | configure | Deploy helion-tempest script to run tests
+  template: >
+    src=helion-tempest.sh.j2
+    dest="{{ installation_directory }}/bin/helion-tempest.sh"
+    owner={{ tempest_user }}
+    group={{ tempest_group }}
+    mode=0700
+
+- name: tps-tst | configure | Deploy generate-subunit script to generate subunit file from last tempest run
+  template: >
+    src=generate-subunit.sh.j2
+    dest="{{ installation_directory }}/bin/generate-subunit.sh"
+    owner={{ tempest_user }}
+    group={{ tempest_group }}
+    mode=0700
+
+# To merge this patch we need to match what the CI script expects
+# Once this is merge CI can be changed to use the tempest-run playbook
+# and this link can be removed
+- name: tps-tst | configure | link to /opt/stack/tempest
+  file: src={{ installation_directory }} dest=/opt/stack/tempest owner={{ tempest_user }} group={{ tempest_group }} state=link
+
+- name: tps-tst | configure | Update endpoints in tempest.conf
+  ini_file:
+    dest: /{{ tempest_conf_dir }}/tempest.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+  with_items: "{{ tempest_service_endpoints }}"

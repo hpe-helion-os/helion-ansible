@@ -1,0 +1,84 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+# Trying to render conf_dir in the include line results in infinite recursion.
+# cinder_conf_dir may have already been set via CND-BCK role which includes this task.
+# in which case we don't want to override with cinder_volume_conf_dir.
+- set_fact: conf_dir="{{ cinder_conf_dir | default(cinder_volume_conf_dir) }}"
+- include: ../../_CND-CMN/tasks/configure.yml cinder_conf_dir="{{ conf_dir }}"
+
+- name: Cinder Volume | configure | Generate {{ cinder_volume_conf_dir }}/volume.conf
+  template: >
+    src=volume.conf.j2
+    dest={{ cinder_volume_conf_dir }}/volume.conf
+    owner={{ cinder_user }}
+    group={{ cinder_group }}
+    mode=0400
+  notify: cinder_volume_change
+
+- name: Cinder Volume | configure | Create '{{ cinder_volume_conf_dir }}'/volume-logging.conf
+  template: src=volume-logging.conf.j2 dest={{ cinder_volume_conf_dir }}/volume-logging.conf owner={{ cinder_user }} group={{ cinder_group }} mode=0400
+  notify: cinder_volume_change
+
+- name: Cinder Volume | configure | Create several rootwrap volume.filters
+  shell: rsync -ciog --chmod=0400 --chown=root:root {{ cinder_volume_venv_share_dir }}/etc/cinder/{{ item }} {{ cinder_dir }}/{{ item }}
+  register: rsync_result
+  changed_when: 'rsync_result.stdout != ""'
+  with_items:
+    - rootwrap.d/volume.filters
+
+- name: Cinder Volume | configure | Set up tgtd
+  file: path=/etc/tgt/conf.d owner=root group=root mode=0755 state=directory
+
+- name: Cinder Volume | configure | Create the Cinder tgt configs directory
+  file: path={{ cinder_state_path }}/volumes/ owner=cinder group=cinder mode=0750 state=directory
+
+- name: Cinder Volume | configure | Set up Cinder volumes within tgtd
+  template: >
+    src=etc/tgt/conf.d/cinder.conf.j2
+    dest=/etc/tgt/conf.d/cinder.conf
+    owner=root
+    group=root
+    mode=0644
+
+- name: Cinder Volume | configure | ensure cinder_tgt.conf (from package install) is deleted
+  file: dest=/etc/tgt/conf.d/cinder_tgt.conf state=absent
+
+- name: Cinder Volume | configure | Setup volume group for LVM if needed
+  lvg: >
+    vg=cinder-volumes
+    pvs={{ cinder_lvm_device_group.devices[0].name }}
+  when: cinder_lvm_device_group
+
+- name: Cinder Volume | configure | Create directory for ansible custom facts
+  file: state=directory recurse=yes path=/etc/ansible/facts.d
+
+- name: Cinder Volume | configure | Modify cinder-volume.log file attributes
+  file:
+    path={{ cinder_logs_dir }}/cinder-volume.log
+    state=touch
+    owner=cinder
+    group=adm
+    mode=0640
+
+- name: Cinder Volume | configure | Modify cinder-volume-json.log file attributes
+  file:
+    path={{ cinder_logs_dir }}/cinder-volume-json.log
+    state=touch
+    owner=cinder
+    group=adm
+    mode=0640

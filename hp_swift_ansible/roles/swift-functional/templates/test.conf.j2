@@ -1,0 +1,81 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+#
+# Instructions:
+#
+# - Checkout swift repo on a test server
+#
+# - Copy this file to /tmp/test.conf
+#
+# - If you have SSL cert setup, edit the "insecure" option below
+#
+# - Test your general environment as follows:
+#
+#   (a) Copy the /tmp/swift_functional.osrc to your test server
+#       and run it (this edits /etc/hosts and rewrites no_proxy
+#       environment variable)
+#
+#   (b) Use swift CLI as follows. Remove the --insecure if you gave setup
+#       SSL certs.
+#
+#       swift --insecure stat -v
+#
+#       You should expect it to show the account metadata. The -v means it
+#       also prints the Swift endpoint and token.
+#
+# - In top level swift directory, run the following commands to run the
+#   functional tests:
+#       export PYTHONWARNINGS="ignore:A true SSLContext object is not available,ignore:Unverified HTTPS request is being made"
+#       tox -e func
+#
+[func_test]
+
+# Functional tests do not support endpoint type -- hence
+# we use the external VIP for auth since we use the external
+# endpoint anyway.
+auth_host = {{ auth_ip }}
+# For /etc/hosts:-   {{ auth_ip }}   {{ auth.hostname }}
+{% if auth.scheme == "https" %}
+auth_ssl = yes
+{% else %}
+auth_ssl = no
+{% endif %}
+
+# Change this if using certs
+insecure = yes
+
+auth_version = 3
+auth_port = 5000
+auth_prefix = /v3/
+
+account = {{ swift_functional_test_users.swf_func_tester.project_name }}
+username = swf_func_tester
+password = {{ swift_functional_test_users.swf_func_tester.password }}
+
+account2 = {{ swift_functional_test_users.swf_func_tester2.project_name }}
+username2 = swf_func_tester2
+password2 = {{ swift_functional_test_users.swf_func_tester2.password }}
+
+username3 = swf_func_tester3
+password3 = {{ swift_functional_test_users.swf_func_tester3.password }}
+
+collate = C
+
+
+[unit_test]
+fake_syslog = False

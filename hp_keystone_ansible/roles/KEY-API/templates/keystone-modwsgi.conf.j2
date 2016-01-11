@@ -1,0 +1,70 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+Listen {{ keystone_admin_ip }}:{{ keystone_admin_port }}
+listen {{ host.vars.my_network_name }}:5000
+
+<VirtualHost *:35357>
+    WSGIDaemonProcess keystone-admin processes={{ keystone_wsgi_admin_process_count }} threads=1 user={{ keystone_user }} group={{ keystone_group }} python-path={{ keystone_venv_dir }}:{{ keystone_venv_dir }}/lib/python2.7/site-packages/ display-name={{ keystone_group }}-admin
+    WSGIProcessGroup keystone-admin
+    WSGIScriptAlias / /var/www/keystone/admin
+    WSGIApplicationGroup %{GLOBAL}
+
+    KeepAlive off
+
+    LogFormat "%h:%p %u %t \"%r\" %>s  \"%{User-Agent}i\"  \"%{x-openstack-request-id}i\" %X  took %D micro sec" log_format
+    LogFormat "%{X-Forwarded-For}i:%p %u %t \"%r\" %>s  \"%{User-Agent}i\"  \"%{x-openstack-request-id}i\" %X  took %D micro sec" log_format_proxy
+
+    SetEnvIf Request_URI "^" any_request=1
+    SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded=1
+    SetEnvIf forwarded 1 !any_request
+
+    ErrorLog /var/log/keystone/keystone_modwsgi.log
+    CustomLog /var/log/keystone/keystone_access.log log_format env=any_request
+    CustomLog /var/log/keystone/keystone_access.log log_format_proxy env=forwarded
+
+
+   # %SSLENGINE%
+   # %SSLCERTFILE%
+   # %SSLKEYFILE%
+</VirtualHost>
+
+
+<VirtualHost *:5000>
+    WSGIDaemonProcess keystone-main processes= {{ keystone_wsgi_public_process_count }} threads=1 user={{ keystone_user }} group={{ keystone_group }} python-path={{ keystone_venv_dir }}:{{ keystone_venv_dir }}/lib/python2.7/site-packages/ display-name={{ keystone_group }}-main
+    WSGIProcessGroup keystone-main
+    WSGIScriptAlias / /var/www/keystone/main
+
+    WSGIApplicationGroup %{GLOBAL}
+    KeepAlive off
+
+    LogFormat "%h:%p %u %t \"%r\" %>s  \"%{User-Agent}i\"  \"%{x-openstack-request-id}i\" %X  took %D micro sec" log_format
+    LogFormat "%{X-Forwarded-For}i:%p %u %t \"%r\" %>s  \"%{User-Agent}i\"  \"%{x-openstack-request-id}i\" %X  took %D micro sec" log_format_proxy
+
+    SetEnvIf Request_URI "^" any_request=1
+    SetEnvIf X-Forwarded-For "^.*\..*\..*\..*" forwarded=1
+    SetEnvIf forwarded 1 !any_request
+
+    ErrorLog /var/log/keystone/keystone_modwsgi.log
+    CustomLog /var/log/keystone/keystone_access.log log_format env=any_request
+    CustomLog /var/log/keystone/keystone_access.log log_format_proxy env=forwarded
+
+   # %SSLENGINE%
+   # %SSLCERTFILE%
+   # %SSLKEYFILE%
+</VirtualHost>
+

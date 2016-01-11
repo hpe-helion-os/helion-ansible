@@ -1,0 +1,45 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Playbook to carry out post-upgrade actions for each HOS service
+# based on the set of package upgrades for this node.
+---
+
+#- include: sosreport-post-upgrade.yml
+#- include: monasca-agent-post-upgrade.yml
+#- include: tls-post-upgrade.yml
+#- include: clients-post-upgrade.yml
+#- include: percona-post-upgrade.yml
+- include: rabbitmq-post-upgrade.yml
+#- include: FND-CLU-post-upgrade.yml
+- include: FND-AP2-post-upgrade.yml
+#- include: keystone-post-upgrade.yml
+#- include: ops-console-post-upgrade.yml
+#- include: zookeeper-post-upgrade.yml
+#- include: monasca-post-upgrade.yml
+#- include: swift-post-upgrade.yml
+#- include: nova-post-upgrade.yml
+#- include: glance-post-upgrade.yml
+#- include: neutron-post-upgrade.yml
+#- include: cinder-post-upgrade.yml
+#- include: eon-post-upgrade.yml
+#- include: ironic-post-upgrade.yml
+#- include: heat-post-upgrade.yml
+#- include: horizon-post-upgrade.yml
+#- include: logging-post-upgrade.yml
+#- include: ceilometer-post-upgrade.yml
+- include: ceph-post-upgrade.yml
+#- include: freezer-post-upgrade.yml
+#- include: tempest-post-upgrade.yml

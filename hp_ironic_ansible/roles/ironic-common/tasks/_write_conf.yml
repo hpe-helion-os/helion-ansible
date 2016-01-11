@@ -1,0 +1,52 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: "Ironic Common | _write_conf | Check for pre-existing version of {{ dest }}"
+  stat: path="{{ dest }}"
+  register: conf_stat_result
+
+- name: "Ironic Common | _write_conf | get timestamp"
+  command: date +%Y%m%d%H%M%S
+  register: time_result
+  changed_when: False
+
+- name: "Ironic Common | _write_conf | Create a backup version of the existing {{ dest }} file"
+  command: cp {{ dest }} {{ dest }}.{{ time_result.stdout }}
+  when: conf_stat_result.stat.exists
+  changed_when: False
+
+- name: "Ironic Common | _write_conf | Template {{ dest }}"
+  template:
+    src: "{{ src }}"
+    dest: "{{ dest }}"
+    owner: "{{ ironic_user }}"
+    group: "{{ ironic_group }}"
+    mode: 0644
+  register: write_conf_result
+
+- name: "Ironic Common | _write_conf | Delete backup file that has not changed."
+  file:
+    path: "{{ dest }}.{{ time_result.stdout }}"
+    state: absent
+  when: write_conf_result.changed==false
+  changed_when: False
+
+- name: "Ironic Common | _write_conf | remove all but last 10 backups of {{ dest }}"
+  shell: ls -td {{ dest }}.* |awk 'NR>10' |xargs rm -f
+  when: conf_stat_result.stat.exists
+  changed_when: False
+

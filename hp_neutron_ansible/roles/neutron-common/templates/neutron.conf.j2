@@ -1,0 +1,96 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+# This configuration file includes the default values for Helion Openstack
+# Changes may be made to this file by customers.
+# The changes here apply to all neutron components.
+
+[DEFAULT]
+verbose = True
+router_distributed = {{ router_distributed }}
+debug = True
+lock_path = {{ neutron_common_rundir }}/lock
+log_format = %(asctime)s %(levelname)8s [%(name)s] %(message)s
+log_date_format = %Y-%m-%d %H:%M:%S
+use_syslog = False
+use_stderr = False
+log_dir = /var/log/neutron
+bind_host = {{ neutron_bind_host }}
+bind_port = 9696
+core_plugin = neutron.plugins.ml2.plugin.Ml2Plugin
+service_plugins = {{ ovsvapp_service_plugin }}neutron.services.l3_router.l3_router_plugin.L3RouterPlugin,neutron_fwaas.services.firewall.fwaas_plugin.FirewallPlugin,neutron_lbaas.services.loadbalancer.plugin.LoadBalancerPluginv2,neutron_vpnaas.services.vpn.plugin.VPNDriverPlugin
+# To enable LBaaSv1, comment the above service_plugins line and uncomment the below
+#service_plugins = neutron.services.l3_router.l3_router_plugin.L3RouterPlugin,neutron_fwaas.services.firewall.fwaas_plugin.FirewallPlugin,neutron.services.loadbalancer.plugin.LoadBalancerPlugin,neutron_vpnaas.services.vpn.plugin.VPNDriverPlugin
+api_paste_config = api-paste.ini
+policy_file = {{ neutron_policy_file }}
+auth_strategy = keystone
+dhcp_lease_duration = 172800
+allow_bulk = True
+allow_overlapping_ips = True
+agent_down_time = 300
+router_scheduler_driver = neutron.scheduler.l3_agent_scheduler.LeastRoutersScheduler
+allow_automatic_l3agent_failover = False
+dhcp_agents_per_network = 2
+api_workers = 10
+rpc_workers = 10
+nova_url = {{ neutron_nova_url }}
+nova_admin_username = {{ neutron_nova_admin_username }}
+nova_admin_tenant_name = {{ neutron_nova_admin_tenant_name }}
+nova_admin_password = {{ neutron_nova_admin_password }}
+nova_admin_auth_url = {{ neutron_nova_admin_auth_url }}
+rabbit_hosts = {{ neutron_rabbit_hosts }}
+rabbit_password = {{ neutron_rabbit_password }}
+notification_driver = messaging
+notification_topics = notifications
+rpc_response_timeout = 120
+rpc_backend = neutron.openstack.common.rpc.impl_kombu
+
+
+[QUOTAS]
+quota_driver = neutron.db.quota_db.DbQuotaDriver
+quota_items = network,subnet,port,floatingip,router,security_group,security_group_rule
+
+
+[AGENT]
+root_helper = {{ neutron_root_helper }}
+root_helper_daemon = {{ neutron_root_helper_daemon }}
+use_helper_for_ns_read = {{ neutron_use_helper_for_ns_read }}
+
+
+[keystone_authtoken]
+auth_uri = {{ neutron_auth_uri }}
+identity_uri = {{ neutron_identity_uri }}
+admin_tenant_name = {{ neutron_admin_tenant_name }}
+admin_user = {{ neutron_admin_user }}
+admin_password = {{ neutron_admin_password }}
+
+
+[database]
+max_retries = -1
+max_pool_size = 50
+
+
+[service_providers]
+service_provider = LOADBALANCERV2:Haproxy:neutron_lbaas.drivers.haproxy.plugin_driver.HaproxyOnHostPluginDriver:default
+# To enable LBaaSv1, comment the above service_provider line and uncomment the below
+#service_provider = LOADBALANCER:Haproxy:neutron.services.loadbalancer.drivers.haproxy.plugin_driver.HaproxyOnHostPluginDriver:default
+service_provider = VPN:openswan:neutron_vpnaas.services.vpn.service_drivers.ipsec.IPsecVPNDriver:default
+
+# Add additional options here
+
+
+# Do not add anything after this line

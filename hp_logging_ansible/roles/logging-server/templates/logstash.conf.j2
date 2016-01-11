@@ -1,0 +1,62 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+# Configure RabbitMQ as input
+# http://www.logstash.net/docs/1.4.2/inputs/rabbitmq
+input {
+  rabbitmq {
+    codec => json {}
+    auto_delete => false
+    durable => true
+    exclusive => false
+    host => "{{ rabbitmq_host }}"
+    port => {{ rabbitmq_port }}
+    key => "{{ rabbitmq_key }}"
+    queue => "{{ rabbitmq_queue }}"
+    exchange => "{{ rabbitmq_exchange }}"
+    user => "{{ rabbitmq_user }}"
+    password => "{{ rabbitmq_pass }}"
+    threads => {{ logstash_num_workers }}
+  }
+}
+
+filter {
+  if [auth_token]{
+    anonymize {
+      algorithm => 'SHA1'
+      fields    => ['auth_token']
+      key       => '{{ logstash_anonymize_salt }}'
+    }
+    mutate {
+      replace => [ 'auth_token', '{SHA1}%{auth_token}' ]
+    }
+  }
+}
+
+# Configure Elasticsearch as output
+# http://logstash.net/docs/1.4.2/outputs/elasticsearch
+# protocol "http" is just as performant up to 20,000 events/sec
+output {
+  elasticsearch {
+    protocol => "http"
+    host => "{{ elasticsearch_http_host }}"
+    port => {{ elasticsearch_http_port }}
+    flush_size => 5000
+    idle_flush_time => 5
+    workers => {{ logstash_num_workers }}
+  }
+}

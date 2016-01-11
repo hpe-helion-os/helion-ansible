@@ -1,0 +1,25 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+# start_volume tracks which host the cinder volume and backup services should be running on.
+# On an initial deploy cinder volume and backup will start on the first host in the host group.
+# Subsequently cinder volume and backup will run on which ever host has its cindervolume running local
+# fact set to True. Only one host at a time will have this fact set to True.
+start_volume: "{{ ((ansible_local is not defined or
+                  (ansible_local is defined and ansible_local.cindervolume is not defined)) and
+                  groups[ group.vars.network_address_prefix ].index(inventory_hostname) == 0) or
+                  (ansible_local is defined and ansible_local.cindervolume is defined and
+                  ansible_local.cindervolume.status.running == \"True\") }}"

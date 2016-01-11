@@ -1,0 +1,65 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: setup monasca_group
+  group: name={{monasca_group}} system=yes
+  notify:
+    - monasca-thresh | restart | restart monasca-thresh
+
+- name: Setup user
+  user: name={{thresh_user}} system=yes group={{monasca_group}}
+  notify:
+    - monasca-thresh | restart | restart monasca-thresh
+
+- name: stat /etc/monasca/thresh-config.yml file
+  stat: path=/etc/monasca/thresh-config.yml
+  register: thresh_conf_file_result
+
+- name: move thresh-config.yml to thresh-config.yml.old if not a symlink
+  command: mv /etc/monasca/thresh-config.yml /etc/monasca/thresh-config.yml.old
+  when: thresh_conf_file_result.stat.exists and thresh_conf_file_result.stat.isreg
+
+- name: create conf_file from template
+  template: dest={{ thresh_conf_file }} owner=root group={{monasca_group}} mode=640 src=thresh-config.yml.j2
+  notify:
+    - monasca-thresh | restart | restart monasca-thresh
+
+- name: link /etc/monasca/thresh-config.yml to service config dir
+  file:
+    path: /etc/monasca/thresh-config.yml
+    src: "{{ 'monasca' | config_dir() }}/thresh-config.yml"
+    state: link
+    owner: root
+    group: "{{monasca_group}}"
+    mode: 640
+
+- name: create service script from template
+  template: dest=/etc/init.d/monasca-thresh owner=root group=root mode=744 src=monasca-thresh.j2
+  notify:
+    - monasca-thresh | restart | restart monasca-thresh
+
+- name: Detect if this is a systemd based system
+  command: cat /proc/1/comm
+  register: init
+- set_fact: use_systemd=True
+  when: init.stdout == 'systemd'
+- set_fact: use_systemd=False
+  when: init.stdout != 'systemd'
+
+- command: systemctl daemon-reload
+  when: use_systemd
+
+- meta: flush_handlers

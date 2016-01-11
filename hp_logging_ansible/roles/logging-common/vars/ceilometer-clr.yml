@@ -1,0 +1,327 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+logr_services:
+  ceilometer:
+    logging_options:
+    - centralized_logging:
+        enabled: false
+        format: json
+      files:
+      - /var/log/ceilometer/ceilometer_access.log
+      log_rotate:
+      - daily
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - maxsize 45M
+      - rotate 7
+      - create 644 root root
+    - centralized_logging:
+        enabled: false
+        format: json
+      files:
+      - /var/log/ceilometer/ceilometer.log
+      log_rotate:
+      - daily
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - maxsize 45M
+      - rotate 7
+      - create 640 ceilometer ceilometer
+    - centralized_logging:
+        enabled: true
+        format: rawjson
+      files:
+      - /var/log/ceilometer/ceilometer-json.log
+      log_rotate:
+      - daily
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - maxsize 45M
+      - rotate 5
+      - create 640 ceilometer ceilometer
+    - centralized_logging:
+        enabled: false
+        format: json
+      files:
+      - /var/log/ceilometer/ceilometer-collector.log
+      log_rotate:
+      - daily
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - maxsize 45M
+      - rotate 7
+      - create 640 ceilometer ceilometer
+    - centralized_logging:
+        enabled: true
+        format: rawjson
+      files:
+      - /var/log/ceilometer/ceilometer-collector-json.log
+      log_rotate:
+      - daily
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - maxsize 45M
+      - rotate 5
+      - create 640 ceilometer ceilometer
+    - centralized_logging:
+        enabled: false
+        format: json
+      files:
+      - /var/log/ceilometer/ceilometer-api.log
+      log_rotate:
+      - daily
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - maxsize 45M
+      - rotate 7
+      - create 640 ceilometer ceilometer
+    - centralized_logging:
+        enabled: true
+        format: rawjson
+      files:
+      - /var/log/ceilometer/ceilometer-api-json.log
+      log_rotate:
+      - daily
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - maxsize 45M
+      - rotate 5
+      - create 640 ceilometer ceilometer
+    - centralized_logging:
+        enabled: false
+        format: json
+      files:
+      - /var/log/ceilometer/ceilometer-alarm-notifier.log
+      log_rotate:
+      - daily
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - maxsize 45M
+      - rotate 7
+      - create 640 ceilometer ceilometer
+    - centralized_logging:
+        enabled: true
+        format: rawjson
+      files:
+      - /var/log/ceilometer/ceilometer-alarm-notifier-json.log
+      log_rotate:
+      - daily
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - maxsize 45M
+      - rotate 5
+      - create 640 ceilometer ceilometer
+    - centralized_logging:
+        enabled: false
+        format: json
+      files:
+      - /var/log/ceilometer/ceilometer-alarm-evaluator.log
+      log_rotate:
+      - daily
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - maxsize 45M
+      - rotate 7
+      - create 640 ceilometer ceilometer
+    - centralized_logging:
+        enabled: true
+        format: rawjson
+      files:
+      - /var/log/ceilometer/ceilometer-alarm-evaluator-json.log
+      log_rotate:
+      - daily
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - maxsize 45M
+      - rotate 5
+      - create 640 ceilometer ceilometer
+    - centralized_logging:
+        enabled: false
+        format: json
+      files:
+      - /var/log/ceilometer/ceilometer-agent-notification.log
+      log_rotate:
+      - daily
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - maxsize 45M
+      - rotate 7
+      - create 640 ceilometer ceilometer
+    - centralized_logging:
+        enabled: true
+        format: rawjson
+      files:
+      - /var/log/ceilometer/ceilometer-agent-notification-json.log
+      log_rotate:
+      - daily
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - maxsize 45M
+      - rotate 5
+      - create 640 ceilometer ceilometer
+    - centralized_logging:
+        enabled: false
+        format: json
+      files:
+      - /var/log/ceilometer/ceilometer-agent-compute.log
+      log_rotate:
+      - daily
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - maxsize 45M
+      - rotate 7
+      - create 640 ceilometer ceilometer
+    - centralized_logging:
+        enabled: true
+        format: rawjson
+      files:
+      - /var/log/ceilometer/ceilometer-agent-compute-json.log
+      log_rotate:
+      - daily
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - maxsize 45M
+      - rotate 5
+      - create 640 ceilometer ceilometer
+    - centralized_logging:
+        enabled: false
+        format: json
+      files:
+      - /var/log/ceilometer/ceilometer-agent-central.log
+      log_rotate:
+      - daily
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - maxsize 45M
+      - rotate 7
+      - create 640 ceilometer ceilometer
+    - centralized_logging:
+        enabled: true
+        format: rawjson
+      files:
+      - /var/log/ceilometer/ceilometer-agent-central-json.log
+      log_rotate:
+      - daily
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - maxsize 45M
+      - rotate 5
+      - create 640 ceilometer ceilometer
+    - centralized_logging:
+        enabled: false
+        format: json
+      files:
+      - /var/log/ceilometer/ceilometer-preparation.log
+      log_rotate:
+      - daily
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - maxsize 45M
+      - rotate 7
+      - create 640 ceilometer ceilometer
+    - centralized_logging:
+        enabled: true
+        format: rawjson
+      files:
+      - /var/log/ceilometer/ceilometer-preparation-json.log
+      log_rotate:
+      - daily
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - maxsize 45M
+      - rotate 5
+      - create 640 ceilometer ceilometer
+    - centralized_logging:
+        enabled: false
+        format: json
+      files:
+      - /var/log/ceilometer/ceilometer-expirer.log
+      log_rotate:
+      - daily
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - maxsize 45M
+      - rotate 7
+      - create 640 ceilometer ceilometer
+    - centralized_logging:
+        enabled: true
+        format: rawjson
+      files:
+      - /var/log/ceilometer/ceilometer-expirer-json.log
+      log_rotate:
+      - daily
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - maxsize 45M
+      - rotate 5
+      - create 640 ceilometer ceilometer
+    - centralized_logging:
+        enabled: false
+        format: json
+      files:
+      - /var/log/ceilometer/ceilometer_modwsgi.log
+      log_rotate:
+      - daily
+      - compress
+      - missingok
+      - notifempty
+      - copytruncate
+      - maxsize 45M
+      - rotate 7
+      - create 644 root root

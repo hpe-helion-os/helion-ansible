@@ -1,0 +1,303 @@
+#!/usr/bin/env python
+#
+# An Ansible module to allow playbooks to communicate with
+# remote devices using IPMI.
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+DOCUMENTATION = '''
+---
+module: ipmi
+author: Joe Fegan
+short_description: Issue IPMI commands to network targets
+description:
+    - Issue IPMI commands to systems that are accessible over the network from this node.
+    - IPMI credentials and network addresses can be specified in a JSON or YAML file, or
+      can be retrieved from Cobbler.
+options:
+    name:
+        required: true
+        description:
+            - Name of the node to manage.
+    retry_interval:
+        required: false
+        default: 5
+        description:
+            - Interval in seconds between retries.
+    retry_max:
+        required: false
+        default: 12
+        description:
+            - Max number of retries.
+    power:
+        required: false
+        description:
+            - An IPMI power command to be sent to the target.
+        choices: [ "on", "off", "status" ]
+    bootdev:
+        required: false
+        description:
+            - A bootdev command to be sent to the target.
+            - For example to boot from PXE first, disk first, etc.
+    options:
+        required: false
+        description:
+            - Options for the bootdev command.
+    passthru:
+        required: false
+        description:
+            - Any artibrary IPMI command to be sent to the target.
+            - This is a fallback for obscure commands. Any that you use regularly
+              should be wrapped up in a proper handler like power and bootdev.
+'''
+
+EXAMPLES = '''
+- ipmi: name=cpn-0001 power=off
+- ipmi: name=cpn-0001 bootdev=pxe options=persistent
+- ipmi: name=cpn-0001 credsfile="/tmp/nodeinfo.yml" passthru="mc reset warm"
+'''
+
+import os
+import re
+import time
+import yaml
+
+# Load the local module
+import imp
+hosencrypt = imp.load_source('hosencrypt', './hosencrypt.py')
+
+openssl_prefix = hosencrypt.openssl.prefix
+
+def decrypt(value):
+    if value.startswith(openssl_prefix):
+        decrypter = hosencrypt.openssl
+    else:
+        return value
+    obj = decrypter()
+    return obj.decrypt(value[len(obj.prefix):])
+
+# Take something like "Chassis Power Control: Up/On" and return
+# the last word. The exact format of the input varies a lot.
+def parse_power_status(raw_status):
+    return raw_status.split()[-1].split("/")[-1].lower()
+
+# Something like "Set Boot Device to disk".
+def parse_bootdev(raw_status):
+    return raw_status.split()[-1].lower()
+
+# Take an HP Moonshot server locator like c12n4 and return a list containing
+# the extra IPMI addressing flags needed to send commands to that node.
+def parse_moonshot(locator):
+    r = re.compile('^c([0-9]+)n([0-9]+)$')
+    m = r.match(locator.strip().lower())
+    if not m:
+        raise ValueError('unable to parse Moonshot id "%s"' % locator)
+    (cartridge, node) = m.groups()
+    transit = 0x80 + (int(cartridge) * 2)
+    target = 0x70 + (int(node) * 2)
+    return ['-B0', '-b7', '-T%#02x' % transit, '-t%#02x' % target]
+
+class Ipmi(object):
+    def __init__(self, module):
+        self.module = module
+        self.target = None
+
+        try:
+            self.node = module.params["name"]
+            self.credsfile = module.params["credsfile"]
+            self.bootdev = module.params["bootdev"]
+            self.options = module.params["options"]
+            self.power = module.params["power"]
+            self.passthru = module.params["passthru"]
+            self.retry_interval = int(module.params["retry_interval"])
+            self.retry_max = int(module.params["retry_max"])
+            secs = module.params["sleep"]
+            if not secs:
+                self.sleep = None
+            elif secs[-1] == "m":
+                self.sleep = 60.0 * float(secs[:-1])
+            elif secs[-1] == "s":
+                self.sleep = float(secs[:-1])
+            else:
+                self.sleep = float(secs)
+        except ValueError as e:
+            self.fail(msg="ipmi: " + str(e))
+
+    def fail(self, **kwargs):
+        return self.module.fail_json(**kwargs)
+
+    def succeed(self, **kwargs):
+        if self.sleep:
+            time.sleep(self.sleep)
+        return self.module.exit_json(**kwargs)
+
+    def execv(self, cmd, **kwargs):
+        return self.module.run_command(cmd, **kwargs)
+
+    def cobbler_creds(self, node):
+        cmd = ["sudo", "cobbler", "system", "dumpvars", "--name=%s" % node]
+        rc, out, err = self.execv(cmd, check_rc=True)
+        creds = dict()
+        translation = {"power_address": "ip", "power_user": "user", "power_pass": "password"}
+        for line in out.splitlines():
+            key, value = line.split(" : ")
+            if key in translation:
+                if value == "":
+                    break
+                creds[translation[key]] = value
+        if len(translation) != len(creds):
+            self.fail(msg="ipmi: missing creds for %s in cobbler" % node)
+        return creds
+
+    def file_creds(self, fname):
+        data = yaml.safe_load(file(fname))
+        creds = dict()
+        if "servers" in data:
+            field = "servers"
+            ident = "id"
+            iloip = "ilo-ip"
+            ilouser = "ilo-user"
+            ilopassword = "ilo-password"
+            iloextras = "ilo-extras"
+        else:
+            # Backward compatibility
+            field = "baremetal_servers"
+            ident = "node_name"
+            iloip = "ilo_ip"
+            ilouser = "ilo_user"
+            ilopassword = "ilo_password"
+            iloextras = "ilo_extras"
+        for srv in data[field]:
+            if srv[ident] == self.node:
+                creds["ip"] = srv[iloip]
+                creds["user"] = srv[ilouser]
+                creds["password"] = decrypt(srv[ilopassword])
+                if "moonshot" in srv:
+                    creds["moonshot"] = parse_moonshot(srv["moonshot"])
+                if iloextras in srv:
+                    creds["extras"] = srv[iloextras].split(" ")
+
+                break
+        return creds
+
+    def get_creds(self, node):
+        if self.credsfile:
+            return self.file_creds(self.credsfile)
+        else:
+            return self.cobbler_creds(node)
+
+    def set_target(self, node):
+        creds = self.get_creds(node)
+        # we're in a subprocess, so our environment should be private.
+        os.environ["IPMI_PASSWORD"] = creds["password"]
+        self.target = ["ipmitool", "-I", "lanplus", "-E",
+                       "-N", str(self.retry_interval),
+                       "-R", str(self.retry_max),
+                       "-U", creds["user"],
+                       "-H", creds["ip"]]
+        if "moonshot" in creds:
+            self.target += creds["moonshot"]
+        if "extras" in creds:
+            self.target += creds["extras"]
+
+    # This will send any ipmi command you like to the target and return its
+    # stdout and stderr. I thought twice about providing this, because the
+    # proper thing to do is to create custom handlers for specific actions
+    # (like action_power below), but in the end passthru is pragmatic for
+    # rarely used commands. It can't populate the Ansible "changed" field
+    # because it has no idea what the command was.
+    def action_passthru(self, action):
+        cmd = self.target + action.split()
+        rc, out, err = self.execv(cmd, check_rc=True)
+        result = dict(rc=rc, stdout=out, stderr=err)
+        self.succeed(**result)
+
+    # This sends ipmi "power" commands to the target and returns a proper
+    # "changed" status to Ansible by inspecting the before and after state.
+    # It also parses stdout of the reply and returns a simple "on" or "off"
+    # value, which is much easier to cope with in a playbook.
+    def action_power(self, action):
+        cmd = self.target + ["power", "status"]
+        rc, out, err = self.execv(cmd, check_rc=True)
+        before = parse_power_status(out)
+
+        desired = action.strip().lower()
+        if desired == "status" or desired == before:
+            after = before
+        else:
+            cmd = self.target + ["power", action]
+            rc, out, err = self.execv(cmd, check_rc=True)
+            after = parse_power_status(out)
+
+        result = dict(power=after, changed=(before != after))
+        self.succeed(**result)
+
+    # This sends ipmi "bootdev" commands to the target. It also parses stdout
+    # of the reply and returns a simple value, which is much easier to cope
+    # with in a playbook. I can't find a way to query the current bootdev
+    # through IPMI so can't return a proper "changed" status to Ansible.
+    def action_bootdev(self, action):
+        cmd = self.target + ["chassis", "bootdev", action]
+        if self.options:
+            cmd.append("options=%s" % self.options)
+        rc, out, err = self.execv(cmd, check_rc=True)
+        dev = parse_bootdev(out)
+        if len(dev) == 0:
+            self.fail(msg="ipmi: can't parse bootdev response", stdout=out, stderr=err)
+        result = dict(bootdev=dev, options=self.options, changed=True)
+        self.succeed(**result)
+
+    def execute(self):
+        try:
+            self.set_target(self.node)
+
+            action = self.bootdev
+            if action:
+                return self.action_bootdev(action)
+
+            action = self.power
+            if action:
+                return self.action_power(action)
+
+            action = self.passthru
+            if action:
+                return self.action_passthru(action)
+
+            self.fail(msg="usage: ipmi name=<node> <action>")
+        except Exception as e:
+            self.fail(msg="ipmi: " + str(e))
+
+
+def main():
+    module = AnsibleModule(
+        argument_spec=dict(
+            name=dict(required=True),
+            credsfile=dict(required=False),
+            bootdev=dict(required=False, default=None),
+            options=dict(required=False, default=None),
+            power=dict(required=False, default=None),
+            passthru=dict(required=False, default=None),
+            sleep=dict(required=False, default=None),
+            retry_interval=dict(required=False, default=5),
+            retry_max=dict(required=False, default=12)
+        )
+    )
+
+    ipmi = Ipmi(module)
+    return ipmi.execute()
+
+
+from ansible.module_utils.basic import *
+main()

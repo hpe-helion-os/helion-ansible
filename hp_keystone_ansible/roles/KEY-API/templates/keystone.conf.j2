@@ -1,0 +1,61 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+# This configuration file includes the default values for HOS
+# Changes may be made to this file by the customer.
+# Layout / order of settings in this file can be found:
+# http://docs.openstack.org/kilo/config-reference/content/keystone-configuration-file.html
+#
+# Please don't change any values under curly braces
+
+[DEFAULT]
+admin_token = "{{ keystone_admin_token }}"
+log_config_append = {{ keystone_conf_dir }}/logging.conf
+
+notification_format = cadf
+notification_driver = noop
+
+public_endpoint = {{ keystone_public_endpoint }}
+admin_endpoint = {{ keystone_admin_endpoint }}
+internal_endpoint = {{ keystone_internal_endpoint }}
+
+
+[eventlet_server]
+admin_port = {{ keystone_admin_port }}
+
+[oslo_messaging_rabbit]
+rabbit_hosts = {{ keystone_rabbit_hosts_port_pair }}
+rabbit_userid = "{{ keystone_rabbit_user }}"
+rabbit_password = "{{ keystone_rabbit_password }}"
+rabbit_use_ssl = {{ keystone_rabbit_is_ssl }}
+
+[database]
+connection = {{ keystone_database_connection_string }}
+# One connection per process which is active in the pool
+min_pool_size = 1
+
+[identity]
+driver = keystone.identity.backends.sql.Identity
+domain_config_dir = {{ keystone_conf_dir }}/domains
+domain_specific_drivers_enabled = True
+
+[token]
+expiration = 14400
+provider = keystone.token.providers.uuid.Provider
+
+[fernet_tokens]
+key_repository ={{ keystone_fernet_dir }}

@@ -1,0 +1,30 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: neutron-ovsvapp-agent | notify_result | Deduce success or failure of OVSvApp agent service
+  set_fact:
+    final_status: "success"
+  when: ovsvapp_deploy_result.state=="started"
+
+- name: neutron-ovsvapp-agent | notify_result | Notify success or failure to EON
+  shell: |
+          eon --os-tenant-name "{{ eon_admin_tenant_name }}" \
+          --os-username "{{ eon_admin_user }}" \
+          --os-password "{{ eon_admin_password }}" \
+          --os-auth-url "{{ neutron_auth_uri }}/v2.0" \
+          move-hosts --vcenter-id "{{ vcenter_id|trim }}" \
+          --host "{{ vcenter_esx_hostname|trim }}" \
+          --status "{{ final_status | default('failure') }}"

@@ -1,0 +1,87 @@
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+# Produce one or more unit files from SysV init.d scripts.
+# This leans upon the functionality in systemd-sysv-generator,
+# but turns off the RemainAfterExit setting, so that systemd
+# will correctly "start" a process that's been killed.
+
+# The remaining settings are kept in place, since systemd-sysv-generator
+# does a good job of setting those.
+
+# Parameters:
+# units:
+# - keepalived
+# - apache2
+# - etc.
+---
+
+- name: systemd-sysv-fixup | fix-unit | Prepare temp directories
+  command: mktemp -d
+  register: systemd_sysv_fixup_temp_dir
+
+- name: systemd-sysv-fixup | fix-unit | Prepare early, normal and late temp dirs
+  file:
+    path: "{{ systemd_sysv_fixup_temp_dir.stdout }}/{{ item }}"
+    state: directory
+  with_items:
+  - early
+  - normal
+  - late
+
+- name: systemd-sysv-fixup | fix-unit | Run systemd-sysv-generator
+  command: >
+    {{ systemd_sysv_fixup_generator }}
+    {{ systemd_sysv_fixup_temp_dir.stdout }}/early
+    {{ systemd_sysv_fixup_temp_dir.stdout }}/normal
+    {{ systemd_sysv_fixup_temp_dir.stdout }}/late
+
+- name: systemd-sysv-fixup | fix-unit | Look for already-installed unit files
+  stat:
+    path: "{{ systemd_sysv_fixup_target_dir }}/{{ item }}.service"
+  with_items: "{{ units }}"
+  register: systemd_sysv_fixup_stat_results
+
+- name: systemd-sysv-fixup | fix-unit | Fix desired unit files
+  lineinfile:
+    dest: "{{ systemd_sysv_fixup_temp_dir.stdout }}/late/{{ item.0 }}.service"
+    regexp: "{{ item.2.regexp }}"
+    line: "{{ item.2.line }}"
+    backrefs: yes
+  when: not item.1.stat.exists
+  with_nested:
+  - "{{ units | zip(systemd_sysv_fixup_stat_results.results) }}"
+  - - { regexp: '^Description=LSB: (.*)$', line: 'Description=\1' }
+    - { regexp: '^RemainAfterExit=', line: 'RemainAfterExit=no' }
+
+- name: systemd-sysv-fixup | fix-unit | Copy unit files to target directory
+  become: yes
+  command: >
+    cp
+    {{ systemd_sysv_fixup_temp_dir.stdout }}/late/{{ item.0 }}.service
+    {{ systemd_sysv_fixup_target_dir }}
+  when: not item.1.stat.exists
+  with_together:
+    - "{{ units }}"
+    - "{{ systemd_sysv_fixup_stat_results.results }}"
+
+- name: systemd-sysv-fixup | fix-unit | Load new unit files
+  become: yes
+  command: systemctl daemon-reload
+
+- name: systemd-sysv-fixup | fix-unit | Clear temp directories
+  file:
+    path: "{{ systemd_sysv_fixup_temp_dir.stdout }}"
+    state: absent
+

@@ -1,0 +1,51 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+swift_component: swiftlm_uptime_monitor
+
+swiftlm_uptime_monitor_restart_required: false
+
+# Default service directories
+swiftlm_uptime_monitor_conf_dir: "{{ 'swiftlm-uptime-monitor' | config_dir() }}"
+
+keystone_auth_url: "{{ SWF_CLI.consumes_KEY_API.vips.admin[0].url }}/v2.0"
+# Note the uptime monitor needs to use the private vip. In certain
+# configurations the public vip may not be accessible to the server
+# running the uptime monitor.
+object_store_url: "{{ SWF_PRX.advertises.vips.private[0].url }}/v1"
+endpoint_type: internalURL
+
+auth_version: 2
+# The director which stores file
+swiftlm_uptime_monitor_cache_dir: "{{ recon_cache_path }}/swiftlm_uptime_monitor"
+swiftlm_uptime_monitor_stats_file: "{{ swiftlm_uptime_monitor_cache_dir }}/uptime.stats"
+swiftlm_logs_dir: /var/log/swiftlm
+
+# The main key/value in the swiftlm_uptime_monitor_services dict is currently
+# not used.
+# cmd          Identifies the name of the binary used when starting the service
+# conf         Specifies the name of the conf file to pass on the cmd line
+#              when starting the service
+# conf_service Specifies the name of the service that contains the conf file
+# main         Identifies the "main" swift services. It is currently
+#              not used.
+swiftlm_uptime_monitor_services:
+  swiftlm-uptime-monitor:
+    cmd: swiftlm-uptime-mon
+    conf: swiftlm-uptime-monitor.conf
+    conf_service: swiftlm-uptime-monitor
+    main: true

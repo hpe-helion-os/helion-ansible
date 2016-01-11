@@ -1,0 +1,44 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: swiftlm-provision | install | Update venv cache
+  install_package:
+    cache: update
+
+# This service is used to mount the swift specific filesystems on a server
+# on boot. There is no need to postpone activating the updated service, there
+# is no start ansible fot this service. If the swiftlm venv package changes
+# there is no need to notify a handler. On next reboot, the service will use
+# the correct venv.
+- name: swiftlm-provision | install | Create swiftlm-mount service
+  install_package:
+    name: swiftlm
+    service: swiftlm-mount
+    state: present
+  register: swiftlm_provision_install_result
+
+- name: swiftlm-provision | install | Register the swiftlm-mount systemd service
+  setup_systemd:
+    service: swiftlm-mount
+    cmd: swiftlm-drive-provision
+    user: root
+    group: root
+    args: "--mount"
+  when: swiftlm_provision_install_result.changed
+
+- name: swiftlm-provision | install | Enable the swiftlm-mount service to start on boot
+  command: systemctl enable swiftlm-mount

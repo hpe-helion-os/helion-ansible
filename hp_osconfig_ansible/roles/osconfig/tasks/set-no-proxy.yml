@@ -1,0 +1,58 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Make sure that we don't proxy to the local vips of the cloud
+---
+- name: osconfig | set-no-proxy | Resolve vip aliases to IP addresses
+  sudo: yes
+  command:  awk '/{{ item }}/ {print $1}' /etc/hosts
+  register: hosts_ips_result
+  with_items: global.vips
+
+
+- name: osconfig | set-no-proxy | Add vip aliases to no_proxy in /etc/environment
+  sudo: yes
+  lineinfile:
+    dest: /etc/environment
+    state: present
+    line: >
+      {{ item }}={% if ansible_env.SSH_CLIENT is defined -%}
+              {{ ansible_env.SSH_CLIENT.split()[0] }},
+          {%- endif -%}
+          localhost,127.0.0.1,{{
+              hosts_ips_result.results | map(attribute="stdout") | map("split", "\n") | sum(start=[]) | unique | join(",")
+          }},{{
+              global.vips | join(",")
+          }}
+    regexp: '^{{ item }}=.*'
+  with_items: [ "no_proxy", "NO_PROXY" ]
+
+- name: osconfig | set-no-proxy | Configure sudo proxy passthru
+  sudo: yes
+  lineinfile:
+    dest: /etc/sudoers.d/ {{ hlmuser }}
+    mode: 0440
+    create: yes
+    regexp: '^Defaults.*env_'
+    line: 'Defaults env_keep = "http_proxy https_proxy no_proxy"'
+
+- name: osconfig | set-no-proxy | Set http proxies in environment
+  sudo: yes
+  lineinfile:
+    dest: /etc/environment
+    line: "{{ item }}"
+  with_items:
+    - "http_proxy={{ lookup('env','http_proxy') }}"
+    - "https_proxy={{ lookup('env','https_proxy') }}"

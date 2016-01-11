@@ -1,0 +1,51 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: logging-monitor |  keystone_conf | Get a domain scoped token
+  keystone_v3:
+    endpoint: "{{ logging_keystone_url }}"
+    login_username: "{{ logging_keystone.admin_user }}"
+    login_password: "{{ logging_keystone.admin_password }}"
+    login_user_domain_name: "{{ logging_keystone.default_domain_name }}"
+    login_domain_name: "{{ logging_keystone.default_domain_name }}"
+    action: "token_get"
+  run_once: true
+  register: domain_scoped_token
+
+- name: logging-monitor | keystone_conf | Create Logging User
+  keystone_v3:
+    description: "Create logging user"
+    login_token: "{{ domain_scoped_token.result }}"
+    endpoint: "{{ logging_keystone_url }}"
+    action: "create_user"
+    user_name: "{{ logging_keystone_user }}"
+    user_password: "{{ logging_keystone_password | quote }}"
+    user_domain_name: "{{ logging_keystone_user_domain_name }}"
+  run_once: true
+
+- name: logging-monitor | keystone_conf | Grant Logging user Member Role on Logging tenant
+  keystone_v3:
+    description: "Grant Logging user Member Role on Logging tenant"
+    login_token: "{{ domain_scoped_token.result }}"
+    endpoint: "{{ logging_keystone_url }}"
+    action: "grant_project_role"
+    user_name: "{{ logging_keystone_user }}"
+    project_name: "{{ logging_keystone_project }}"
+    role_name: "{{ logging_keystone_role }}"
+    user_domain_name: "{{ logging_keystone_user_domain_name }}"
+    project_domain_name: "{{ logging_keystone_project_domain_name }}"
+  run_once: true

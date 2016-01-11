@@ -1,0 +1,35 @@
+
+(c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may
+not use this file except in compliance with the License. You may obtain
+a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+License for the specific language governing permissions and limitations
+under the License.
+
+
+Include:
+  - haproxy - for load balancing
+  - keepalived - for managing VIPs for haproxy
+
+Pre-reqs:
+  - haproxy user     - may be installed by haproxy package
+  - haproxy group    - may be installed by haproxy package
+
+Questions/Comments:
+  - If chroot is used how to log to syslog and access stats socket
+  - Is it necessary to be able to run more than one instance of haproxy
+  - logging will need to be done to somewhere compatible with central logging
+  - Each node participating in a single cluster should use a different priority
+    in keepalived.conf
+  - Should we be using an authentication block in keepalived.conf?
+
+TODO: Fix race in haproxy startup. Need to sleep somewhere - it is being
+restarted too soon. SJH - is this still relevant?
+

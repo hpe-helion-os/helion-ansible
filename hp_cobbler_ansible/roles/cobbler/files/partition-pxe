@@ -1,0 +1,37 @@
+hlm-config ::
+    1 1 1 free
+    $bios_boot{ }
+    method{ biosgrub }
+.
+    512 39000 512 free
+    $primary{ }
+    method{ keep }
+.
+    512 38000 512 ext3
+      $primary{ }
+      $bootable{ }
+      method{ format }
+      format{ }
+      use_filesystem{ }
+      filesystem{ ext3 }
+      mountpoint{ /boot }
+.
+    32000 32000 32000 ext4
+      $lvmok{ }
+      lv_name{ root }
+      method{ format }
+      format{ }
+      use_filesystem{ }
+      filesystem{ ext4 }
+      mountpoint{ / }
+.
+    3000 3000 100000 ext4
+      $lvmok{ }
+      lv_name{ unused }
+      method{ format }
+      format{ }
+      use_filesystem{ }
+      filesystem{ ext4 }
+      mountpoint{ /unused }
+.
+

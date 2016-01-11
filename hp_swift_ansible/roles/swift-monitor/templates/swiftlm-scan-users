@@ -1,0 +1,3 @@
+{# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP #}
+User_Alias SWIFTLM_USERS = {{ monasca_agent_user }}
+SWIFTLM_USERS ALL=(ALL) NOPASSWD: /usr/local/bin/swiftlm-scan

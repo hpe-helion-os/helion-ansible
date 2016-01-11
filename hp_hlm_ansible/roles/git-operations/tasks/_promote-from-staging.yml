@@ -1,0 +1,68 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+# Promote saved branches from staging
+#
+# At this stage, the CP persistent state we have is about to gain
+# real-world semantics: it's going to be made 'live' by a deployment.
+# Promote staging-cp-persistent and staging-ansible to the top of the
+# cp-persistent and ansible branches, respectively.
+# These cherry-picks should be accepted unconditionally.
+# The staging-* branches are then deleted.
+# (We don't want to do this part twice: in the eventuality that the
+# user is picking up a deployment that stumbled from a midway point,
+# we ensure this step is idempotent.)
+#
+# Parameters:
+#   repo: ~/helion
+#   work_dir: ~/.helion
+#   merge_msg: "Your message goes here"
+#   branches:
+#     - from: staging-cp-persistent
+#       to: cp-persistent
+#     - from: staging-ansible
+#       to: cp-ansible
+---
+
+- name: git-operations | _promote-from-staging | Clear out working directory
+  file:
+    dest: "{{ work_dir }}"
+    state: absent
+
+- name: git-operations | _promote-from-staging | Clear out working directory
+  file:
+    dest: "{{ work_dir }}"
+    state: directory
+
+- name: git-operations | _promote-from-staging | Update branches
+  shell: >
+    {% for branch in branches %}
+        if ( cd {{ repo | quote }} && git rev-parse --verify {{ branch.from | quote }} );
+        then
+            rm -rf work &&
+            git clone -b {{ branch.from | quote }} {{ repo | quote }} work &&
+            (
+                cd work &&
+                git merge -s ours -m "{{ merge_msg }}" origin/{{ branch.to | quote }} &&
+                git branch -f {{ branch.to | quote }} &&
+                git push origin {{ branch.to | quote }} &&
+                git push origin --delete {{ branch.from | quote }}
+            )
+        fi &&
+    {% endfor %}
+    rm -rf work
+  args:
+    chdir: "{{ work_dir }}"

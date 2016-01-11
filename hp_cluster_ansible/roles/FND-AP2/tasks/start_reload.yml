@@ -1,0 +1,54 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+# This playbook is for use by any apache-hosted service. It ensures that
+# the apache service is started and will optionally reload apache if the
+# apache_reload_requested variable is set to true (default is false).
+# If apache was either started or reloaded and the keystone site is enabled,
+# keystone status is invoked to ensure that keystone is up and running
+# before returning from this playbook.
+
+- name: FND-AP2 | start_reload | Ensure that Apache is started
+  become: yes
+  service:
+    name: apache2
+    state: started
+  register: apache_started
+
+- name: FND-AP2 | start_reload | Wait until Apache started status OK
+  become: yes
+  shell: "systemctl status apache2"
+  register: _status_result
+  until: _status_result.rc == 0
+  retries: 5
+  delay: 5
+  when: apache_started.changed
+
+- name: FND-AP2 | start_reload | Reload apache if required
+  become: yes
+  service:
+    name: apache2
+    state: reloaded
+  when: (apache_reload_requested | default(false)) and (not apache_started.changed)
+
+- name: FND-AP2 | start_reload | Check if keystone site enabled
+  become: yes
+  stat:
+    path: /etc/apache2/sites-enabled/keystone-modwsgi.conf
+  register: keystone_site_file
+
+- include: "{{ playbook_dir }}/roles/KEY-API/tasks/status.yml"
+  when: keystone_site_file.stat.exists and (apache_started.changed or apache_reload_requested)

@@ -1,0 +1,204 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+# Setup default email notification method
+#------------------------------------------------------------------------------
+- name: logging-monitor | configure | Setup default email notification method
+  monasca_notification_method:
+    name: "Default Email"
+    type: 'EMAIL'
+    address: "root@localhost"
+    keystone_url: "{{ logging_keystone_url }}"
+    keystone_user: "{{ logging_keystone_user }}"
+    keystone_password: "{{ logging_keystone_password | quote }}"
+    keystone_project: "{{ logging_keystone_project }}"
+    monasca_api_url: "{{ monasca_alarm_definition_api_url }}"
+    overwrite: false
+  register: default_notification
+  run_once: true
+
+# Configure Monasca alarm definitions
+#------------------------------------------------------------------------------
+- name: logging-monitor | alarm-definitions | Remove Old Elasticsearch Max Total Indices Size alarm definition
+  monasca_alarm_definition:
+    name: "Elasticsearch Max Total Indices Size"
+    state: absent
+    description: "Triggers when the current size of all indices is > the Max Total Indices Size defined."
+    expression: "elasticsearch.store.size>{{ elasticsearch_max_total_indices_size_in_bytes }}"
+    keystone_url: "{{ logging_keystone_url }}"
+    keystone_user: "{{ logging_keystone_user }}"
+    keystone_password: "{{ logging_keystone_password | quote }}"
+    keystone_project: "{{ logging_keystone_project }}"
+    monasca_api_url: "{{ monasca_alarm_definition_api_url }}"
+    match_by: ["hostname"]
+    severity: "Medium"
+    ok_actions:
+      - "{{ default_notification.notification_method_id }}"
+    undetermined_actions:
+      - "{{ default_notification.notification_method_id }}"
+    alarm_actions:
+      - "{{ default_notification.notification_method_id }}"
+  notify: restart_elasticsearch_monitor
+  run_once: true
+
+- name: logging-monitor | alarm-definitions | Elasticsearch Number of Log Entries alarm definition
+  monasca_alarm_definition:
+    name: "Elasticsearch Number of Log Entries"
+    description: "Track the total number of log entries.  Trigger set to < 0 (should never trigger)--just for monitoring purposes."
+    expression: "elasticsearch.docs.count<0"
+    keystone_url: "{{ logging_keystone_url }}"
+    keystone_user: "{{ logging_keystone_user }}"
+    keystone_password: "{{ logging_keystone_password | quote }}"
+    keystone_project: "{{ logging_keystone_project }}"
+    monasca_api_url: "{{ monasca_alarm_definition_api_url }}"
+    match_by: ["hostname"]
+    severity: "Low"
+    ok_actions:
+      - "{{ default_notification.notification_method_id }}"
+    undetermined_actions:
+      - "{{ default_notification.notification_method_id }}"
+    alarm_actions:
+      - "{{ default_notification.notification_method_id }}"
+  notify: restart_elasticsearch_monitor
+  run_once: true
+
+- name: logging-monitor | alarm-definitions | Remove Old Elasticsearch Open File Descriptors alarm definition
+  monasca_alarm_definition:
+    state: absent
+    name: "Elasticsearch Open File Descriptors"
+    description: "Triggers when more than 90% of the open file descriptors available are in use"
+    expression: "process.open_file_descriptors_perc>90"
+    keystone_url: "{{ logging_keystone_url }}"
+    keystone_user: "{{ logging_keystone_user }}"
+    keystone_password: "{{ logging_keystone_password | quote }}"
+    keystone_project: "{{ logging_keystone_project }}"
+    monasca_api_url: "{{ monasca_alarm_definition_api_url }}"
+    match_by: ["hostname"]
+    severity: "Medium"
+    ok_actions:
+      - "{{ default_notification.notification_method_id }}"
+    undetermined_actions:
+      - "{{ default_notification.notification_method_id }}"
+    alarm_actions:
+      - "{{ default_notification.notification_method_id }}"
+  notify: restart_elasticsearch_monitor
+  run_once: true
+
+- name: logging-monitor | alarm-definitions | Elasticsearch Process Open File Descriptors alarm definition
+  monasca_alarm_definition:
+    name: "Elasticsearch Process Open File Descriptors"
+    description: "Triggers when more than 90% of the open file descriptors available are in use"
+    expression: "process.open_file_descriptors_perc{process_name=elasticsearch}>90"
+    keystone_url: "{{ logging_keystone_url }}"
+    keystone_user: "{{ logging_keystone_user }}"
+    keystone_password: "{{ logging_keystone_password | quote }}"
+    keystone_project: "{{ logging_keystone_project }}"
+    monasca_api_url: "{{ monasca_alarm_definition_api_url }}"
+    match_by: ["hostname"]
+    severity: "Medium"
+    ok_actions:
+      - "{{ default_notification.notification_method_id }}"
+    undetermined_actions:
+      - "{{ default_notification.notification_method_id }}"
+    alarm_actions:
+      - "{{ default_notification.notification_method_id }}"
+  notify: restart_elasticsearch_monitor
+  run_once: true
+
+- name: logging-monitor | alarm-definitions | Elasticsearch Unassigned Shards alarm definition
+  monasca_alarm_definition:
+    name: "Elasticsearch Unassigned Shards"
+    description: "Triggers when there are any elasticsearch.unassigned_shards"
+    expression: "elasticsearch.unassigned_shards>0"
+    keystone_url: "{{ logging_keystone_url }}"
+    keystone_user: "{{ logging_keystone_user }}"
+    keystone_password: "{{ logging_keystone_password | quote }}"
+    keystone_project: "{{ logging_keystone_project }}"
+    monasca_api_url: "{{ monasca_alarm_definition_api_url }}"
+    match_by: ["hostname"]
+    severity: "High"
+    ok_actions:
+      - "{{ default_notification.notification_method_id }}"
+    undetermined_actions:
+      - "{{ default_notification.notification_method_id }}"
+    alarm_actions:
+      - "{{ default_notification.notification_method_id }}"
+  notify: restart_elasticsearch_monitor
+  run_once: true
+
+- name: logging-monitor | alarm-definitions | Elasticsearch Field Data Evictions alarm definition
+  monasca_alarm_definition:
+    name: "Elasticsearch Field Data Evictions"
+    description: "Triggers when there are any elasticsearch.fielddata.evictions"
+    expression: "elasticsearch.fielddata.evictions>0"
+    keystone_url: "{{ logging_keystone_url }}"
+    keystone_user: "{{ logging_keystone_user }}"
+    keystone_password: "{{ logging_keystone_password | quote }}"
+    keystone_project: "{{ logging_keystone_project }}"
+    monasca_api_url: "{{ monasca_alarm_definition_api_url }}"
+    match_by: ["hostname"]
+    severity: "High"
+    ok_actions:
+      - "{{ default_notification.notification_method_id }}"
+    undetermined_actions:
+      - "{{ default_notification.notification_method_id }}"
+    alarm_actions:
+      - "{{ default_notification.notification_method_id }}"
+  notify: restart_elasticsearch_monitor
+  run_once: true
+
+- name: logging-monitor | alarm-definitions | Elasticsearch Low Watermark alarm definition
+  monasca_alarm_definition:
+    name: "Elasticsearch Low Watermark alarm definition"
+    description: "Elasticsearch Disk LOW Watermark. Backup indices. If high watermark is reached, indices will be deleted. Adjust curator_low_watermark_percent, curator_high_watermark_percent, and elasticsearch_max_total_indices_size_in_bytes if needed."
+    expression: "disk.space_used_perc{mount_point=/var/lib/elasticsearch}>{{ curator_low_watermark_percent }}"
+    keystone_url: "{{ logging_keystone_url }}"
+    keystone_user: "{{ logging_keystone_user }}"
+    keystone_password: "{{ logging_keystone_password | quote }}"
+    keystone_project: "{{ logging_keystone_project }}"
+    monasca_api_url: "{{ monasca_alarm_definition_api_url }}"
+    match_by: ["hostname"]
+    severity: "Low"
+    ok_actions:
+      - "{{ default_notification.notification_method_id }}"
+    undetermined_actions:
+      - "{{ default_notification.notification_method_id }}"
+    alarm_actions:
+      - "{{ default_notification.notification_method_id }}"
+  notify: restart_elasticsearch_monitor
+  run_once: true
+
+- name: logging-monitor | alarm-definitions | Elasticsearch High Watermark alarm definition
+  monasca_alarm_definition:
+    name: "Elasticsearch High Watermark alarm definition"
+    description: "Elasticsearch Disk HIGH Watermark. Attempting to delete indices to free disk space. Adjust curator_low_watermark_percent, curator_high_watermark_percent, and elasticsearch_max_total_indices_size_in_bytes if needed."
+    expression: "disk.space_used_perc{mount_point=/var/lib/elasticsearch}>{{ curator_high_watermark_percent }}"
+    keystone_url: "{{ logging_keystone_url }}"
+    keystone_user: "{{ logging_keystone_user }}"
+    keystone_password: "{{ logging_keystone_password | quote }}"
+    keystone_project: "{{ logging_keystone_project }}"
+    monasca_api_url: "{{ monasca_alarm_definition_api_url }}"
+    match_by: ["hostname"]
+    severity: "High"
+    ok_actions:
+      - "{{ default_notification.notification_method_id }}"
+    undetermined_actions:
+      - "{{ default_notification.notification_method_id }}"
+    alarm_actions:
+      - "{{ default_notification.notification_method_id }}"
+  notify: restart_elasticsearch_monitor
+  run_once: true

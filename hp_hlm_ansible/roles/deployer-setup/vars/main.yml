@@ -1,0 +1,41 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+hlmuser_home: "{{ ansible_env['HOME'] }}"
+
+hlinux_distro: "cattleprod"
+
+hlinux_apt_repo_loc: /media/cdrom
+foreign_apt_tarball_loc: "{{ hlmuser_home }}/foreign_apt_repo.tgz"
+# The actual names of these tarballs contain an embedded timestamp so we have to search for them.
+netboot_tarball_glob: "{{ hlinux_apt_repo_loc }}/extras/hLinux-{{ hlinux_distro }}-amd64-netboot-*-hlm*.tar.gz"
+cmc32_apt_tarball_glob: "{{ hlinux_apt_repo_loc }}/extras/hLinux-cmc-i386*.tar.gz"
+grub_net_glob: "{{ hlinux_apt_repo_loc }}/extras/grub*efi"
+
+apache_root_dir: /opt/hlm_packager
+hlinux_repo_loc: hlm/hlinux
+foreign_repo_loc: hlm/foreign
+cmc32_repo_loc: hlm/cmc32
+
+hlinux_apt_repo_dir: "{{ apache_root_dir }}/{{ hlinux_repo_loc }}"
+foreign_apt_repo_dir: "{{ apache_root_dir }}/{{ foreign_repo_loc }}"
+cmc32_apt_repo_dir: "{{ apache_root_dir }}/{{ cmc32_repo_loc }}"
+
+hlinux_repo_url: "http://localhost:{{ hlinux_server_port }}/{{ hlinux_repo_loc }}"
+hlinux_repo_source: "'deb [arch=amd64] {{ hlinux_repo_url }} cattleprod main contrib non-free'"
+
+cmc32_repo_url: "http://localhost:{{ hlinux_server_port }}/{{ cmc32_repo_loc }}"
+cmc32_repo_source: "'deb [arch=i386] {{ cmc32_repo_url }} cattleprod main'"

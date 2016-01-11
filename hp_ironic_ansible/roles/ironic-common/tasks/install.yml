@@ -1,0 +1,48 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: Ironic Common | install | Check for presence of group '{{ ironic_group }}'
+  command: "grep -q {{ ironic_group }} /etc/group"
+  ignore_errors: True
+  register: group_chk_result
+
+- name: Ironic Common | install | Add group '{{ ironic_group }}'
+  group: name={{ ironic_group }}
+  when: group_chk_result|failed
+
+- name: Ironic Common | install | Check for presence of user '{{ ironic_user }}'
+  command: "id {{ ironic_user }}"
+  ignore_errors: True
+  register: user_chk_result
+
+- name: Ironic Common | install | Add user '{{ ironic_user }}'
+  user: name={{ ironic_user }} group={{ ironic_group }} createhome=no home=/tmp shell=/bin/true
+  when: user_chk_result|failed
+
+- name: Ironic Common | install | create ironic directories
+  file: path={{ item.path }} state=directory  owner={{ item.owner }} group={{ item.group }}
+  with_items:
+    - { path: "{{ ironic_service_conf_dir }}" , mode: "0775", owner: "{{ ironic_user }}", group: "{{ ironic_group }}" }
+    - { path: "{{ ironic_logs_dir }}", mode: "0775", owner: "{{ ironic_user }}", group: "{{ ironic_group }}" }
+
+- name: "Ironic Common | configure | register {{ ironic_component }} service"
+  setup_systemd:
+    service: "{{ ironic_component }}"
+    cmd: "{{ ironic_component }}"
+    user: "{{ ironic_user }}"
+    group: "{{ ironic_group }}"
+    args: "--config-file {{ ironic_service_conf_dir }}/{{ ironic_component }}.conf"

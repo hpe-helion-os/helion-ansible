@@ -1,0 +1,14 @@
+#!/bin/bash
+
+set -o nounset
+set -o errexit
+set -o pipefail
+
+if /sbin/sysctl -ne net.ipv4.ip_nonlocal_bind > /dev/null; then
+    echo 1 > /proc/sys/net/ipv4/ip_nonlocal_bind
+fi
+
+if $( ! grep -s -E "^\s*net.ipv4.ip_nonlocal_bind\s*=\s*1" /etc/sysctl.conf > /dev/null ) ; then
+    sed -i '/net.ipv4.ip_nonlocal_bind/d' /etc/sysctl.conf
+    echo "net.ipv4.ip_nonlocal_bind = 1"  >> /etc/sysctl.conf
+fi

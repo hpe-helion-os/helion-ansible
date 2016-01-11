@@ -1,0 +1,85 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+import os
+import sys
+import json
+import time
+import subprocess
+
+# Simply exit if Kibana index already exists
+es_up = False
+while not es_up:
+    try:
+        status = subprocess.check_output('curl -XGET http://{{ elasticsearch_http_host }}:{{ elasticsearch_http_port }}/_cat/indices?v', shell=True)
+        if status.find("kibana") != -1: sys.exit()
+        es_up = True
+    except subprocess.CalledProcessError as e:
+        if e.returncode != 0: time.sleep(1)
+
+# Wait for logstash indices to be created
+index_exists = False
+while not index_exists:
+    status = subprocess.check_output('curl -XGET http://{{ elasticsearch_http_host }}:{{ elasticsearch_http_port }}/_cat/indices?v', shell=True)
+    if status.find("logstash") != -1: index_exists = True
+    time.sleep(1)
+
+# Retrieve field data
+success = True
+try:
+    field_data = subprocess.check_output('curl -XGET "http://{{ elasticsearch_http_host }}:{{ elasticsearch_http_port }}/logstash-*/_mapping/field/*?ignore_unavailable=false&allow_no_indices=false&include_defaults=true"', shell=True)
+
+# Grap mappings from first logstash index
+    fields = {}
+    mappings = json.loads(field_data).itervalues().next()['mappings']
+    for mapping_key, mapping in mappings.iteritems():
+
+        # Grab fields except for _default_ ones being ignored
+        for field_key, field in mapping.iteritems():
+            if field_key not in ("_all", "_boost", "_field_names", "_routing", "_size", "_timestamp", "_ttl", "_uid", "_version", "_parent"):
+
+                # Add distinct fields with kibana sub-values
+                if field_key not in fields:
+                    key = field_key.split('.')[-1] if field_key not in field["mapping"] else field_key
+                    field_data = field["mapping"][key]
+
+                    indexed = True if "index" in field_data and field_data["index"] != "no" else False
+                    analyzed = True if "index" in field_data and field_data["index"] == "analyzed" else False
+
+                    # Construct JSON field structure
+                    _field = {}
+                    _field['name'] = field_key
+                    _field['type'] = "string"
+                    _field['count'] = 0
+                    _field['scripted'] = False
+                    _field['indexed'] = indexed
+                    _field['analyzed'] = analyzed
+                    _field['doc_values'] = False
+                    fields[field_key] = _field
+except:
+    success = False
+
+# Create the Kibana Index
+if success:
+    subprocess.call('curl -XPOST "http://{{ elasticsearch_http_host }}:{{ elasticsearch_http_port }}/.kibana/index-pattern/logstash-*" -d \'{"title":"logstash-*","timeFieldName":"@timestamp"}\'', shell=True)
+    subprocess.call('curl -XPOST "http://{{ elasticsearch_http_host }}:{{ elasticsearch_http_port }}/.kibana/config/4.1.1" -d \'{"defaultIndex":"logstash-*"}\'', shell=True)
+
+    data = ""
+    for x in fields.itervalues():
+        data += "," + json.dumps(x, separators=(',',':')).replace("\"", "\\\"")
+    cmd = 'curl -XPOST "http://{{ elasticsearch_http_host }}:{{ elasticsearch_http_port }}/.kibana/index-pattern/logstash-*" -d \'{"title":"logstash-*","timeFieldName":"@timestamp","fields":"[' + data[1:] + ']"}\''
+    subprocess.call(cmd, shell=True)

@@ -1,0 +1,88 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: Cinder Monitor | monasca_alarms | set start_volume=False monitor facts
+  set_fact: "{{ item.name }}_running_check='cinderlm.cinder.cinder_services{component={{ item.daemon }},hostname={{ inventory_hostname }}} > {{ process_count_notrunning_upper_bound }}'"
+  when: start_volume == "False"
+  with_items:
+    - daemon: "cinder-volume"
+      name: "cinder_volume"
+    - daemon: "cinder-backup"
+      name: "cinder_backup"
+
+- name: Cinder Monitor | monasca_alarms | set monitor start_volume=True monitor facts
+  set_fact: "{{ item.name }}_running_check='cinderlm.cinder.cinder_services{component={{ item.daemon }},hostname={{ inventory_hostname }}} < {{ process_count_running_lower_bound }}'"
+  when: start_volume == "True"
+  with_items:
+    - daemon: "cinder-volume"
+      name: "cinder_volume"
+    - daemon: "cinder-backup"
+      name: "cinder_backup"
+
+- name: Cinder Monitor | monasca_alarms | backup/volume running alarm definition
+  monasca_alarm_definition:
+    name: "Cinder {{ item.name }} running {{ inventory_hostname }} check"
+    description: "Alarms if the cinder {{ item.name }} service is not appropriately set up."
+    severity: "HIGH"
+    expression: "{{ item.expression }}"
+    match_by: ["hostname"]
+    keystone_url: "{{ cinder_keystone.admin_url }}"
+    keystone_user: "{{ KEY_API.vars.keystone_admin_user }}"
+    keystone_password: "{{ KEY_API.vars.keystone_admin_pwd }}"
+    keystone_project: "{{ KEY_API.vars.keystone_admin_tenant }}"
+    monasca_api_url: "{{ monasca_alarm_definition_api_url }}"
+    state: "{{ cinder_volume_monitor_state }}"
+  with_items:
+    - expression: "{{ cinder_volume_running_check }}"
+      name: "volume"
+    - expression: "{{ cinder_backup_running_check }}"
+      name: "backup"
+
+- name: Cinder Monitor | monasca_alarms | Create monasca alarm definitions
+  run_once: true
+  monasca_alarm_definition:
+    name: "{{ item.name }}"
+    description: "{{ item.description }}"
+    severity: "{{ item.severity }}"
+    expression: "{{ item.expression }}"
+    match_by: "{{ item.match_by }}"
+    keystone_url: "{{ cinder_keystone.admin_url }}"
+    keystone_user: "{{ KEY_API.vars.keystone_admin_user }}"
+    keystone_password: "{{ KEY_API.vars.keystone_admin_pwd }}"
+    keystone_project: "{{ KEY_API.vars.keystone_admin_tenant }}"
+    monasca_api_url: "{{ monasca_alarm_definition_api_url }}"
+  with_items:
+    - { name: "Cinderlm diagnostics monitor",
+        description: "Alarms if cinder monitoring cannot execute a task",
+        severity: "HIGH",
+        expression: "cinderlm.cinderlm_check > 0",
+        match_by: ["hostname"]}
+
+- name: Cinder Monitor | monasca_alarms | Setup Active check against Cinder VIP - internal
+  monasca_agent_plugin:
+    name="httpcheck"
+    args="use_keystone=False match_pattern=.*versions.*SUPPORTED.* url=http://{{ CND_API | item ('advertises.vips.private[0].host') }}:{{ CND_API | item ('advertises.vips.private[0].port') }}/ dimensions=service:block-storage,component:cinder-api,vip:internal"
+  run_once: True
+
+# Dont repeat the monitor if the admin and internal endpoints are the same
+- name: Cinder Monitor | monasca_alarms | Setup Active check against Cinder VIP - admin
+  monasca_agent_plugin:
+    name="httpcheck"
+    args="use_keystone=False match_pattern=.*versions.*SUPPORTED.* url=http://{{ CND_API | item ('advertises.vips.admin[0].host') }}:{{ CND_API | item ('advertises.vips.admin[0].port') }}/ dimensions=service:block-storage,component:cinder-api,vip:admin"
+  when: not "{{ CND_API | item ('advertises.vips.admin[0].host') }}" == "{{ CND_API | item ('advertises.vips.private[0].host') }}"
+        or not "{{ CND_API | item ('advertises.vips.admin[0].port') }}" == "{{ CND_API | item ('advertises.vips.private[0].port') }}"
+  run_once: True

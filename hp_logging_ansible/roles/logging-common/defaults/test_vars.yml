@@ -1,0 +1,66 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+log_message: test
+
+log_files:
+    bura_1: /var/log/freezer-json.log
+    bura_2: /var/log/freezer-api-json.log
+    ceilometer_1: /var/log/ceilometer/ceilometer-expirer-json.log
+    cinder_1: /var/log/cinder/cinder-volume-json.log
+    eon_1: /var/log/eon/json.log
+    glance_1: /var/log/glance/glance-registry-json.log
+    heat-api_1: /var/log/heat/heat-api-cloudwatch-json.log
+    heat-engine_1: /var/log/heat/heat-engine-json.log
+    horizon_1: /var/log/horizon/horizon-json.log
+    keepalived_1: /var/log/keepalived/keepalived.log
+    keystone_1: /var/log/keystone/keystone-json.log
+    monasca_10: /var/log/zookeeper/zookeeper.log
+    monasca_11: /var/log/storm/nimbus.log
+    monasca_12: /var/log/storm/supervisor.log
+    monasca_1: /var/log/monasca/notification/notification.log
+    monasca_2: /var/log/monasca/agent/collector.log
+    monasca_3: /var/log/monasca/agent/forwarder.log
+    monasca_4: /var/log/monasca/agent/statsd.log
+    monasca_5: /var/log/monasca/agent/supervisord.log
+    monasca_6: /var/log/monasca/api/monasca-api.log
+    monasca_7: /var/log/monasca/persister/monasca-persister.log
+    monasca_8: /var/log/kafka/controller.log
+    monasca_9: /var/log/kafka/server/log
+    mysql_1: /var/log/mysql/error.log
+    mysql_2: /var/log/mysql.log
+    mysql_3: /var/log/mysql.err
+    neutron_1: /var/log/neutron/neutron-metadata-agent-json.log
+    nova_1: /var/log/nova/nova-baremetal-deploy-helper-json.log
+    opsconsole_1: /var/log/ops-console/access.log
+    opsconsole_2: /var/log/ops-console/error.log
+    opsconsole_3: /var/log/ops-console/monitor.log
+    rsyslog_10: /var/log/cron.log
+    rsyslog_11: /var/log/debug
+    rsyslog_12: /var/log/messages
+    rsyslog_1: /var/log/mail.info
+    rsyslog_2: /var/log/mail.warn
+    rsyslog_3: /var/log/mail.err
+    rsyslog_4: /var/log/mail.log
+    rsyslog_5: /var/log/daemon.log
+    rsyslog_6: /var/log/kern.log
+    rsyslog_7: /var/log/auth.log
+    rsyslog_8: /var/log/user.log
+    rsyslog_9: /var/log/lpr.log
+    sherpa_1: /var/log/sherpa/sherpa-json.log
+    sirius_1: /var/log/sirius/json.log
+    swift_1: /var/log/swift/swift-json.log

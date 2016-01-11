@@ -1,0 +1,73 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+[DEFAULT]
+verbose = {{ verbose }}
+debug = {{ debug }}
+log_config_append = {{ log_config_append }}
+rpc_backend = {{ rpc_backend }}
+rpc_conn_pool_size = {{ rpc_conn_pool_size }}
+enabled_drivers= {{ enabled_drivers }}
+rootwrap_config = {{ rootwrap_config_append }}
+
+[oslo_policy]
+policy_file = {{ policy_file }}
+
+[oslo_messaging_rabbit]
+rabbit_userid = {{ rabbit_userid }}
+rabbit_password = {{ rabbit_password }}
+rabbit_hosts = {{ rabbit_hosts }}
+
+[api]
+host_ip = {{ host_ip }}
+port = {{ port }}
+
+[database]
+connection = {{ connection }}
+
+[keystone_authtoken]
+admin_user = {{ admin_user }}
+admin_password = {{ admin_password }}
+admin_tenant_name = {{ admin_tenant_name }}
+auth_uri = {{ auth_uri }}
+identity_uri = {{ identity_uri }}
+
+[glance]
+glance_host = {{ glance_host }}
+glance_port = {{ glance_port }}
+glance_protocol = {{ glance_protocol }}
+swift_temp_url_key = {{ IRN_CND.ansible-vars.swift_temp_url_key }}
+swift_endpoint_url = {{ swift_internal_endpoint.stdout }}
+swift_api_version = {{ swift_api_version.stdout }}
+swift_account = {{ swift_account.stdout }}
+swift_container = glance
+
+[neutron]
+url = {{ url }}
+
+[pxe]
+tftp_server = {{ tftp_server }}
+images_path = {{ ironic_images_path }}
+instance_master_path = {{ instance_master_path }}
+pxe_append_params = {{ pxe_append_params }}
+http_root = {{ http_root }}
+http_url = {{ http_url }}
+ipxe_enabled = {{ ipxe_enabled }}
+pxe_bootfile_name = {{ pxe_bootfile_name }}
+
+[conductor]
+api_url = {{ api_url }}

@@ -1,0 +1,92 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: freezer-api | install | Check if node is configured to run elasticsearch
+  fail:
+    msg: "freezer-api should be installed on same node as LOG-SVR (they share the elasticsearch)"
+  when: '"LOG-SVR" not in group_names'
+
+- include_vars: ../../logging-common/defaults/main.yml
+
+# python-httplib2 is an ansible dependency for the module uri sed in start.yml
+- name: freezer-api | install | Install apt dependencies
+  become: yes
+  apt:
+    state: latest
+    name: "{{ item }}"
+  with_items:
+    - libapache2-mod-wsgi
+    - python-httplib2
+
+- name: freezer-api | install | Update venv cache
+  become: yes
+  install_package:
+    cache: update
+
+- name: freezer-api | install | Install Freezer_api virtual env
+  become: yes
+  install_package:
+    name: freezer_api
+    service: freezer-api
+    state: present
+    activate: act_off
+  register: freezer_api_install_result
+  notify: freezer_api_change
+
+- name: freezer-api | install | Set service directories
+  set_fact:
+    freezer_api_venv_bin_dir_by_version: "{{ 'freezer-api' | bin_dir(freezer_api_install_result.version) }}"
+    freezer_api_venv_conf_dir_by_version: "{{ 'freezer-api' | config_dir(freezer_api_install_result.version) }}"
+
+
+- name: freezer-api | install | Add group '{{ freezer_system_group }}'
+  become: yes
+  group:
+    name: "{{ freezer_system_group }}"
+    state: present
+
+- name: freezer-api | install | Add user '{{ freezer_system_user }}'
+  become: yes
+  user:
+    name: "{{ freezer_system_user }}"
+    group: "{{ freezer_system_group }}"
+    createhome: no
+    home: /tmp
+    shell: /bin/true
+    state: present
+
+- name: freezer-api | install | Create logging directory
+  become: yes
+  file:
+    path: "{{ freezer_api_log_dir }}"
+    owner: root
+    group: root
+    mode: 0775
+    state: directory
+
+- name: freezer-api | install | Copies modwsgi config file
+  become: yes
+  template:
+    src: freezer-modwsgi.conf.j2
+    dest: /etc/apache2/sites-available/freezer-modwsgi.conf
+
+# TODO(howleyt): Can this be moved to apache playbook?
+- name: freezer-api | install | Enable wsgi module in apache
+  become: yes
+  apache2_module:
+    state: present
+    name: wsgi

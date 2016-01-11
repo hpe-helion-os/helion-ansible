@@ -1,0 +1,47 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: Setup zoo.cfg
+  template: dest="{{zookeeper_conf_dir}}/zoo.cfg" src=zoo.cfg.j2
+  notify:
+    - zookeeper | restart | restart zookeeper
+    - wait for zookeeper port
+
+- name: Setup myid
+  template: dest="{{zookeeper_conf_dir}}/myid" src=myid.j2
+  notify:
+    - zookeeper | restart | restart zookeeper
+    - wait for zookeeper port
+
+- name: Setup environment
+  template: dest="{{zookeeper_conf_dir}}/environment" src=environment.j2
+  notify:
+    - zookeeper | restart | restart zookeeper
+    - wait for zookeeper port
+
+- name: Create log_dir
+  file: path={{zookeeper_log_dir}} state=directory owner=zookeeper group=zookeeper mode=755
+  notify:
+    - zookeeper | restart | restart zookeeper
+    - wait for zookeeper port
+
+- name: Setup log4j
+  template: dest="{{zookeeper_conf_dir}}/log4j.properties" owner=root group=root mode=644 src=log4j.properties.j2
+  notify:
+    - zookeeper | restart | restart zookeeper
+    - wait for zookeeper port
+
+- meta: flush_handlers

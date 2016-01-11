@@ -1,0 +1,95 @@
+#!/bin/bash
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# This script helps prune the Elasticsearch indices to prevent unchecked growth
+# It has to be stored under /etc/cron.daily or /etc/cron.weekly
+
+es_log_partition={{ curator_es_partition }}
+
+# function to find the current used size of the ES parition
+function get_current_es_partition_size()
+{
+  echo $(df -h $es_log_partition | tail -1 | awk '{print $5}' | grep -Po '[0-9]+' )
+}
+
+
+logfile={{ curator_log_path }}
+dt="$(date +"%Y-%m-%d %H:%M:%S")\t\t"
+
+echo -e "$dt Running prune_es_indices cron script ..." >> $logfile
+
+# first, check if this script should even run!
+enable_pruning={{ curator_enable | bool }}
+if [ $enable_pruning == False ]; then
+  echo -e "$dt Pruning is not enabled. Exiting..." >> $logfile
+  exit 1
+fi
+
+bin_name={{ curator_bin_path }}
+# bail if another instance is running
+if [ $(pidof -x $bin_name | wc -w) -gt 0 ]; then
+  echo -e "$dt Another instance of this script is already running. Exiting..." >> $logfile
+  exit 2
+fi
+
+# bail if curator is not installed
+if [ ! -f $bin_name ]; then
+  echo -e "$dt $bin_name not found. Is curator installed ? If so, please make sure the curator_bin_path variable is set correctly. Exiting..." >> $logfile
+  exit 3
+fi
+
+# ready to run curator tasks now
+
+low_watermark={{ curator_low_watermark_percent }}
+high_watermark={{ curator_high_watermark_percent }}
+
+current_level=$(get_current_es_partition_size)
+if [ $current_level -gt $low_watermark ] && [ $current_level -lt $high_watermark ]; then
+   echo -e "$dt WARNING: $es_log_partition running low(crossed $low_watermark%) on disk space! Please backup ES indices. Will delete old indices when usage reaches $high_watermark%!" >> $logfile
+fi
+
+num_of_indices_to_keep={{ curator_num_of_indices_to_keep }}
+if [ $num_of_indices_to_keep -gt 0 ]; then
+  echo -e "$dt Running curator to delete indices older than $num_of_indices_to_keep days old..." >> $logfile
+  curator --host {{ curator_es_hostname }} --port {{ curator_es_port }} --logfile {{ curator_log_path }} delete indices --regex "{{ curator_indices_regex }}" --older-than {{ curator_num_of_indices_to_keep }} --time-unit days --timestring "%Y.%m.%d"
+fi
+
+for i in $(seq $num_of_indices_to_keep -1 1); do
+  current_level=$(get_current_es_partition_size)
+  # check if we still need to make space
+  if [ $current_level -gt $high_watermark ]; then
+    echo -e "$dt $es_log_partition is still over $high_watermark%.  Keeping the $i most recent indices and deleting the others..." >> $logfile
+    curator --host {{ curator_es_hostname }} --port {{ curator_es_port }} --logfile {{ curator_log_path }} delete indices --regex "{{ curator_indices_regex }}" --older-than $i --time-unit days --timestring "%Y.%m.%d"
+  fi
+done
+
+current_level=$(get_current_es_partition_size)
+# check if we still need to make space
+if [ $current_level -gt $high_watermark ]; then
+  echo -e "$dt ERROR: $es_log_partition is still over $high_watermark%, please consider increasing the partition size for {{ curator_es_partition }}" >> $logfile
+fi
+
+# next, disable bloom filter, if required
+disable_bloom_filter_days={{ curator_disable_bloom_filter_days | int }}
+if [ $disable_bloom_filter_days -gt 0 ]; then
+  curator --host {{ curator_es_hostname }} --port {{ curator_es_port }} --logfile {{ curator_log_path }} bloom indices --regex "{{ curator_indices_regex }}" --older-than {{ curator_disable_bloom_filter_days }} --time-unit days --timestring "%Y.%m.%d"
+fi
+
+# close indices, if required
+close_indices_after_days={{ curator_close_indices_after_days | int }}
+if [ $close_indices_after_days -gt 0 ]; then
+  curator --host {{ curator_es_hostname }} --port {{ curator_es_port }} --logfile {{ curator_log_path }} close indices --regex "{{ curator_indices_regex }}" --older-than {{ curator_close_indices_after_days }} --time-unit days --timestring "%Y.%m.%d"
+fi

@@ -1,0 +1,45 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+# Config Processor defined variables
+
+keystone_auth_url: "http://{{ NEU_CLI.consumes_KEY_API.vips.admin[0].host }}:{{ NEU_CLI.consumes_KEY_API.vips.admin[0].port }}/v3"
+glance_auth_url: "http://{{ GLA_API.consumes_KEY_API.vips.admin[0].host }}:{{ GLA_API.consumes_KEY_API.vips.admin[0].port }}/v2.0"
+keystone_admin_pwd: "{{ hostvars[groups['KEY-API'][0]].KEY_API.vars.keystone_admin_pwd }}"
+
+
+# Other
+#TODO: Ultimately, FLAT_NET_PHYSICAL_NETWORK needs to be
+#      pulled from the config. For now its hardcoded to increase
+#      the pace of development.
+FLAT_NET_PHYSICAL_NETWORK: "physnet1"
+FLAT_NET_CIDR: "192.168.245.0/24"
+FLAT_NET_START: "192.168.245.50"
+FLAT_NET_END: "192.168.245.150"
+FLAT_NET_GW: "192.168.245.1"
+
+glance_default_image_file: "/tmp/cirros-0.3.3-x86_64-disk.img"
+glance_cacert_file: "/etc/ssl/certs/ca-certificates.crt"
+
+baremetal_flavor_name: "m1.baremetal"
+baremetal_flavor_id: "6"
+baremetal_flavor_ram_mb: "4096"
+baremetal_flavor_disk_gb: "80"
+baremetal_flavor_vcpu: "2"
+baremetal_flavor_type: "example"
+baremetal_flavor_boot_option: "local"
+baremetal_flavor_boot_mode: "bios"

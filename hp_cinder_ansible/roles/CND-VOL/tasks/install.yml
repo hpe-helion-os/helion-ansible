@@ -1,0 +1,70 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+# Install Cinder Volume
+
+- include: ../../_CND-CMN/tasks/install.yml
+
+# Call out significant dependencies separately from main package
+- name: Cinder Volume | install | Install Cinder Volume dependencies
+  apt: name={{ item }} install_recommends=no state=latest force=yes
+  with_items:
+    - lvm2
+    - qemu-utils
+    - sg3-utils
+    - tgt
+    - thin-provisioning-tools
+  ignore_errors: True
+  register: install_vol_deps_dpkg_check_result
+
+- name:  Cinder Volume | install | Stop the tgt daemon
+  service: name=tgt state=stopped
+  when: install_vol_deps_dpkg_check_result
+
+- name: Cinder Volume | install | Remove Cinder Volume DPKG (if exists)
+  apt: name=cinder-volume install_recommends=no state=absent force=yes
+  ignore_errors: True
+
+- name: Cinder Volume | install | Update venv cache
+  install_package:
+    cache: update
+
+- name: Cinder Volume | install | Install Cinder Volume
+  install_package:
+    name: cinder
+    service: cinder-volume
+    state: present
+    activate: act_off
+  register: cinder_volume_install_result
+  notify: cinder_volume_change
+
+- name: Cinder Volume | install | Set service directories
+  set_fact:
+    cinder_volume_conf_dir: "{{ 'cinder-volume' | config_dir(cinder_volume_install_result.version) }}"
+    cinder_volume_venv_share_dir: "{{ 'cinder-volume' | share_dir(cinder_volume_install_result.version) }}/cinder"
+
+# post-install tasks
+- name: Cinder Volume | install | Register the cinder-volume service
+  setup_systemd:
+    service: cinder-volume
+    cmd: cinder-volume
+    user: cinder
+    group: cinder
+    args: >
+       --config-file {{ cinder_volume_conf_dir }}/cinder.conf
+       --config-file {{ cinder_volume_conf_dir }}/volume.conf
+  when: cinder_volume_install_result.changed

@@ -1,0 +1,35 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+keystone_endpoint: "{{ FRE_API.consumes_KEY_API.vips.private[0].url }}/v3"
+keystone_service_tenant: "{{ KEY_API.vars.keystone_service_tenant }}"
+keystone_admin_role_name: "{{ KEY_API.vars.keystone_admin_tenant }}"
+
+freezer_private_endpoint: "{{ FRE_API.advertises.vips.private[0].url }}"
+freezer_public_endpoint: "{{ FRE_API.advertises.vips.public[0].url }}"
+freezer_region_name: "{{ FRE_API.advertises.vips.private[0].region_name }}"
+freezer_service_username: "{{ FRE_API.consumes_KEY_API.vars.keystone_freezer_user }}"
+freezer_service_password: "{{ FRE_API.consumes_KEY_API.vars.keystone_freezer_password | quote }}"
+
+backup_username: "{{ FRE_AGN.consumes_KEY_API.vars.keystone_backup_user }}"
+backup_password: "{{ FRE_AGN.consumes_KEY_API.vars.keystone_backup_password | quote }}"
+backup_tenant_name: "{{ FRE_AGN.consumes_KEY_API.vars.keystone_backup_tenant }}"
+
+keystone:
+  admin_user: "{{ KEY_API.vars.keystone_admin_user }}"
+  admin_password: "{{ KEY_API.vars.keystone_admin_pwd | quote }}"
+  default_domain_name: "{{ KEY_API.vars.keystone_default_domain }}"

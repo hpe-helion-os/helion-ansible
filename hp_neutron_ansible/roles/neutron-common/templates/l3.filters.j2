@@ -1,0 +1,73 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+# neutron-rootwrap command filters for nodes on which neutron is
+# expected to control network
+#
+# This file should be owned by (and only-writeable by) the root user
+
+# format seems to be
+# cmd-name: filter-name, raw-command, user, args
+
+[Filters]
+
+# arping
+arping: CommandFilter, arping, root
+
+# l3_agent
+sysctl: CommandFilter, sysctl, root
+route: CommandFilter, route, root
+radvd: CommandFilter, radvd, root
+
+# metadata proxy
+metadata_proxy: CommandFilter, neutron-ns-metadata-proxy, root
+# If installed from source (say, by devstack), the prefix will be
+# /usr/local instead of /usr/bin.
+metadata_proxy_local: CommandFilter, /usr/local/bin/neutron-ns-metadata-proxy, root
+# RHEL invocation of the metadata proxy will report /usr/bin/python
+kill_metadata_neutron_venv_p2: KillFilter, root, {{ neutron_real_bin_dir }}/python2, -9
+kill_metadata: KillFilter, root, python, -9
+kill_metadata7: KillFilter, root, python2.7, -9
+kill_radvd_usr: KillFilter, root, /usr/sbin/radvd, -9, -HUP
+kill_radvd: KillFilter, root, /sbin/radvd, -9, -HUP
+
+# ip_lib
+ip: IpFilter, ip, root
+find: RegExpFilter, find, root, find, /sys/class/net, -maxdepth, 1, -type, l, -printf, %.*
+ip_exec: IpNetnsExecFilter, ip, root
+
+# For ip monitor
+kill_ip_monitor: KillFilter, root, ip, -9
+
+# ovs_lib (if OVSInterfaceDriver is used)
+ovs-vsctl: CommandFilter, ovs-vsctl, root
+
+# iptables_manager
+iptables-save: CommandFilter, iptables-save, root
+iptables-restore: CommandFilter, iptables-restore, root
+ip6tables-save: CommandFilter, ip6tables-save, root
+ip6tables-restore: CommandFilter, ip6tables-restore, root
+
+# Keepalived
+keepalived: CommandFilter, keepalived, root
+kill_keepalived: KillFilter, root, /usr/sbin/keepalived, -HUP, -15, -9
+
+# l3 agent to delete floatingip's conntrack state
+conntrack: CommandFilter, conntrack, root
+
+# keepalived state change monitor
+keepalived_state_change: CommandFilter, neutron-keepalived-state-change, root

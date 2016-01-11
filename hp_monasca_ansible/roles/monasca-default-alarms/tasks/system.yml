@@ -1,0 +1,47 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: Create System Alarm Definitions
+  monasca_alarm_definition:
+    name: "{{item.name}}"
+    description: "{{item.description | default('') }}"
+    expression: "{{item.expression}}"
+    keystone_token: "{{default_notification.keystone_token}}"
+    match_by: "{{item.match_by | default(['hostname']) }}"
+    monasca_api_url: "{{default_notification.monasca_api_url}}"
+    severity: "{{item.severity | default('LOW') }}"
+    alarm_actions:
+      - "{{default_notification.notification_method_id}}"
+    ok_actions:
+      - "{{default_notification.notification_method_id}}"
+    undetermined_actions:
+      - "{{default_notification.notification_method_id}}"
+  run_once: True
+  with_items:
+    - { name: "Host Status", description: "Alarms when the specified host is down or not reachable", severity: "HIGH", expression: "host_alive_status > 0", match_by: ["target_host", "hostname"]}
+    - { name: "HTTP Status", description: "Alarms when the specified HTTP endpoint is down or not reachable", severity: "HIGH", expression: "http_status > 0", match_by: ["service", "component", "hostname", "url"] }
+    - { name: "CPU Usage", description: "Alarms when CPU usage is high", expression: "avg(cpu.idle_perc) < 10 times 3" }
+    - { name: "Disk Inode Usage", description: "Alarms when disk inode usage is high", expression: "disk.inode_used_perc > 90", match_by: ["hostname", "device"] }
+    - { name: "Disk Usage", description: "Alarms when disk usage is high", expression: "disk.space_used_perc > 90", match_by: ["hostname", "device"] }
+    - { name: "Memory Usage", description: "Alarms when memory usage is high", severity: "MEDIUM", expression: "avg(mem.usable_perc) < 10 times 3" }
+    - { name: "Network Errors",
+        description: "Alarms when either incoming or outgoing network errors are high",
+        severity: "MEDIUM", expression: "net.in_errors_sec > 5 or net.out_errors_sec > 5" }
+    - { name: "Process Check",
+        description: "Alarms when the specified process is not running",
+        severity: "HIGH",
+        expression: "process.pid_count < 1",
+        match_by: ["process_name", "hostname"] }

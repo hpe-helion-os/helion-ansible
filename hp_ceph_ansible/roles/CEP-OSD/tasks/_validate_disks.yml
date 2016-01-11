@@ -1,0 +1,55 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: CEP-OSD | validate_disks | Validate the data disks specified for {{ inventory_hostname }} are available
+  stat: path={{ item }}
+  with_items:
+    - "{{ osd_disks.keys() | union(osd_disks.values()) | unique }}"
+  register: ceph_stat_result
+
+- name: CEP-OSD | validate_disks | Create a user friendly string of non available disks
+  set_fact:
+      ceph_non_available_disks: "{{ ceph_stat_result.results | rejectattr('item', 'none') | selectattr('stat.exists', 'sameas', false) | map(attribute='item') | join(', ') }}"
+
+- name: CEP-OSD | validate_disks | Fail if a disk is unavailable
+  fail: msg='Following disks were not found -> "{{ ceph_non_available_disks }}"'
+  when: ceph_non_available_disks|default("") != ""
+
+- name: CEP-OSD | validate_disks | Get journal disk "{{ osd_disks.values() }}" size
+  shell: fdisk -l | grep 'Disk {{ item }}' | awk '{print $5}'
+  with_items:
+      - "{{ osd_disks.values() }}"
+  register: ceph_journal_size_result
+
+- name: CEP-OSD | validate_disks | Set fact journal disks "{{ ceph_journal_size_result.results }}" with size
+  set_fact:
+    ceph_args:
+      "{{ item.item }}: {{ item.stdout }}"
+  with_items:
+     - "{{ ceph_journal_size_result.results }}"
+  register: ceph_journal_sf_result
+
+- name: CEP-OSD | validate_disks | Form list of journal disks
+  set_fact:
+        ceph_disk_list: "{{ ceph_journal_sf_result.results | map(attribute='ansible_facts.ceph_args') | list }}"
+
+- name: CEP-OSD | validate_disks | Validate journal disk
+  set_fact: ceph_validate_result="{{ ceph_disk_list | journal_disk_validate(osd_journal_size) }}"
+
+- name: CEP-OSD | validate_disks | Fail if journal disk size is less than required
+  fail:  msg="{{ ceph_validate_result }}"
+  when: ceph_validate_result != true

@@ -1,0 +1,247 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Play to set up lvm FS and mounts
+---
+
+# TODO: remove this debug comment once we are happy this mechanism
+# causes no undesirable side effects.
+- name: osconfig | disk config | proposed lvm.conf filter entries
+  debug: msg="filter = {{ diskconfig_lvm_filter_entries }}"
+
+# Update the filter settings in the lvm.conf using the list of filter
+# entries found in the diskconfig_lvm_filter_entries, if not empty.
+# This will replace any active filter entry line, since there can be
+# only one, and will be inserted before the standard comment line that
+# contains the string "By default we accept every block device".
+- name: osconfig | disk config | update lvm.conf filter settings
+  lineinfile:
+    dest: /etc/lvm/lvm.conf
+    regexp: "^ *filter = .*$"
+    line: "    filter = {{ diskconfig_lvm_filter_entries | list }}"
+    insertbefore: "By default we accept every block device"
+  when: diskconfig_lvm_filter_entries
+
+- name: osconfig | disk config | get hlm root
+  set_fact:
+    base_disk: "{{ item.1 | regex_replace('_root','') }}"
+    full_match: "{{ item.1 }}"
+  when: item.0.name == "hlm-vg" and item.1 | search("_root")
+  with_subelements:
+    - "{{ host.my_disk_models.volume_groups }}"
+    - physical_volumes
+
+- name: osconfig | disk config | get base volume in vg
+  shell: /sbin/pvs | grep hlm-vg | grep -e '{{ base_disk }}[0-9]*' | awk '{print $1}'
+  register: pvs_output
+  when: base_disk is defined
+
+- name: osconfig | disk config | set base pv
+  set_fact:
+    base_pv: "{{ pvs_output.stdout }}"
+  when: base_disk is defined
+
+- name: osconfig | disk config | get vg device list
+  local_action: shell echo "{{ item.physical_volumes | join(",") }}" | sed 's:{{ full_match }}:{{ base_pv }}:g'
+  register: new_vg_list
+  when: item.name == "hlm-vg" and base_disk is defined
+  with_items: "{{ host.my_disk_models.volume_groups }}"
+
+- name: osconfig | disk config | assign vg_list
+  set_fact:
+      vg_list : "{{ new_vg_list.results[0].stdout}}"
+  when: item.name == "hlm-vg" and base_disk is defined
+  with_items: "{{ host.my_disk_models.volume_groups }}"
+
+- name: osconfig | disk config | setup volume groups templated root dev
+  lvg: vg={{ item.name }} pvs={{ vg_list }}
+  when: item.name == "hlm-vg" and base_disk is defined
+  with_items: "{{ host.my_disk_models.volume_groups }}"
+
+- name: osconfig | disk config | setup volume groups
+  lvg: vg={{ item.name }} pvs={{ item.physical_volumes | join(",") }}
+  when: item.name != "hlm-vg" or base_disk is not defined
+  with_items: "{{ host.my_disk_models.volume_groups }}"
+
+- name: osconfig | disk config | create LVs
+  lvol: vg={{ item.0.name }} lv={{ item.1.name }} size={{ item.1.size }}VG
+  with_subelements:
+     - "{{ host.my_disk_models.volume_groups }}"
+     - logical_volumes
+
+- name: osconfig | disk config | Extend root LV
+  command: lvextend -l {{ item.1.size }}VG "/dev/{{item.0.name}}/{{item.1.name}}"
+  when: item.1.name == "root"
+  with_subelements:
+    - "{{ host.my_disk_models.volume_groups }}"
+    - logical_volumes
+  register: extend_output
+  failed_when: ( extend_output.rc != 0 ) and ( "matches existing size" not in extend_output.stderr )
+
+- name: osconfig | disk config | mkfs lv with options
+  filesystem: fstype={{ item.1.fstype }} opts="{{ item.1.mkfs_opts }}" dev="/dev/{{ item.0.name }}/{{ item.1.name }}"
+  when: item.1.mkfs_opts is defined
+  with_subelements:
+    - "{{ host.my_disk_models.volume_groups }}"
+    - logical_volumes
+
+- name: osconfig | disk config | mkfs lv no options
+  filesystem: fstype={{ item.1.fstype }} dev="/dev/{{ item.0.name }}/{{ item.1.name }}"
+  when: item.1.mkfs_opts is not defined
+  with_subelements:
+    - "{{ host.my_disk_models.volume_groups }}"
+    - logical_volumes
+
+- name: osconfig | disk config | resize root fs if necessary
+  command: resize2fs "/dev/{{ item.0.name }}/{{ item.1.name }}"
+  when: item.1.fstype == "ext4" and item.1.name == "root"
+  with_subelements:
+    - "{{ host.my_disk_models.volume_groups }}"
+    - logical_volumes
+
+- name: osconfig | disk config | Check if deployer and control plane co-existing
+  set_fact:
+    deployer_coexisting: true
+  when: "'resources' in group_names"
+  run_once: true
+  delegate_to: localhost
+
+- name: osconfig | disk config | Check if /var/log is in the disk input model
+  set_fact:
+    log_mount_in_disk_model: true
+  when: deployer_coexisting is defined and item.1.mount is defined and item.1.mount.find("/var/log") != -1
+  with_subelements:
+    - "{{ host.my_disk_models.volume_groups }}"
+    - logical_volumes
+  run_once: true
+  delegate_to: localhost
+
+- name: osconfig | disk config | Check if /var/log is a mountpoint
+  command: bash -c "cat /etc/fstab  | grep -e /var/log"
+  register: log_is_mountpoint
+  ignore_errors: True
+  when: deployer_coexisting is defined and log_mount_in_disk_model is defined
+  run_once: true
+  delegate_to: localhost
+
+- name: osconfig | disk config | Set log already mounted fact
+  set_fact:
+    log_already_mounted: true
+  when: deployer_coexisting is defined and log_mount_in_disk_model is defined and log_is_mountpoint.rc == 1
+  run_once: true
+  delegate_to: localhost
+
+- name: osconfig | disk config | Backup log dir before mounting log partition
+  sudo: yes
+  command: cp -dpr /var/log {{ ansible_env['HOME'] }}
+  when: log_already_mounted is defined
+  run_once: true
+  delegate_to: localhost
+
+- name: osconfig | disk config | Create the lv mount point if it does not exits
+  file:
+    path: "{{ item.1.mount }}"
+    state: directory
+  when: item.1.mount is defined
+  with_subelements:
+    - "{{ host.my_disk_models.volume_groups }}"
+    - logical_volumes
+
+- name: osconfig | disk config | mount lv fs
+  mount: name={{ item.1.mount }} src=/dev/{{ item.0.name }}/{{ item.1.name }} fstype={{ item.1.fstype }} state=mounted
+  when: item.1.mount is defined
+  with_subelements:
+    - "{{ host.my_disk_models.volume_groups }}"
+    - logical_volumes
+
+- name: osconfig | disk config | Set the lv root file system mode bits
+  file:
+    mode: "{{ item.1.mode }}"
+    path: "{{ item.1.mount }}"
+    state: directory
+  when: item.1.mount is defined and
+        item.1.mode is defined
+  with_subelements:
+    - "{{ host.my_disk_models.volume_groups }}"
+    - logical_volumes
+
+- name: osconfig | disk config | Restore log dir after mounting log partition
+  sudo: yes
+  command: cp -dpr {{ ansible_env['HOME'] }}/log /var
+  when: log_already_mounted is defined
+  run_once: true
+  delegate_to: localhost
+
+- name: osconfig | disk config | Remove log dir backup
+  sudo: yes
+  file: path={{ ansible_env['HOME'] }}/log state=absent
+  when: log_already_mounted is defined
+  run_once: true
+  delegate_to: localhost
+
+- name: osconfig | disk config | Restart Services using log dir prior to mounting
+  service: name=apache2 state=restarted
+  when: log_already_mounted is defined
+  run_once: true
+  delegate_to: localhost
+
+- name: osconfig | disk config | mkfs physical device no options
+  filesystem: fstype={{ item.1.fstype }} dev="{{ item.1.name }}"
+  when: ( item.1.mkfs_opts is not defined ) and ( item.1.fstype is defined )
+  with_subelements:
+    - "{{ host.my_disk_models.device_groups | default([]) }}"
+    - devices
+
+- name: osconfig | disk config | mkfs physical device with options
+  filesystem: fstype={{ item.1.fstype }} opts="{{ item.1.mkfs_opts }}" dev="{{ item.1.name }}"
+  when: ( item.1.mkfs_opts is defined ) and ( item.1.fstype is defined )
+  with_subelements:
+    - "{{ host.my_disk_models.device_groups | default([]) }}"
+    - devices
+
+- name: osconfig | disk config | Create the lv mount point if it does not exits
+  file:
+    path: "{{ item.1.mount }}"
+    state: directory
+  when: item.1.mount is defined
+  with_subelements:
+    - "{{ host.my_disk_models.device_groups | default([]) }}"
+    - devices
+
+- name: osconfig | disk config | mount pv fs
+  mount: name={{ item.1.mount }} src="{{ item.1.name }}" fstype={{ item.1.fstype }} state=mounted
+  when: item.1.mount is defined
+  with_subelements:
+    - "{{ host.my_disk_models.device_groups | default([]) }}"
+    - devices
+
+- name: osconfig | disk config | Set the pv root file system mode bits
+  file:
+    mode: "{{ item.1.mode }}"
+    path: "{{ item.1.mount }}"
+    state: directory
+  when: item.1.mount is defined and
+        item.1.mode is defined
+  with_subelements:
+    - "{{ host.my_disk_models.device_groups | default([]) }}"
+    - devices
+
+- name: osconfig | disk config | check if log restart needed
+  stat: path=/var/log/syslog
+  register: syslog_status
+
+- name: osconfig | disk config | restart syslog if needed
+  service: name=rsyslog state=restarted
+  when: syslog_status.stat.exists == False

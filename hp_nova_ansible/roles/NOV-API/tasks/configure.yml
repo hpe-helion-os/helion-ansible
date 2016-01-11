@@ -1,0 +1,63 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Configure the nova-api service
+---
+- include: ../../nova-common/tasks/_set_directories.yml
+  vars:
+    install_package_result: "{{ nova_api_install_result }}"
+- include: ../../nova-common/tasks/configure.yml
+
+- name: NOV-API | configure | notify on rootwrap or policy change
+  set_fact:
+    nova_api_restart_required: true
+  when: rootwrap_changed or copy_policy_result.changed
+
+- include: ../../nova-common/tasks/_write_conf.yml
+  src: "../../NOV-API/templates/api.conf.j2"
+  dest: "{{ nova_service_conf_dir }}/api.conf"
+  owner: "{{ nova_system_user }}"
+  group: "{{ nova_system_group }}"
+
+- name: NOV-API | configure | notify on api.conf change
+  set_fact:
+    nova_api_restart_required: true
+  when: write_conf_result.changed
+
+- name: NOV-API | configure | Apply template
+  become: yes
+  template:
+    src: "{{ item }}.j2"
+    dest: "{{ nova_service_conf_dir }}/{{ item }}"
+    owner: root
+    group: "{{ nova_system_group }}"
+    mode: 0640
+  with_items:
+    - "api-logging.conf"
+  notify:
+    - nova_api_config_change
+
+- name: NOV-API | configure | Copy files to {{ nova_service_conf_dir }}
+  become: yes
+  copy:
+    src: "{{ item }}"
+    dest: "{{ nova_service_conf_dir }}"
+    owner: root
+    group: "{{ nova_system_group }}"
+    mode: 0640
+  with_items:
+    - api-paste.ini
+  notify:
+    - nova_api_config_change

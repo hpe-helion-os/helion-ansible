@@ -1,0 +1,117 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: cobbler | populate | Cobbler sync
+  become: yes
+  command: cobbler sync
+
+# Make path for isos
+- name: cobbler | populate | Create directory for isos
+  become: yes
+  file: path=/srv/www/cobbler/iso state=directory
+
+# Remote distros
+
+- name: cobbler | populate | Check distro exists in cobbler
+  become: yes
+  with_items: remote_distros
+  command: cobbler distro report --name={{ item.name }}-{{ item.arch }}
+  register: distro_exists
+  ignore_errors: true
+
+- name: cobbler | populate | Create directory for net images
+  become: yes
+  file: path={{ item.item.file }} state=directory
+  when: item.rc != 0
+  with_items: distro_exists.results
+
+- name: cobbler | populate | Get net linux
+  become: yes
+  get_url: url={{ item.item.url }}/linux dest={{ item.item.file }}
+  with_items: distro_exists.results
+
+- name: cobbler | populate | Get net initrd.gz
+  become: yes
+  get_url: url={{ item.item.url }}/initrd.gz dest={{ item.item.file }}
+  with_items: distro_exists.results
+
+- name: cobbler | populate | Add distro
+  become: yes
+  command: cobbler distro add --name="{{ item.item.name }}-{{ item.item.arch }}" --kernel="{{ item.item.file }}/linux" --initrd="{{ item.item.file }}/initrd.gz" --arch={{ item.item.arch | quote }} --breed={{ item.item.breed }}
+  when: item.rc != 0
+  with_items: distro_exists.results
+
+- name: cobbler | populate | Add Profile
+  become: yes
+  command: cobbler profile add --name="{{ item.item.name }}-{{ item.item.arch }}" --distro="{{ item.item.name }}-{{ item.item.arch }}" --kickstart=/var/lib/cobbler/kickstarts/{{ item.item.kickstart | quote}}
+  when: item.rc != 0
+  with_items: distro_exists.results
+
+- name: cobbler | populate | Get baremetal server information
+  local_action: bmconfig file={{ baremetal_config }}
+  register: baremetal
+
+- name: cobbler | populate | Check system exists in cobbler
+  become: yes
+  with_items: baremetal.servers
+  command: cobbler system report --name={{ item.id | quote }}
+  register: systems_exists
+  ignore_errors: true
+
+# I think we should probably assign the ip addresses here as static
+# Need to get dhcp managed by cobbler
+- name: cobbler | populate | Load servers into cobbler
+  become: yes
+  shell: >
+    cobbler system add
+    --name={{ item.item.id | quote }}
+    --profile=hlinux-x86_64
+    --ip-address={{ item.item.ip_addr | quote }}
+    --kopts="interface={{ item.item.mac_addr | quote }} netcfg/dhcp_timeout={{ dhcp_timeout }} {{ item.item.kopt_extras | default('') }}"
+    --gateway={{ cobbler_gateway }}
+    --mac={{ item.item.mac_addr | quote }}
+    --interface={{ item.item.mac_addr | quote }}
+    --hostname={{ item.item.id | quote }}
+    --netboot-enabled=true
+    --power-type=ipmilan
+    --power-address={{ item.item.ilo_ip | quote }}
+    --power-user="redacted"
+    --power-pass="redacted"
+  when: item.rc != 0 and baremetal.whoami != item.item.id
+  with_items: systems_exists.results
+
+- name: cobbler | populate | Cobbler sync
+  become: yes
+  command: cobbler sync
+
+- name: cobbler | populate | setup grub.cfg post sync
+  become: yes
+  template: src=grub.cfg.j2 dest=/srv/tftp/boot/grub/grub.cfg
+
+- name: cobbler | populate | remove ldlinux.c32 symlink
+  become: yes
+  file: path=/srv/tftp/ldlinux.c32 state=absent
+
+- name: cobbler | populate | insert real ldlinux.c32 file
+  become: yes
+  command: cp /var/lib/cobbler/loaders/ldlinux.c32 /srv/tftp/ldlinux.c32
+
+# Seems we need the xinetd restart here
+- name: cobbler | populate | Enable and restart xinetd
+  become: yes
+  service: name=xinetd state=restarted enabled=yes
+

@@ -1,0 +1,94 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: kafka Status
+  hosts: FND-KFK
+  sudo: yes
+  tags: [kafka]
+  tasks:
+    - { include: roles/monasca-variables/tasks/service_status.yml, service_name: kafka}
+
+- name: vertica Status
+  hosts: FND-VDB
+  sudo: yes
+  tags: [vertica]
+  vars_files:
+    - roles/monasca-variables/defaults/main.yml
+    - roles/vertica/defaults/main.yml
+  tasks:
+    - { include: roles/vertica/tasks/status.yml, service_name: verticad, when: database_type=='vertica'}
+
+- name: influxdb Status
+  hosts: FND-IDB
+  sudo: yes
+  tags: [influxdb]
+  vars_files:
+    - roles/monasca-variables/defaults/main.yml
+  tasks:
+    - { include: roles/monasca-variables/tasks/service_status.yml, service_name: influxdb, when: database_type=='influxdb'}
+
+- name: monasca-api Status
+  hosts: MON-API
+  sudo: yes
+  tags: [monasca-api]
+  tasks:
+    - { include: roles/monasca-variables/tasks/service_status.yml, service_name: monasca-api}
+
+- name: monasca-persister Status
+  hosts: MON-PST
+  sudo: yes
+  tags: [monasca-persister]
+  tasks:
+    - { include: roles/monasca-variables/tasks/service_status.yml, service_name: monasca-persister}
+
+- name: monasca-notification Status
+  hosts: MON-NTF
+  sudo: yes
+  tags: [monasca-notification]
+  tasks:
+    - { include: roles/monasca-variables/tasks/service_status.yml, service_name: monasca-notification}
+
+- name: storm Status
+  hosts: MON-THR
+  sudo: yes
+  tags: [storm, thresh]
+  vars_files:
+    - roles/storm/vars/nodes.yml
+    - roles/storm/defaults/main.yml
+  tasks:
+    - include: roles/monasca-variables/tasks/service_status.yml service_name=storm-nimbus
+      when: storm_nimbus_enabled
+    - include: roles/monasca-variables/tasks/service_status.yml service_name=storm-supervisor
+      when: storm_supervisor_enabled
+    - include: roles/monasca-variables/tasks/service_status.yml service_name=storm-ui
+      when: storm_ui_enabled
+
+- name: monasca-thresh Status
+  hosts: MON-THR
+  sudo: yes
+  tags: [thresh]
+  vars_files:
+    - roles/storm/vars/nodes.yml
+  tasks:
+    - include: roles/monasca-variables/tasks/service_status.yml service_name=monasca-thresh
+      when: storm_nimbus_enabled
+
+- name: monasca-agent Status (on Monasca servers)
+  hosts: MON-AGN
+  sudo: yes
+  tags: [monasca-agent]
+  tasks:
+    - { include: roles/monasca-variables/tasks/service_status.yml, service_name: monasca-agent}

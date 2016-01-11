@@ -1,0 +1,82 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: setup group
+  group: name={{monasca_group}} system=yes
+  notify:
+    - monasca-notification | restart | restart monasca-notification
+
+- name: Setup user
+  user: name={{notification_user}} system=yes group={{monasca_group}}
+  notify:
+    - monasca-notification | restart | restart monasca-notification
+
+- name: create monasca log dir
+  file: path={{monasca_log_dir}} state=directory owner=root group={{monasca_group}} mode=775
+  notify:
+    - monasca-notification | restart | restart monasca-notification
+
+- name: create notification log dir
+  file: path={{notification_log_dir}} state=directory owner=root group={{monasca_group}} mode=775
+  notify:
+    - monasca-notification | restart | restart monasca-notification
+
+- name: stat /etc/monasca/notification.yaml file
+  stat: path=/etc/monasca/notification.yaml
+  register: notification_conf_file_result
+
+- name: move notification.yaml to notification.yaml.old if not a symlink
+  command: mv /etc/monasca/notification.yaml /etc/monasca/notification.yaml.old
+  when: notification_conf_file_result.stat.exists and notification_conf_file_result.stat.isreg
+
+- name: create conf file from template
+  template: dest="{{ monasca_notification_conf_dir }}/notification.yaml" owner={{ notification_user }} group={{ monasca_group }} mode=640 src=notification.yaml.j2
+  notify:
+    - monasca-notification | restart | restart monasca-notification
+
+- name: link /etc/monasca/notification.yaml to venv config
+  file:
+    path: /etc/monasca/notification.yaml
+    src: "{{ monasca_notification_conf_dir }}/notification.yaml"
+    state: link
+    owner: "{{ notification_user }}"
+    group: "{{ monasca_group }}"
+    mode: 640
+
+- name: Detect if this is a systemd based system
+  command: cat /proc/1/comm
+  register: init
+- set_fact: use_systemd=True
+  when: init.stdout == 'systemd'
+- set_fact: use_systemd=False
+  when: init.stdout != 'systemd'
+
+- name: create upstart script
+  template: dest={{notification_upstart_conf}} owner=root group=root mode=644 src=monasca-notification.conf.j2
+  notify:
+    - monasca-notification | restart | restart monasca-notification
+  when: not use_systemd
+
+- name: create systemd config
+  template: dest={{notification_systemd_service}} owner=root group=root mode=644 src=monasca-notification.service.j2
+  notify:
+    - monasca-notification | restart | restart monasca-notification
+  when: use_systemd
+
+- command: systemctl daemon-reload
+  when: use_systemd
+
+- meta: flush_handlers

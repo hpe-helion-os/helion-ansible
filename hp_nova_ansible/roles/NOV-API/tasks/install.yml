@@ -1,0 +1,58 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Install nova-api service
+---
+- name: NOV-API | install | Update installed packager cache
+  install_package:
+    cache: update
+
+- name: NOV-API | install | Install the nova-api service from the nova venv
+  install_package:
+    name: nova
+    service: nova-api
+    state: present
+    activate: act_off
+  register: nova_api_install_result
+  notify: nova_api_venv_change
+
+- include: ../../nova-common/tasks/_set_directories.yml
+  vars:
+    install_package_result: "{{ nova_api_install_result }}"
+
+- name: NOV-API | install | set service directories
+  set_fact:
+    nova_api_etc_dir: "{{ nova_component | config_dir(nova_api_install_result.version) }}"
+    nova_api_conf_dir: "{{ nova_component | config_dir(nova_api_install_result.version) }}/nova"
+    nova_api_bin_dir: "{{ nova_component | bin_dir(nova_api_install_result.version) }}"
+
+- name: NOV-API | install | Setup nova-api service
+  setup_systemd:
+    service: nova-api
+    user: "{{ nova_system_user }}"
+    group: "{{ nova_system_group }}"
+    cmd: nova-api
+    args: >
+      --config-file={{ nova_service_conf_dir }}/nova.conf
+      --config-file={{ nova_service_conf_dir }}/api.conf
+
+- name: NOV-API | install | Set nova-api service to not start on boot
+  service:
+    name: nova-api
+    enabled: no
+
+# This must happen after the install_package, or a path which is meant to be a
+# symlink will be mkdir'd
+- include: ../../nova-common/tasks/install.yml

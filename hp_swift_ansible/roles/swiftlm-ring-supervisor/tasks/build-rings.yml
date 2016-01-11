@@ -1,0 +1,34 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: swiftlm-ring-supervisor | build-rings | Build ring (make-delta, rebalance)
+  command: swiftlm-ring-supervisor
+           --make-delta --rebalance
+  register: report
+  run_once: true
+
+- name: swiftlm-ring-supervisor | build_rings| Print outcome
+  debug: var=report.stdout_lines
+
+- name: swiftlm-ring-supervisor | build_rings| Save outcome
+  shell: echo {{ report.stdout_lines }} > {{ swiftlm_etc }}/deploy_dir/swift-ring-builder-`date +%s`.changelog
+
+- name: swiftlm-ring-supervisor | build-rings | Tar up builder results
+  command: tar -cf /{{ swiftlm_etc }}/swift-rings-tarball.tar .
+  args:
+    chdir: "{{ swiftlm_etc }}/builder_dir"
+  run_once: true

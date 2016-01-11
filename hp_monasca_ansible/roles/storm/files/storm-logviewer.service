@@ -1,0 +1,14 @@
+[Unit]
+Description=Storm Logviewer daemon
+After=storm-nimbus.service zookeeper.service
+
+[Service]
+Type=simple
+User=storm
+Group=storm
+Restart=on-failure
+WorkingDirectory=/opt/storm/current
+ExecStart=/opt/storm/current/bin/storm logviewer
+
+[Install]
+WantedBy=multi-user.target

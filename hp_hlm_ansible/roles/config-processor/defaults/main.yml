@@ -1,0 +1,56 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Defaults for the config-processor
+---
+
+config_processor_bin_dir: "{{ 'config-processor' | bin_dir }}"
+config_processor_share_dir: "{{ 'config-processor' | share_dir }}/hlm-config-processor"
+
+config_processor_data_dir: "{{ config_processor_share_dir }}/Data"
+config_processor_driver_dir: "{{ config_processor_share_dir }}/Driver"
+
+config_processor_install_dir: "{{ git_operations_staging_directory }}"
+config_processor_runtime_dir: "{{ git_operations.cp_target_dir }}"
+config_processor_deploy_dir: "{{ git_operations.ansible_target_dir }}"
+
+config_processor_install_hos: "{{ config_processor_install_dir }}/hos"
+config_processor_runtime_hos: "{{ config_processor_runtime_dir }}/hos"
+config_processor_deploy_hos: "{{ config_processor_deploy_dir }}/{{ deploy_subdir }}/hos"
+config_processor_install_work: "{{ config_processor_install_dir }}/my_cloud"
+config_processor_runtime_work: "{{ config_processor_runtime_dir }}/my_cloud"
+config_processor_deploy_work: "{{ config_processor_deploy_dir }}/{{ deploy_subdir }}/my_cloud"
+
+config_processor_install:
+  schema:  "{{ config_processor_data_dir }}/Site"
+  service: "{{ config_processor_install_hos }}/services"
+  input: "{{ config_processor_install_work }}/definition"
+  output: "{{ config_processor_install_work }}"
+  log_dir: /var/log/configuration_processor
+  logfile_output: "/var/log/configuration_processor/output.log"
+  logfile_errors: "/var/log/configuration_processor/errors.log"
+
+config_processor_runtime:
+  schema:  "{{ config_processor_data_dir }}/Site"
+  service: "{{ config_processor_runtime_hos }}/services"
+  input: "{{ config_processor_runtime_work }}/definition"
+  output: "{{ config_processor_runtime_work }}"
+  log: /var/log/configuration_processor
+  target: "{{ config_processor_runtime_hos }}/ansible"
+
+config_processor_deploy:
+  output: "{{ config_processor_deploy_work }}"
+  log: /var/log/configuration_processor
+  target: "{{ config_processor_deploy_hos }}/ansible"

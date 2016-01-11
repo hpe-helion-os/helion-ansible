@@ -1,0 +1,52 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Playbook to apply the available system package upgrades
+---
+- hosts: resources
+  tasks:
+  - name: _hlm-upgrade-base | Install aptitude
+    become: yes
+    apt:
+      name: aptitude
+      state: latest
+      force: yes
+
+  - name: _hlm-upgrade-base | Get set of installed pkgs before upgrade
+    dpkg_list:
+
+  - name: _hlm-upgrade-base | Set pre_upgrade_pkgs fact
+    set_fact:
+      hlm_pre_upgrade_pkgs: "{{ installed_pkgs }}"
+
+  - name: _hlm-upgrade-base | Print list of pkgs available for upgrade
+    debug:
+      msg: "Packages available for upgrade: {{ list_pkg_upgrades_base | default([]) }}"
+
+  - name: _hlm-upgrade-base | Apply package updates
+    become: yes
+    apt:
+      upgrade: full
+
+  - name: _hlm-upgrade-base | Get set of installed pkgs after upgrade
+    dpkg_list:
+
+  - name: _hlm-upgrade-base | Set post_upgrade_pkgs fact
+    set_fact:
+      hlm_post_upgrade_pkgs: "{{ installed_pkgs }}"
+
+  - name: _hlm-upgrade-base | Set fact with full set of upgraded pkgs
+    set_fact:
+      hlm_upgraded_pkgs: "{{ hlm_pre_upgrade_pkgs | upgraded_pkgs(hlm_post_upgrade_pkgs) }}"

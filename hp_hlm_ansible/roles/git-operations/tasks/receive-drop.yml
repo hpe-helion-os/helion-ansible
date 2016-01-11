@@ -1,0 +1,71 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+# Receive a new HOS drop
+#
+# Create a new commit on a specified branch
+# We clone the branch into a scratch repo,
+# unconditionally lay down the new directory,
+# and commit those contents as a new commit,
+# pushing the successful change back to the
+# original branch.
+---
+
+- name: git-operations | receive-drop | Ensure our repo is in a ready state
+  include: check-repo-status.yml
+  vars:
+    repo: "{{ git_operations.main_repo }}"
+
+- name: git-operations | receive-drop | Add a .gitignore
+  file:
+    dest: "{{ git_operations.hos_import_dir }}/.gitignore"
+    state: touch
+
+- name: git-operations | receive-drop | .gitignore *.pyc
+  lineinfile:
+    dest: "{{ git_operations.hos_import_dir }}/.gitignore"
+    regexp: "{{ item.re }}"
+    line: "{{ item.line }}"
+  with_items:
+    - { re: "^\\*\\.pyc$", line: "*.pyc" }
+    - { re: "^{{ git_operations.cp_info_target }}$", line: "{{ git_operations.cp_info_target }}" }
+
+- name: git-operations | receive-drop | Receive a new source-code drop
+  include: _persist-to-git.yml
+  vars:
+    repo: "{{ git_operations.main_repo }}"
+    work_dir: "{{ git_operations.hos_scratch_dir }}"
+    commit_msg: "New drop"
+    branches:
+      - name: "{{ git_operations.upstream_branch }}"
+        copies:
+          - from: "{{ git_operations.hos_import_dir }}"
+            to: .
+
+- name: git-operations | receive-drop | Merge new HOS branch to site
+  include: _merge-site.yml
+  vars:
+    repo: "{{ git_operations.main_repo }}"
+    site_branch: "{{ git_operations.site_branch }}"
+    upstream_branch: "{{ git_operations.upstream_branch }}"
+
+- name: git-operations | receive-drop | Tell the user what to expect
+  debug:
+    msg: >
+      The directory {{ git_operations.main_repo }} contains a prepared merge
+      of your site configuration with the new upstream import.
+      Please review it and, if all is okay, commit it.
+      This manual stage is required prior to running the configuration processor.

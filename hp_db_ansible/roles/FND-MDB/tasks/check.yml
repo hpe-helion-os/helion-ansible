@@ -1,0 +1,40 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+---
+
+- name: This bootstrap procedure will WIPE all database data other than that on the first controller
+  pause:
+     prompt: |
+
+         You have 5 minutes to abort this procedure with a ctrl+c
+
+         This procedure assumes the database which exists on {{ inventory_hostname}} is the latest.
+         The database server (mysqld) on {{ inventory_hostname}} should be the last mysqld in your Percona
+         cluster to shutdown and therefore the host with the latest sequence number.
+         The sequence number on a host can be found using
+                 $ sudo cat /var/lib/mysql/grastate.dat
+         If the sequence number is -1 in the grastate.dat use
+                 $ sudo /usr/bin/mysqld_safe --wsrep-recover
+         when mysqld is down, this logs the sequence number to /var/log/mysql/error.log
+         If {{ inventory_hostname}} does not have the latest sequence number from the list of the
+         above controllers then DO NOT use this procedure to bootstrap.
+  delegate_to: 127.0.0.1
+
+- name: 5 minutes to reconsider. press ctrl+c then c if you are sure. if not press ctrl+c then a to abort.
+  pause: minutes=5
+  delegate_to: 127.0.0.1
+

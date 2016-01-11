@@ -1,0 +1,51 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+swift_component: swift_account
+
+# Flag to track restart requirement
+swift_account_reload_required: false
+swift_account_restart_required: false
+
+# Default service directories
+swift_account_server_conf_dir: "{{ 'swift-account-server' | config_dir() }}"
+
+# cmd          Identifies the name of the binary used when starting the service
+# conf         Specifies the name of the conf file to pass on the cmd line
+#              when starting the service
+# conf_service Specifies the name of the service that contains the conf file
+# main         Identifies the "main" swift services. It is currently not used.
+swift_account_services:
+  swift-account-server:
+    cmd: swift-account-server
+    conf: account-server.conf
+    conf_service: swift-account-server
+    main: true
+  swift-account-auditor:
+    cmd: swift-account-auditor
+    conf: account-server.conf
+    conf_service: swift-account-server
+    main: false
+  swift-account-reaper:
+    cmd: swift-account-reaper
+    conf: account-server.conf
+    conf_service: swift-account-server
+    main: false
+  swift-account-replicator:
+    cmd: swift-account-replicator
+    conf: account-server.conf
+    conf_service: swift-account-server
+    main: false

@@ -1,0 +1,56 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Install nova-novncproxy service
+---
+- name: NOV-VNC | install | Update installed packager cache
+  install_package:
+    cache: update
+
+- name: NOV-VNC | install | Install the nova-novncproxy service from the nova venv
+  install_package:
+    name: nova
+    service: nova-novncproxy
+    state: present
+    activate: act_off
+  register: nova_novncproxy_install_result
+  notify: nova_novncproxy_venv_change
+
+- include: ../../nova-common/tasks/_set_directories.yml
+  vars:
+    install_package_result: "{{ nova_novncproxy_install_result }}"
+
+- name: NOV-VNC | install | Setup nova-novncproxy service
+  setup_systemd:
+    service: nova-novncproxy
+    user: "{{ nova_system_user }}"
+    group: "{{ nova_system_group }}"
+    cmd: nova-novncproxy
+    args: >
+      --config-file {{ nova_service_conf_dir }}/nova.conf
+      --config-file {{ nova_service_conf_dir }}/rootwrap.conf
+      --config-file {{ nova_service_conf_dir }}/novncproxy.conf
+
+- name: NOV-VNC | install | Set nova-novncproxy service to not start on boot
+  service:
+    name: nova-novncproxy
+    enabled: no
+
+- include: ../../nova-common/tasks/install.yml
+
+- name: NOV-VNC | install | notify restart on package update
+  set_fact:
+    nova_novncproxy_restart_required: true
+  when: check_updated_packages_result.changed

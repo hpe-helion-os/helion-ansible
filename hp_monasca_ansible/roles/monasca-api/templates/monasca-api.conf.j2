@@ -1,0 +1,28 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+# Startup script for the Monasca API
+
+description "Monasca API java app"
+start on runlevel [2345]
+
+console log
+respawn
+
+setgid {{ monasca_group }}
+setuid {{ monasca_api_user }}
+exec /usr/bin/java {{ monasca_api_java_opts }} -cp {{ monasca_jars_virtualenv_dir }}/lib/monasca-api-{{monasca_api_version}}-shaded.jar:{{ vertica_jdbc_location }} monasca.api.MonApiApplication server {{ 'monasca' | config_dir() }}/api-config.yml

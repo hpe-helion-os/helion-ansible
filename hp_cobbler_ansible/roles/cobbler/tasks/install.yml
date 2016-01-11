@@ -1,0 +1,142 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Playbook for installing cobbler
+---
+
+- name: cobbler | install | Install json validator
+  become: yes
+  apt:
+    name: python-jsonschema
+    state: present
+
+- name: cobbler | install | Install python-yaml
+  become: yes
+  apt:
+    name: python-yaml
+    state: present
+
+- name: cobbler | install | Create validate json script
+  copy: src=validate_yaml dest=~/ mode="u=rwx"
+
+- name: cobbler | install | Validate json schema
+  command: ~/validate_yaml {{ baremetal_config_schema }} {{ baremetal_config }}
+
+- name: cobbler | install | Install cobbler
+  become: yes
+  apt:
+    name: cobbler
+    state: present
+    force: yes
+
+# Install files required for syslinux bootloader
+- name: cobbler | install | Install syslinux-common
+  become: yes
+  apt:
+    name: syslinux-common
+    state: present
+    force: yes
+
+- name: cobbler | install | Install debian-installer-8-netboot-amd64
+  become: yes
+  apt:
+    name: debian-installer-8-netboot-amd64
+    state: present
+    force: yes
+
+# Remove any old atftp (this also stops the service)
+- name: cobbler | install | Remove atftpd
+  become: yes
+  apt:
+    name: atftpd
+    state: absent
+    force: yes
+
+- name: cobbler | install | Install tftpd-hpa
+  become: yes
+  apt:
+    name: tftpd-hpa
+    state: present
+    force: yes
+
+- name: cobbler | install | stop tftpd-hpa
+  become: yes
+  command: systemctl stop tftpd-hpa
+
+- name: cobbler | install | disable tftpd-hpa
+  become: yes
+  command: systemctl disable tftpd-hpa
+
+- name: cobbler | install | Install xinetd
+  become: yes
+  apt:
+    name: xinetd
+    state: present
+    force: yes
+
+- name: cobbler install | Get interface name
+  shell: netstat -ie | grep -B1 "{{ cobbler_server_ip_addr }}" | head -n1 | awk '{ print $1 }'
+  register: interface_name
+
+- name: check if interface matches baremetal file
+  fail: msg="Please update your baremetal file with the new interface name {{ interface_name.stdout }}"
+  when: interface_name.stdout != cobbler_server_interface
+
+# isc-dhcp-server will fail to install if dest=/etc/default/isc-dhcp-server is not present
+# and containing the INTERFACES param
+# TODO - Log bugzilla for this packaging issue
+- name: cobbler | install | Create isc-dhcp-server conf file
+  become: yes
+  template: src=isc-dhcp-server.j2 dest=/etc/default/isc-dhcp-server
+
+- name: cobbler | install | Install isc-dhcp-server
+  become: yes
+  apt:
+    name: isc-dhcp-server
+    state: present
+
+- name: cobbler | install | Create dhcp conf file
+  become: yes
+  template: src=dhcpd.conf.j2 dest=/etc/dhcp/dhcpd.conf
+
+# Required for ipmi interactions
+- name: cobbler | install | Install fence-agents
+  become: yes
+  apt:
+    name: fence-agents
+    state: present
+
+- name: cobbler | install | Create ipmi lanplus power file
+  become: yes
+  copy: src=fence_ipmilan.template dest=/etc/cobbler/power/fence_ipmilan.template
+
+- name: cobbler | install | Install ipmitool
+  become: yes
+  apt:
+    name: ipmitool
+    state: present
+
+- name: cobbler | install | Get deployer pub ssh key
+  command: cat {{ hlmuser_home }}/.ssh/id_rsa.pub
+  register: sshkeyoutput
+
+
+- name: cobbler | install | Save deployer ssh key
+  set_fact: deployer_ssh_pub_key="{{ sshkeyoutput.stdout }}"
+
+- name: cobbler | install | Install kickstarts
+  become: yes
+  template: src={{ item.kickstart }}.j2 dest=/var/lib/cobbler/kickstarts/{{ item.kickstart }}
+  with_items: remote_distros

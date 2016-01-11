@@ -1,0 +1,49 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: rabbitmq | post-configure | Set the RabbitMQ cluster name
+  command: rabbitmqctl set_cluster_name {{ rabbitmq_cluster_name }}
+  run_once: true
+
+- name: rabbitmq | post-configure | Remove guest user
+  rabbitmq_user:
+    node: "{{ rabbitmq_node }}"
+    user: "guest"
+    state: absent
+  run_once: true
+
+- name: rabbitmq | post-configure | Create RabbitMQ service admin user
+  no_log: true
+  rabbitmq_user:
+    node: "{{ rabbitmq_node }}"
+    user: "{{ rabbitmq_cp.service_user }}"
+    password: "{{ rabbitmq_cp.service_password | quote }}"
+    vhost: "/"
+    configure_priv: ".*"
+    read_priv: ".*"
+    write_priv: ".*"
+    tags: "administrator"
+    state: present
+  run_once: true
+
+- name: rabbitmq | post-configure | Run the Monasca detection plugin for rabbitmq
+  no_log: true
+  monasca_agent_plugin:
+    name: rabbitmq
+    args: >
+      api_url=http://{{ rabbitmq_cp.management_address.ip }}:{{ rabbitmq_cp.management_address.port }}/api
+      user={{ rabbitmq_cp.service_user }}
+      password={{ rabbitmq_cp.service_password | quote }}

@@ -1,0 +1,55 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+# Restart or start Cinder Volume
+- include: ./_activate.yml
+
+- name: Cinder Volume | start | Start tgt service
+  service: name=tgt state=started
+
+- name: Cinder Volume | start | Restart cinder-volume service
+  service:
+    name: cinder-volume
+    state: restarted
+  when: cinder_restart_required or cinder_volume_restart_required
+
+- name: Cinder Volume | start | Ensure cinder-volume service is started
+  service:
+    name: cinder-volume
+    state: started
+
+- name: Cinder Volume | start | Check if cindervolume.fact file is present
+  stat: path=/etc/ansible/facts.d/cindervolume.fact
+  register: cinder_fact_result
+
+- name: Cinder Volume | start | Create cindervolume.fact file
+  template: >
+    src=cindervolume.fact.j2
+    dest=/etc/ansible/facts.d/cindervolume.fact
+    owner=root
+    group=root
+    mode=0644
+  when: cinder_fact_result.stat.exists == False
+
+- name: Cinder Volume | start | Set cinder-volume running status to True in fact file
+  ini_file:
+    dest=/etc/ansible/facts.d/cindervolume.fact
+    section=status
+    option=running
+    value=True
+
+- name: Cinder Volume | start | Re-read facts after adding custom fact
+  setup: filter=ansible_local

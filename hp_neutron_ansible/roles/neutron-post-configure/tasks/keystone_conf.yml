@@ -1,0 +1,73 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Neutron keystone configuration
+---
+
+
+- name: neutron-server | populate | Get a domain scoped token
+  keystone_v3: >
+    endpoint={{ keystone.endpoint }}
+    login_username={{ keystone.admin_user }}
+    login_password={{ keystone.admin_password }}
+    login_user_domain_name={{ keystone.default_domain_name }}
+    login_domain_name={{ keystone.default_domain_name }}
+    action="token_get"
+  run_once: true
+  register: domain_scoped_token
+
+- name: neutron-server | populate | Create Neutron Service User
+  keystone_v3: >
+    user_name={{ keystone.neutron_admin_user }}
+    user_domain_name={{ keystone.default_domain_name }}
+    user_password={{ keystone.neutron_admin_password }}
+    login_token={{ domain_scoped_token.result }}
+    endpoint={{ keystone.endpoint }}
+    action="create_user"
+  run_once: true
+
+- name: neutron-server | populate | Create Neutron Service user-role assignment
+  keystone_v3: >
+    user_name={{ keystone.neutron_admin_user }}
+    project_name={{ keystone.service_tenant }}
+    user_domain_name={{ keystone.default_domain_name }}
+    project_domain_name={{ keystone.default_domain_name }}
+    role_name='admin'
+    login_token={{ domain_scoped_token.result }}
+    endpoint={{ keystone.endpoint }}
+    action="grant_project_role"
+  run_once: true
+
+- name: neutron-server | populate | Create Neutron Service
+  keystone_v3: >
+    endpoint={{ keystone.endpoint }}
+    login_token={{ domain_scoped_token.result }}
+    service_type='network'
+    service_name='neutron'
+    description='OpenStack Networking Service'
+    action="create_service"
+  run_once: true
+
+- name: neutron-server | populate | Create Neutron Endpoint
+  keystone_v3: >
+    endpoint={{ keystone.endpoint }}
+    login_token={{ domain_scoped_token.result }}
+    service_name='neutron'
+    region={{ neutron_api.public_region }}
+    admin_url={{ neutron_api.admin_url }}
+    internal_url={{ neutron_api.internal_url }}
+    public_url={{ neutron_api.public_url }}
+    action="create_endpoint"
+  run_once: true

@@ -1,0 +1,46 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+# Variables specific to all ceph services
+fsid: 2645bbf6-16d0-4c42-8835-8ba9f5c95a1d
+ceph_user: root
+ceph_group: root
+ceph_cluster: ceph
+ceph_release: firefly
+osd_pool_default_size: 3
+osd_pool_default_pg_num: 128
+
+# Variables specific to OSD
+fstype: xfs
+zap_data_disk: True
+persist_mountpoint: fstab
+osd_settle_time: 10
+osd_journal_size: 5120
+data_disk_poll_attempts: 5
+data_disk_poll_interval: 12
+
+# Variables specific to MON
+mon_default_dir: /var/lib/ceph/mon/{{ ceph_cluster }}
+
+# Additional parameters of ceph configuration can be injected via below section
+# extra:
+#   section1:
+#     key1: value
+#     key2: value
+#   section2:
+#     key1: value
+#     key2: value

@@ -1,0 +1,96 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+keystone_hosts: "{{ groups['KEY-API'] }}"
+
+keystone_user: keystone
+keystone_group: keystone
+
+service: keystone
+
+keystone_conf_dir: "/etc/keystone"
+keystone_venv_install_conf_dir: "{{ service | config_dir() }}"
+keystone_venv_install_share_dir: "{{ service | share_dir() }}/"
+keystone_bin_dir: "{{ service | bin_dir }}"
+keystone_venv_dir: "{{ service | venv_dir }}"
+keystone_share_dir: "{{ service | share_dir }}"
+keystone_admin_domain_id: "default"
+
+keystone_fernet_dir_name: fernet-keys
+keystone_fernet_dir: "{{ keystone_conf_dir }}/{{ keystone_fernet_dir_name }}/"
+keystone_database_connection_string: "mysql://{{ KEY_API.consumes_FND_MDB.vars.mysql_admin_user }}:{{ KEY_API.consumes_FND_MDB.vars.mysql_admin_password | quote }}@{{ KEY_API.consumes_FND_MDB.vips.public[0].host }}/keystone"
+
+keystone_public_port: 5000
+
+vip_protocol_admin: "{{ KEY_API.advertises.vips.admin[0].protocol }}"
+keystone_admin_vip_host: "{{ KEY_API.advertises.vips.admin[0].host }}"
+keystone_admin_vip_port: "{{ KEY_API.advertises.vips.admin[0].port }}"
+
+vip_protocol_internal: "{{ KEY_API.advertises.vips.private[0].protocol }}"
+keystone_internal_vip_host: "{{ KEY_API.advertises.vips.private[0].host }}"
+keystone_internal_vip_port: "{{ KEY_API.advertises.vips.private[0].port }}"
+
+vip_protocol_public: "{{ KEY_API.advertises.vips.public[0].protocol }}"
+keystone_public_vip_host: "{{ KEY_API.advertises.vips.public[0].host }}"
+keystone_public_vip_port: "{{ KEY_API.advertises.vips.public[0].port }}"
+
+keystone_admin_endpoint: "{{ KEY_API.advertises.vips.admin[0].url }}"
+keystone_internal_endpoint: "{{ KEY_API.advertises.vips.private[0].url }}"
+keystone_public_endpoint: "{{ KEY_API.advertises.vips.public[0].url  }}"
+
+keystone_admin_token: "{{ KEY_API.vars.keystone_admin_token | quote }}"
+
+keystone_service_project_name: "{{ KEY_API.vars.keystone_service_tenant }}"
+keystone_admin_project_name: "{{ KEY_API.vars.keystone_admin_tenant }}"
+keystone_demo_project_name:  "{{ KEY_API.vars.keystone_demo_tenant }}"
+
+keystone_admin_role: "{{ KEY_API.vars.keystone_admin_role }}"
+keystone_keystoneadmin_role: "{{ KEY_API.vars.keystone_KeystoneAdmin_role }}"
+keystone_member_role: "{{ KEY_API.vars.keystone_member_role }}"
+
+keystone_default_domain: Default
+keystone_v2_domain_name: "{{ keystone_default_domain }}"
+keystone_v2_project_domain_name:  "{{ keystone_v2_domain_name }}"
+keystone_v2_user_domain_name:  "{{ keystone_v2_domain_name }}"
+keystone_region: "{{ KEY_API.advertises.vips.public[0].region_name }}"
+
+keystone_admin_user: "{{ KEY_API.vars.keystone_admin_user }}"
+keystone_admin_user_pwd: "{{ KEY_API.vars.keystone_admin_pwd | quote }}"
+keystone_demo_user: "{{ KEY_API.vars.keystone_demo_user }}"
+keystone_demo_pwd: "{{ KEY_API.vars.keystone_demo_pwd | quote }}"
+
+# Message queue variables
+_mq_hosts_list: "{{ KEY_API.consumes_FND_RMQ.members.private | default (KEY_API.consumes_FND_RMQ.members.public) }}"
+
+keystone_rabbit_hosts_port_pair:
+  "{% for x in _mq_hosts_list -%}
+   {{ x.host }}:{{ x.port }}
+   {%- if not loop.last -%},{% endif %}
+   {%- endfor %}"
+
+keystone_rabbit_user: "{{ KEY_API.consumes_FND_RMQ.vars.rmq_service_user }}"
+keystone_rabbit_password: "{{ KEY_API.consumes_FND_RMQ.vars.rmq_service_password }}"
+keystone_rabbit_is_ssl: false
+
+keystone_cloudadmin_domain: cloud_admin
+is_baremetal_install: "{{ True if ansible_virtualization_role == 'host' else False  }}"
+
+# This is used only for tuning virtual install
+keystone_default_process_count: 10
+
+keystone_settle_time: 30
+keystone_restart_required: false

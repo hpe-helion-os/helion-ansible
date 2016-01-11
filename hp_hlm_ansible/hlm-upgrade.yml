@@ -1,0 +1,32 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+# Pre-Upgrade Phase
+- include: hlm-status.yml
+- include: hlm-upgrade-pkg-query.yml
+- include: upgrade-bootstrap.yml
+#-include: _osconfig-pre-upgrade.yml TODO: Add to osconfig-ansible
+- include: _hlm-service-pre-upgrade.yml
+# Upgrade phase
+- include: _hlm-upgrade-base.yml
+- include: _osconfig-upgrade.yml
+- include: _hlm-service-upgrade.yml
+# Post-Upgrade phase
+#-include: _osconfig-post-upgrade.yml TODO: Add to osconfig-ansible
+- include: _hlm-service-post-upgrade.yml
+- include: hlm-upgrade-pkg-verify.yml
+- include: hlm-status.yml

@@ -1,0 +1,30 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: kafka | restart | restart all kafka services
+  shell: echo ""
+  notify:
+    - kafka | restart | restart kafka service
+    - kafka | restart | wait for kafka port
+  when: run_mode == 'Configure' or run_mode == 'Upgrade'
+
+- name: kafka | restart | restart kafka service
+  service: name=kafka state=restarted enabled=yes
+  when: run_mode == 'Configure' or run_mode == 'Upgrade'
+
+- name: kafka | restart | wait for kafka port
+  wait_for: host={{kafka_listen_address| default('localhost')}} port={{kafka_port}} state=started timeout={{ monasca_wait_for_period }}
+  when: verify and (run_mode == 'Configure' or run_mode == 'Upgrade')

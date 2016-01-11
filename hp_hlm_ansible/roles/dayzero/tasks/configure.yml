@@ -1,0 +1,61 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Playbook for configuring Day Zero UI
+---
+
+- name: dayzero | configure | Create dayzero.service.d folder
+  become: yes
+  file:
+    path: "/usr/lib/systemd/system/dayzero.service.d"
+    state: directory
+
+- name: dayzero | configure | Apply systemd template
+  become: yes
+  template:
+    src: "{{ item }}.j2"
+    dest: "/usr/lib/systemd/system/dayzero.service.d/{{ item }}"
+  with_items:
+    - "local.conf"
+  notify: dayzero_change
+
+- name: dayzero | configure | Enable proxy-pass module
+  become: yes
+  command: a2enmod proxy_http
+
+# In Beta 2, the dayzero-apache.conf file was added incorrectly
+# so we are removing that old file if it exists
+- name: dayzero | configure | Check for dayzero-apache.conf file
+  become: yes
+  stat: path=/etc/apache2/sites-enabled/dayzero-apache.conf
+  register: dayzero_conf_result
+
+- name: dayzero | configure | Remove old config file if present
+  become: yes
+  file:
+    path: "/etc/apache2/sites-enabled/dayzero-apache.conf"
+    state: absent
+  when: dayzero_conf_result.stat.islnk is defined and dayzero_conf_result.stat.islnk == False
+
+- name: dayzero | configure | create apache config file
+  become: yes
+  template:
+    src: "{{ item }}.j2"
+    dest: "/etc/apache2/sites-available/{{ item }}"
+    owner: root
+    group: root
+    mode: 0664
+  with_items:
+    - "dayzero-apache.conf"

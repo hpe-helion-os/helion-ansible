@@ -1,0 +1,238 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+DOCUMENTATION = '''
+---
+module: debian_restart_networking
+short_description: A module for restarting Debian networking
+options:
+  shadow_path:
+    description:
+      - path of the directory where the shadow configuration
+      - is stored.
+    required: true
+    default: /etc/network/.shadow
+  force_restart:
+    description:
+      - Force a restart, regardless of differences
+    required: false
+    default: false
+  restart_ovs:
+    description:
+      - Should OpenVSwitch be restarted
+    required: false
+    default: false
+  management_pattern:
+    description:
+      - String to search for in interfaces files to
+      - indicate that they are HLM managed
+    required: false
+    default: None
+author:
+'''
+
+EXAMPLES = '''
+- debian_restart_networking: shadow_path=/etc/network/.shadow restart_ovs=true management_pattern="# HLM Managed"
+'''
+
+import logging
+import logging.handlers
+import os
+import shutil
+import filecmp
+import time
+
+log = logging.getLogger(__name__)
+
+def init_logging():
+    syslog_handler = logging.handlers.SysLogHandler(address = '/dev/log')
+    formatter = logging.Formatter('%(module)s: %(message)s')
+    syslog_handler.setFormatter(formatter)
+    log.addHandler(syslog_handler)
+    log.setLevel(logging.INFO)
+
+def main():
+    module = AnsibleModule(
+        argument_spec=dict(
+            shadow_path=dict(required=True),
+            force_restart = dict(required=False, choices=BOOLEANS+['True', True,
+                                                 'False', False], default=False),
+            restart_ovs = dict(required=False, choices=BOOLEANS+['True', True,
+                                                 'False', False], default=False),
+            management_pattern = dict(required=False, default=None),
+        ),
+        supports_check_mode=False
+    )
+
+    interfaces_directory = '/etc/network/interfaces.d'
+    shadow_path = module.params['shadow_path']
+    force_restart = module.boolean(module.params['force_restart'])
+    restart_ovs = module.boolean(module.params['restart_ovs'])
+    management_pattern = module.params['management_pattern']
+
+    init_logging()
+
+    try:
+
+        if not os.path.isdir(shadow_path):
+            raise Exception('Shadow directory not found: %s' % shadow_path)
+
+        # Get the list of shadow and interface files and arrange accordingly
+        shadow_files = set(dir_scan(shadow_path))
+        interface_files = set(get_interfaces_files(module, interfaces_directory, management_pattern))
+        missing_files = shadow_files - interface_files
+        extra_files = interface_files - shadow_files
+        common_files = shadow_files & interface_files
+        missing_files.update(compare_files(shadow_path, interfaces_directory, common_files))
+        extra_files.update(find_legacy_files(shadow_files, interfaces_directory))
+
+        if len(missing_files) > 0 or len(extra_files) > 0:
+            # There are updates - we need to restart the network
+            force_restart = True
+
+        if not force_restart:
+            log.info("No network install or restart needed")
+            module.exit_json(**dict(changed=False, rc=0))
+
+        log.info("Update Helion-managed interfaces in /etc/network/interfaces and %s" % interfaces_directory)
+
+        flush_interfaces(module)
+        clean_interfaces_file(shadow_files, module)
+
+        # 'networking restart' will ifdown/up all interfaces
+        # It will also cause the udev system to reload its config
+        log.info('Stop networking services')
+        module.run_command('service networking stop', check_rc=True)
+
+        # Remove any additional (managed) files from the interfaces dir
+        for file in extra_files:
+            log.info('Removing interface definition file %s' % file)
+            os.remove(os.path.join(interfaces_directory, file))
+
+        # Install each of the files from the shadow path
+        for file in missing_files:
+            log.info('Installing interface definition file %s' % file)
+            src_path = os.path.join(shadow_path, file)
+            dest_path = os.path.join(interfaces_directory, file)
+            shutil.copy(src_path, dest_path)
+            shutil.copystat(src_path, dest_path)
+
+        # Reload the udev device mappings
+        log.info('Trigger udev mapping of network devices')
+        module.run_command('udevadm control --reload', check_rc=True)
+        module.run_command('udevadm trigger --action=add --subsystem-match=net', check_rc=True)
+        module.run_command('udevadm settle --timeout 60', check_rc=True)
+
+        log.info('Start networking services')
+        module.run_command('service networking start', check_rc=True)
+
+        if restart_ovs:
+            # bring up all ovs managed interfaces
+            log.info('Bring up openvswitch interfaces')
+            module.run_command('ifup --all --allow ovs --force --ignore-errors', check_rc=True)
+
+        # Wait for network to settle and reconfigure before continuing
+        # Ideally we'd test the network state, but that's not trivial.
+        log.info('Wait for the network to settle')
+        time.sleep(20)
+
+        log.info('Network install and restart completed successfully')
+
+    except Exception, e:
+        module.fail_json(msg='Exception: %s' % e)
+    else:
+        module.exit_json(**dict(changed=True, rc=0))
+
+def compare_files(shadow_path, interfaces_directory, files):
+    # Compare files in both locations and return a list of ones which
+    # are different
+    diffs = []
+    for file in files:
+        src_path = os.path.join(shadow_path, file)
+        dest_path = os.path.join(interfaces_directory, file)
+        if not filecmp.cmp(src_path, dest_path):
+            diffs.append(file)
+    return diffs
+
+def flush_interfaces(module):
+    # Retrieve active interfaces
+    rc, stdout, stderr = module.run_command('ifquery --state', check_rc=False)
+    log.info('Force down and flush IP configuration for all interfaces')
+    for interface in stdout.split():
+        if interface == 'lo':
+            continue
+        module.run_command('timeout -s KILL 60 ifdown --force --ignore-errors %s' % interface, check_rc=False)
+        # for now also do an 'ifconfig down' on the interface since just an ifdown isn't reliable
+        module.run_command('timeout -s KILL 60 ifconfig %s down' % interface, check_rc=False)
+        module.run_command('ip addr flush dev %s' % interface, check_rc=False)
+
+def find_legacy_files(shadow_files, interfaces_directory):
+    # Delete any files for interfaces that are 'newly' managed by HLM
+    legacy_files = []
+    for interface_name in get_interface_names(shadow_files):
+        if os.path.exists(os.path.join(interfaces_directory, interface_name)):
+            legacy_files.append(interface_name)
+    return legacy_files
+
+def clean_interfaces_file(shadow_files, module):
+    # Remove any configuration stanzas in the /etc/network/interfaces
+    # file which match interfaces to be managed and whose stanzas start
+    # with 'auto' or 'iface'.  This will remove the stanza to the first
+    # 'blank' line.
+    for hlm_interface_name in get_interface_names(shadow_files):
+        module.run_command("sed -e '/auto %s/,/^$/d' -i /etc/network/interfaces" % hlm_interface_name, check_rc=True)
+        module.run_command("sed -e '/iface %s/,/^$/d' -i /etc/network/interfaces" % hlm_interface_name, check_rc=True)
+
+def get_interface_names(shadow_files):
+    interface_names = []
+    for config_file in shadow_files:
+        #Strip the first 3 characters off the file name
+        name = config_file.partition('-')[2]
+        interface_names.append(name)
+    return interface_names
+
+def get_interfaces_files(module, interfaces_directory, management_pattern=None):
+    # Get the list of managed files in the interfaces directory
+    files = dir_scan(interfaces_directory)
+    if not management_pattern:
+        return files
+
+    def matches_pattern(file):
+        rc, out, err = module.run_command("grep -s '^%(hlm)s' %(location)s" % {
+            'hlm':management_pattern,
+            'location':os.path.join(interfaces_directory, file)},
+            check_rc=False)
+        return rc == 0
+    return filter(matches_pattern, files)
+
+def dir_scan(root_path, dir_path = ''):
+    # Scan the named directory looking for files. Return an array of
+    # relative paths (to root_path).
+    files = []
+    for file in os.listdir(os.path.join(root_path, dir_path)):
+        rel_path = os.path.join(dir_path, file)
+        if os.path.isdir(os.path.join(root_path, rel_path)):
+            files += dir_scan(root_path, rel_path)
+        else:
+            files.append(rel_path)
+    return files
+
+# import module snippets
+from ansible.module_utils.basic import *
+if __name__ == '__main__':
+    main()

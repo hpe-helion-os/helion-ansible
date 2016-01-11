@@ -1,0 +1,26 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# CP variables
+---
+keystone:
+  nova_admin_user: "{{ NOV_API.consumes_KEY_API.vars.keystone_nova_user }}"
+  nova_admin_password: "{{ NOV_API.consumes_KEY_API.vars.keystone_nova_password | quote }}"
+  role: "{{ KEY_API.vars.keystone_admin_role }}"
+  service_tenant: "{{ KEY_API.vars.keystone_service_tenant }}"
+  url: "{{ NOV_API.consumes_KEY_API.vips.admin[0].url }}"
+nova_api:
+  internal_url: "{{ NOV_API.advertises.vips.private[0].url }}/v2/%(tenant_id)s"
+  internal_region: "{{ NOV_API.advertises.vips.private[0].region_name }}"

@@ -1,0 +1,51 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+# TODO: Change running of hlm-config-processor to use input files sync across
+- name: config-processor | run-config-processor | Run Configuration Processor over the given cloud configuration
+  command: |
+    timeout 600 {{config_processor_bin_dir }}/python
+      {{ config_processor_driver_dir }}/hlm-cp
+      -c {{ config_processor_runtime.input }}/cloudConfig.yml
+      -l {{ config_processor_runtime.log }}
+      -s {{ config_processor_runtime.service }}
+      -r {{ config_processor_runtime.schema }}
+      {% if remove_deleted_servers is defined %} -d {% endif %}
+      {% if free_unused_addresses is defined %} -f {% endif %}
+      {% if encrypt != '' %}
+           -q
+          {% if rekey == '' %}
+              -e -x {{ encrypt }}
+          {% elif rekey != '' %}
+              -k -x {{ rekey }} -y {{ encrypt }}
+          {% endif %}
+      {% endif %}
+      -w
+  args:
+    chdir: "{{ config_processor_runtime.output }}"
+  register: config_processor_result
+  ignore_errors: True
+  no_log: True
+
+- debug: var=config_processor_result.stdout_lines
+  when: config_processor_result.stdout_lines is defined
+
+- debug: var=config_processor_result.stderr
+  when: config_processor_result.stderr is defined and config_processor_result.stderr != ""
+
+- fail: msg="Configuration processor run failed, see log output above for details"
+  when: (config_processor_result is defined) and (config_processor_result.rc != 0) or ('failed' in config_processor_result.stdout)

@@ -1,0 +1,145 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+name: monasca-persister
+
+alarmHistoryConfiguration:
+  batchSize: {{ monasca_persister_alarm_batch_size }}
+  numThreads: {{ monasca_persister_alarm_threads }}
+  maxBatchTime: {{ monasca_persister_alarm_max_batch_time }}
+# See http://kafka.apache.org/documentation.html#api for semantics and defaults.
+  topic: alarm-state-transitions
+  groupId: 1_alarm-state-transitions
+  consumerId: "{{ monasca_persister_hostname }}"
+  clientId : 1
+
+metricConfiguration:
+  batchSize: {{ monasca_persister_metric_batch_size }}
+  numThreads: {{ monasca_persister_metric_threads }}
+  maxBatchTime: {{ monasca_persister_metric_max_batch_time }}
+# See http://kafka.apache.org/documentation.html#api for semantics and defaults.
+  topic: metrics
+  groupId: 1_metrics
+  consumerId: "{{ monasca_persister_hostname }}"
+  clientId : 1
+
+#Kafka settings.
+kafkaConfig:
+# See http://kafka.apache.org/documentation.html#api for semantics and defaults.
+  zookeeperConnect: "{{ zookeeper_hosts }}"
+  socketTimeoutMs: 30000
+  socketReceiveBufferBytes : 65536
+  fetchMessageMaxBytes: 1048576
+  queuedMaxMessageChunks: 10
+  rebalanceMaxRetries: 4
+  fetchMinBytes:  1
+  fetchWaitMaxMs:  100
+  rebalanceBackoffMs: 2000
+  refreshLeaderBackoffMs: 200
+  autoOffsetReset: largest
+  consumerTimeoutMs:  1000
+  zookeeperSessionTimeoutMs : 6000
+  zookeeperConnectionTimeoutMs : 6000
+  zookeeperSyncTimeMs: 2000
+
+verticaMetricRepoConfig:
+  maxCacheSize: 2000000
+
+databaseConfiguration:
+# vertica | influxdb
+  databaseType: {{ database_type }}
+
+# Uncomment if databaseType is influxdb
+influxDbConfiguration:
+  # Retention policy may be left blank to indicate default policy.
+  retentionPolicy:
+  maxHttpConnections: 100
+  gzip: true
+  name: "{{influxdb_db}}"
+  url: "{% if influxdb_url is defined %}{{influxdb_url}}{% endif %}"
+  user: "{% if influxdb_user is defined %}{{influxdb_user}}{% endif %}"
+  password: "{% if influxdb_password is defined %}{{influxdb_password| quote }}{% endif %}"
+
+# Uncomment if databaseType is vertica
+dataSourceFactory:
+  driverClass: com.vertica.jdbc.Driver
+{% if database_type == 'vertica' %}
+  url: "{{ vertica_url | default('jdbc:vertica://localhost:5433/mon') }}"
+  user: "{{ vertica_persister_user }}"
+  password: "{{ vertica_persister_password }}"
+{% else %}
+  url:
+  user:
+  password:
+{% endif %}
+  properties:
+      ssl: false
+  # the maximum amount of time to wait on an empty pool before throwing an exception
+  maxWaitForConnection: 1s
+  # the SQL query to run when validating a connection's liveness
+  validationQuery: "/* MyService Health Check */ SELECT 1"
+  # the minimum number of connections to keep open
+  minSize: 8
+  # the maximum number of connections to keep open
+  maxSize: 41
+  # whether or not idle connections should be validated
+  checkConnectionWhileIdle: true
+  # the maximum lifetime of an idle connection
+  maxConnectionAge: 1 minute
+
+metrics:
+  frequency: 1 second
+
+
+# Logging settings.
+logging:
+
+  # The default level of all loggers. Can be OFF, ERROR, WARN, INFO,
+  # DEBUG, TRACE, or ALL.
+  level: {{ monasca_log_level }}
+
+  # Logger-specific levels.
+  loggers:
+
+    # Sets the level for 'com.example.app' to DEBUG.
+      com.example.app: DEBUG
+    # com.hpcloud: debug
+    # com.hpcloud.mon.persister.repository: DEBUG
+
+  appenders:
+    - type: file
+      threshold: INFO
+      archive: true
+      currentLogFilename: "{{ persister_log_dir }}/monasca-persister.log"
+      archivedLogFilenamePattern: "{{ persister_log_dir }}/monasca-persister.log-%d{yyyy-MM-dd-hh}.log.gz"
+      archivedFileCount: {{ monasca_log_rotation_backup_count }}
+      # The timezone used to format dates. HINT: USE THE DEFAULT, UTC.
+      timeZone: UTC
+
+server:
+{% if ansible_processor_vcpus > 32 %}
+# Dropwizard 0.7.0 includes a version of Jetty with admin thread issues on large machines, this works around it
+  adminMaxThreads: {{ ansible_processor_vcpus * 2 }}
+{% endif %}
+  applicationConnectors:
+    - type: http
+      port: {{ persister_app_connector_port }}
+  adminConnectors:
+    - type: http
+      port: {{ persister_admin_connector_port }}
+  requestLog:
+    appenders: []

@@ -1,0 +1,98 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: Cinder API | configure | Get a domain scoped token
+  keystone_v3: >
+    endpoint={{ cinder_keystone.admin_url }}
+    login_username={{ cinder_keystone.admin_user }}
+    login_password={{ cinder_keystone.admin_password }}
+    login_user_domain_name={{ cinder_keystone.default_domain_name }}
+    login_domain_name={{ cinder_keystone.default_domain_name }}
+    action="token_get"
+  run_once: true
+  register: domain_scoped_token
+  
+- name: Cinder API | configure | Create Cinder Keystone Service User in service tenant
+  keystone_v3: >
+    action="create_user"
+    login_token={{ domain_scoped_token.result }}
+    endpoint={{ cinder_keystone.admin_url }}
+    user_name={{ cinder_identity_admin_user }}
+    user_domain_name="Default"
+    user_password={{ cinder_identity_admin_password }}
+    role_name="admin"
+  run_once: true
+
+- name: Cinder API | configure | Create Cinder Keystone Service user-role assignment for user cinder, role admin, tenant service
+  keystone_v3: >
+    action="grant_project_role"
+    login_token={{ domain_scoped_token.result }}
+    endpoint={{ cinder_keystone.admin_url }}
+    user_name={{ cinder_identity_admin_user }}
+    project_name={{ cinder_keystone.admin_tenant_name }}
+    user_domain_name="Default"
+    project_domain_name="Default"
+    role_name='admin'
+  run_once: true
+
+- name: Cinder API | configure | Create Cinder V1 Keystone Service
+  keystone_v3: >
+   action="create_service"
+   endpoint={{ cinder_keystone.admin_url }}
+   login_token={{ domain_scoped_token.result }}
+   service_type='volume'
+   service_name='cinder'
+   description='Cinder Volume Service'
+  run_once: true
+
+# Cinder V2 api needs a separate V2 service type called 'volumev2' for older clients
+# ref cindeclient: https://review.openstack.org/#/c/145613
+
+- name: Cinder API | configure | Create Cinder V2 Keystone Service
+  keystone_v3: >
+   action="create_service"
+   endpoint={{ cinder_keystone.admin_url }}
+   login_token={{ domain_scoped_token.result }}
+   service_type='volumev2'
+   service_name='cinderv2'
+   description='Cinder Volume V2 Service'
+  run_once: true
+
+- name: Cinder API | configure | Create Endpoint for Cinder V1 in Keystone
+  keystone_v3: >
+    action="create_endpoint"
+    service_name="cinder"
+    login_token={{ domain_scoped_token.result }}
+    endpoint={{ cinder_keystone.admin_url }}
+    region={{ cinder_keystone.region_name }}
+    admin_url={{ cinder_api_v1.admin_url }}
+    internal_url={{ cinder_api_v1.internal_url }}
+    public_url={{ cinder_api_v1.public_url }}
+  run_once: true
+
+
+- name: Cinder API | configure | Create Endpoint for Cinder V2 in Keystone
+  keystone_v3: >
+    action="create_endpoint"
+    service_name="cinderv2"
+    login_token={{ domain_scoped_token.result }}
+    endpoint={{ cinder_keystone.admin_url }}
+    region={{ cinder_keystone.region_name }}
+    admin_url={{ cinder_api_v2.admin_url }}
+    internal_url={{ cinder_api_v2.internal_url }}
+    public_url={{ cinder_api_v2.public_url }}
+  run_once: true

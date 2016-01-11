@@ -1,0 +1,45 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- hosts: FND-CLU
+  roles:
+  - FND-CLU
+
+  tasks:
+  - include: roles/haproxy/tasks/status.yml
+  - include: roles/keepalived/tasks/status.yml
+  - include: roles/haproxy/tasks/check_upgraded_pkgs.yml
+  - include: roles/keepalived/tasks/check_upgraded_pkgs.yml
+  - include: roles/haproxy/tasks/install.yml
+  - include: roles/keepalived/tasks/install.yml
+  - include: roles/haproxy/tasks/configure.yml
+  - include: roles/keepalived/tasks/configure.yml
+  - include: roles/tls-frontend/tasks/install.yml
+
+# split out start to make sure a handler has fired
+
+- hosts: FND-CLU
+  roles:
+  - FND-CLU
+  serial: 1
+
+  tasks:
+  - include: roles/haproxy/tasks/start.yml
+  - include: roles/keepalived/tasks/start.yml
+  - include: roles/haproxy/tasks/status.yml
+  - include: roles/keepalived/tasks/status.yml
+

@@ -1,0 +1,64 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Play to set up lvm FS and mounts
+---
+
+- name: osconfig | udev config | remove udev rule
+  become: yes
+  file:
+      path:  /lib/udev/rules.d/60-multipath.rules
+      state: absent
+
+- name: osconfig | udev config | reload udev rules
+  become: yes
+  command: udevadm control --reload-rules
+
+- name: osconfig | udev config | rebuild the initrd
+  become: yes
+  command: /usr/sbin/update-initramfs -u -k all
+
+- name: osconfig | udev config | get the ncores
+  become: yes
+  shell: cat /proc/cpuinfo  | grep processor | wc -l
+  register: num_cpus_output
+
+- name: osconfig | udev config | calculate the multiplier
+  command: expr {{ udev_max_children_multiplier }} * {{ num_cpus_output.stdout }}
+  register: udev_max
+
+- name: osconfig | udev config | calculate the children
+  become: yes
+  set_fact:
+      max_children_list: "[{{ udev_max.stdout }}, {{ udev_min_events }} ]"
+
+- name: osconfig | udev config | calculate the children
+  become: yes
+  set_fact:
+      udev_max_children: "{{ max_children_list | max }}"
+
+- name: osconfig | udev config | Set the running value
+  become: yes
+  command:  udevadm control --children-max={{ udev_max_children }}
+
+- name: osconfig | udev config | Set the unit file
+  become: yes
+  template: src=udev-unit.j2 dest=/lib/systemd/system/helion-udev.service
+
+- name: osconfig | udev config | Enable the unit file
+  become: yes
+  service: name=helion-udev enabled=yes state=started
+
+

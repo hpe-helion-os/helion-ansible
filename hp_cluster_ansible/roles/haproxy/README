@@ -1,0 +1,87 @@
+
+(c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may
+not use this file except in compliance with the License. You may obtain
+a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+License for the specific language governing permissions and limitations
+under the License.
+
+
+Include:
+  - tls-frontend - to install server certs
+  - haproxy - for load balancing
+
+Pre-reqs:
+  - haproxy user     - may be installed by haproxy package
+  - haproxy group    - may be installed by haproxy package
+
+Questions/Comments:
+  - If chroot is used how to log to syslog and access stats socket
+  - Is it necessary to be able to run more than one instance of haproxy
+  - logging will need to be done to somewhere compatible with central logging
+
+TODO: Fix race in haproxy startup. Need to sleep somewhere - it is being
+restarted too soon.
+
+TODO: mysql roundrobin or leastconn? helion 1.0 has roundrobin, but I thought
+leastconn suited replication best.
+
+TODO: create certificate on each node having stunnel. The certificate should
+be for the VIP associated with the IP-cluster and not a specific machine. This
+means the certificate should be created on the ansible machine and copied to
+all machines in the cluster. The credentials are currently hard-coded -
+fix them.
+
+
+v2 Input specific notes:
+
+A service can specify vip-check as (a mysql example)
+
+    vip-check: check port 9200 inter 12000 rise 3 fall 3
+
+If not, a default string will be used.
+
+    vip-check: check inter 12000 rise 3 fall 3
+
+Service healthchecks:
+
+The vars.healthcheck is deprecated. A service can specify healthcheck
+in vip-options input.
+
+Eg:
+    endpoints:
+    -   port: '80'
+        has-vip: true
+        vip-options:
+        - "option httpchk GET /"
+        - "stick on src"
+        - "stick-table type ip size 200k expire 30m"
+        roles:
+        - public
+
+If a service doesn't specify vip-options, a default healthcheck will
+be added.
+
+  "option httpchk GET /"
+
+If a service doesn't want a healthcheck it needs to make this intent
+explicit by having a vip-options in the input. It could be empty if
+the service doesn't need any options at all.
+
+  endpoints:
+    -   port: '6080'
+        has-vip: true
+        vip-options:
+        roles:
+        - public
+
+The haproxy globals and defaults are now also configurable from the
+defaults in the haproxy role.
+

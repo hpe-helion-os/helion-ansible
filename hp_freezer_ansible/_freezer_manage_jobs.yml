@@ -1,0 +1,78 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- hosts: FRE-AGN
+  roles:
+    - freezer-jobs
+  tasks:
+    - include: roles/freezer-jobs/tasks/_pre_manage_jobs.yml
+      when: freezer_backup_jobs_upload or freezer_restore_jobs_upload
+    - include: roles/freezer-jobs/tasks/_deploy_ssh_key.yml
+  serial: "{{ freezer_serialization | default(3) | int }}"
+
+- hosts: localhost
+  connection: local
+  roles:
+    - freezer-jobs
+  tasks:
+    - include: roles/freezer-jobs/tasks/_pre_manage_jobs.yml
+      when: freezer_backup_jobs_upload or freezer_restore_jobs_upload
+    - include: roles/freezer-jobs/tasks/_deploy_ssh_key.yml
+
+- hosts: FND-MDB
+  roles:
+    - freezer-jobs
+  tasks:
+    - include: roles/freezer-jobs/tasks/_mysql_credentials.yml
+      when: ready_to_upload and freezer_backup_jobs_upload
+    - include: roles/freezer-jobs/tasks/_manage_job.yml template_name=mysql_backup_swift.json.j2
+      when: ready_to_upload and freezer_backup_jobs_upload
+    - include: roles/freezer-jobs/tasks/_manage_job.yml template_name=mysql_restore_swift.json.j2
+      when: ready_to_upload and freezer_restore_jobs_upload
+    - include: roles/freezer-jobs/tasks/_manage_job.yml template_name=mysql_backup_ssh.json.j2
+      when: ready_to_upload and freezer_backup_jobs_upload and freezer_ssh_ready
+    - include: roles/freezer-jobs/tasks/_manage_job.yml template_name=mysql_restore_ssh.json.j2
+      when: ready_to_upload and freezer_restore_jobs_upload and freezer_ssh_ready
+  serial: "{{ freezer_serialization | default(3) | int }}"
+
+- hosts: SWF-PRX[0]
+  roles:
+    - freezer-jobs
+  tasks:
+    - include: roles/freezer-jobs/tasks/_manage_job.yml template_name=swift_ring_backup_swift.json.j2
+      when: ready_to_upload and freezer_backup_jobs_upload
+    - include: roles/freezer-jobs/tasks/_manage_job.yml template_name=swift_ring_restore_swift.json.j2
+      when: ready_to_upload and freezer_restore_jobs_upload
+    - include: roles/freezer-jobs/tasks/_manage_job.yml template_name=swift_ring_backup_ssh.json.j2
+      when: ready_to_upload and freezer_backup_jobs_upload and freezer_ssh_ready
+    - include: roles/freezer-jobs/tasks/_manage_job.yml template_name=swift_ring_restore_ssh.json.j2
+      when: ready_to_upload and freezer_restore_jobs_upload and freezer_ssh_ready
+  serial: "{{ freezer_serialization | default(3) | int }}"
+
+- hosts: localhost
+  connection: local
+  roles:
+    - freezer-jobs
+  tasks:
+    - include: roles/freezer-jobs/tasks/_manage_job.yml template_name=deployer_backup_swift.json.j2
+      when: ready_to_upload and freezer_backup_jobs_upload
+    - include: roles/freezer-jobs/tasks/_manage_job.yml template_name=deployer_restore_swift.json.j2
+      when: ready_to_upload and freezer_restore_jobs_upload
+    - include: roles/freezer-jobs/tasks/_manage_job.yml template_name=deployer_backup_ssh.json.j2
+      when: ready_to_upload and freezer_backup_jobs_upload and freezer_ssh_ready
+    - include: roles/freezer-jobs/tasks/_manage_job.yml template_name=deployer_restore_ssh.json.j2
+      when: ready_to_upload and freezer_restore_jobs_upload and freezer_ssh_ready

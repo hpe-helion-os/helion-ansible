@@ -1,0 +1,49 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Setup L3-agent specific configuration files.  The rootwrap related files
+# are setup by _configure_rootwrap.yml
+---
+- include_vars: dvr_snat_l3_agent.yml
+  when: "'NEU-DHCP' in group.services"
+
+- include: _write_conf.yml
+  src: "l3_agent.ini.j2"
+  dest: "l3_agent.ini"
+
+- name: "Neutron Common | configure_l3-agent | l3_agent.ini change"
+  set_fact:
+    neutron_l3_agent_restart_required: true
+    neutron_vpn_agent_restart_required: true
+  when: write_conf_result.changed==true
+
+- include: _write_conf.yml
+  src: "l3-agent-logging.conf.j2"
+  dest: "l3-agent-logging.conf"
+
+- name: "Neutron Common | configure_l3-agent | l3-agent-logging.conf change"
+  set_fact:
+    neutron_l3_agemt_restart_required: true
+  when: write_conf_result.changed==true
+
+- include: _write_conf.yml
+  src: "fwaas_driver.ini.j2"
+  dest: "fwaas_driver.ini"
+
+- name: "Neutron Common | configure_l3-agent | fwaas_driver.ini change"
+  set_fact:
+    neutron_l3_agent_restart_required: true
+    neutron_vpn_agent_restart_required: true
+  when: write_conf_result.changed==true

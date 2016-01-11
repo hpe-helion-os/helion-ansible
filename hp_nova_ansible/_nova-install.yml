@@ -1,0 +1,80 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- hosts: NOV-CND
+  become: yes
+  roles:
+    - NOV-CND
+  tasks:
+    - include: roles/NOV-CND/tasks/install.yml
+
+- hosts: NOV-API
+  become: yes
+  roles:
+    - NOV-API
+  tasks:
+    - include: roles/NOV-API/tasks/install.yml
+
+- hosts: NOV-CAU
+  become: yes
+  roles:
+    - NOV-CAU
+  tasks:
+    - include: roles/NOV-CAU/tasks/install.yml
+
+- hosts: NOV-SCH
+  become: yes
+  roles:
+    - NOV-SCH
+  tasks:
+    - include: roles/NOV-SCH/tasks/install.yml
+
+- hosts: NOV-SCH-IRN
+  become: yes
+  roles:
+    - NOV-SCH-IRN
+  tasks:
+    - include: roles/NOV-SCH-IRN/tasks/install.yml
+
+- hosts: NOV-CMP
+  become: yes
+  roles:
+    - NOV-CMP
+  tasks:
+    - include: roles/NOV-CMP/tasks/install.yml
+
+# Hypervisors depend on the nova-compute/etc/nova directory existing
+# during install
+- hosts: NOV-VNC
+  become: yes
+  roles:
+    - NOV-VNC
+  tasks:
+    - include: roles/NOV-VNC/tasks/install.yml
+
+- hosts: NOV-KVM
+  become: yes
+  roles:
+    - NOV-CMP-KVM
+  tasks:
+    - include: roles/NOV-CMP-KVM/tasks/install.yml
+
+- hosts: NOV-IRN
+  become: yes
+  roles:
+    - NOV-CMP-IRN
+  tasks:
+    - include: roles/NOV-CMP-IRN/tasks/install.yml

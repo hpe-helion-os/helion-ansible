@@ -1,0 +1,69 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- include: logging-producer-target-configure.yml target_hosts=all vars_file=apt-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=all vars_file=rsyslog-clr.yml
+
+- include: logging-producer-target-configure.yml target_hosts=FND-AP2 vars_file=apache2-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=LOG-SVR vars_file=beaver-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=LOG-PRO vars_file=beaver-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=CEI-API vars_file=ceilometer-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=CEP-* vars_file=ceph-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=CND-* vars_file=cinder-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=LOG-SVR vars_file=elasticsearch-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=EON-API vars_file=eon-api-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=EON-CND vars_file=eon-conductor-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=FRE-AGN vars_file=freezer-agent-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=FRE-API vars_file=freezer-api-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=GLA-* vars_file=glance-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=FND-CLU vars_file=heat-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=HZN-WEB vars_file=horizon-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=IRN-API vars_file=ironic-api-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=IRN-CND vars_file=ironic-conductor-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=FND-KFK vars_file=kafka-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=FND-CLU vars_file=keepalived-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=KEY-API vars_file=keystone-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=LOG-SVR vars_file=logstash-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=MON-API vars_file=monasca-api-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=MON-AGN vars_file=monasca-agent-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=FND-MDB vars_file=mysql-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=NEU-DHCP vars_file=neutron-dhcp-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=NEU-MDA vars_file=neutron-mda-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=NEU-OVS vars_file=neutron-ovs-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=NEU-L3A vars_file=neutron-fwaas-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=NEU-LBAV* vars_file=neutron-lbaas-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=NEU-OVSVAPP vars_file=neutron-ovsvapp-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=NEU-SVR vars_file=neutron-server-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=NEU-VPNA vars_file=neutron-vpnaas-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=NOV-API vars_file=nova-api-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=NOV-CMP vars_file=nova-compute-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=OPS-WEB vars_file=ops-console-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=FND-RMQ vars_file=rabbitmq-server-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=SHP-API vars_file=sherpa-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=FND-CLU vars_file=shibboleth-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=SWF-* vars_file=swift-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=VSA-BLK vars_file=vsa-clr.yml
+- include: logging-producer-target-configure.yml target_hosts=FND-ZOO vars_file=zookeeper-clr.yml
+
+# Configure logging producer monitoring
+- hosts: LOG-PRO
+  sudo: yes
+  roles:
+    - { role: monasca-default-alarms, tags: [alarms] }
+    - { role: logging-common, tags: [ log, logmon ] }
+    - { role: logging-monitor, tags: [ log, logmon ] }
+  tasks:
+    - include: roles/logging-monitor/tasks/configure-PRO.yml tags=log,logmon,logmonconf,logmonconfpro

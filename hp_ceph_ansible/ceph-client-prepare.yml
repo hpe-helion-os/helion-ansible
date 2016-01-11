@@ -1,0 +1,75 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+# Creates ceph users and pools - target is localhost which then delegates
+# to a ceph mon node. This technique will work even if the mon nodes are
+# not in the play (say with --limit) as localhost is always included.
+- hosts: localhost
+  sudo: yes
+  roles:
+  - ceph-client-prepare
+  tasks:
+  - include: roles/_CEP-CMN/tasks/evaluate_admin_node.yml
+    when: "'CEP-MON' in {{ groups }} and ( ( groups['CEP-MON'] | length ) > 0 )"
+  - include: roles/ceph-client-prepare/tasks/prepare-cluster-user.yml
+    when: "'CEP-MON' in {{ groups }} and ( ( groups['CEP-MON'] | length ) > 0 )"
+
+- hosts: CND-VOL
+  sudo: yes
+  roles:
+  - ceph-client-prepare
+  tasks:
+  - include: roles/_CEP-CMN/tasks/evaluate_admin_node.yml
+    when: "'CEP-MON' in {{ groups }} and ( ( groups['CEP-MON'] | length ) > 0 )"
+  - include: roles/ceph-client-prepare/tasks/install.yml
+  - include: roles/ceph-client-prepare/tasks/configure.yml consumer=cinder-volume
+    when: "'CEP-MON' in {{ groups }} and ( ( groups['CEP-MON'] | length ) > 0 )"
+
+- hosts: NOV-CMP
+  sudo: yes
+  roles:
+  - ceph-client-prepare
+  tasks:
+  - include: roles/_CEP-CMN/tasks/evaluate_admin_node.yml
+    when: "'CEP-MON' in {{ groups }} and ( ( groups['CEP-MON'] | length ) > 0 )"
+  - include: roles/ceph-client-prepare/tasks/install.yml
+  - include: roles/ceph-client-prepare/tasks/configure.yml consumer=nova
+    when: "'CEP-MON' in {{ groups }} and ( ( groups['CEP-MON'] | length ) > 0 )"
+  - include: roles/ceph-client-prepare/tasks/create-compute-secret-key.yml
+    when: "'CEP-MON' in {{ groups }} and ( ( groups['CEP-MON'] | length ) > 0 )"
+
+- hosts: CND-BCK
+  sudo: yes
+  roles:
+  - ceph-client-prepare
+  tasks:
+  - include: roles/_CEP-CMN/tasks/evaluate_admin_node.yml
+    when: "'CEP-MON' in {{ groups }} and ( ( groups['CEP-MON'] | length ) > 0 )"
+  - include: roles/ceph-client-prepare/tasks/install.yml
+  - include: roles/ceph-client-prepare/tasks/configure.yml consumer=cinder-backup
+    when: "'CEP-MON' in {{ groups }} and ( ( groups['CEP-MON'] | length ) > 0 )"
+
+- hosts: GLA-API
+  sudo: yes
+  roles:
+  - ceph-client-prepare
+  tasks:
+  - include: roles/_CEP-CMN/tasks/evaluate_admin_node.yml
+    when: "'CEP-MON' in {{ groups }} and ( ( groups['CEP-MON'] | length ) > 0 )"
+  - include: roles/ceph-client-prepare/tasks/install.yml
+  - include: roles/ceph-client-prepare/tasks/configure.yml consumer=glance-datastore
+    when: "'CEP-MON' in {{ groups }} and ( ( groups['CEP-MON'] | length ) > 0 )"

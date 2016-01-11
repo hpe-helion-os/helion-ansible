@@ -1,0 +1,61 @@
+{
+    "namespace": "OS::Compute::VMware",
+    "display_name": "VMware Driver Options",
+    "description": "The VMware compute driver options.  \n\nThese are properties specific to VMWare compute drivers and will only have an effect if the VMWare compute driver is enabled in Nova.  For a list of all hypervisors, see here: https://wiki.openstack.org/wiki/HypervisorSupportMatrix.",
+    "visibility": "public",
+    "protected": true,
+    "resource_type_associations": [
+        {
+            "name": "OS::Glance::Image"
+        }
+    ],
+    "properties": {
+        "vmware_adaptertype": {
+            "title": "Disk Adapter Type",
+            "description": "The virtual SCSI or IDE controller used by the hypervisor.",
+            "type": "string",
+            "enum": [
+                "lsiLogic",
+                "lsiLogicsas",
+                "paraVirtual",
+                "busLogic",
+                "ide"
+            ],
+            "default" : "lsiLogic"
+        },
+        "vmware_disktype": {
+            "title": "Disk Provisioning Type",
+            "description": "When performing operations such as creating a virtual disk, cloning, or migrating, the disk provisioning type may be specified. Please refer to VMware documentation for more.",
+            "type": "string",
+            "enum": [
+                "streamOptimized",
+                "sparse",
+                "preallocated"
+            ],
+            "default" : "preallocated"
+        },
+        "vmware_ostype": {
+            "title": "OS Type",
+            "description": "A VMware GuestID which describes the operating system installed in the image. This value is passed to the hypervisor when creating a virtual machine. If not specified, the key defaults to otherGuest. See thinkvirt.com.",
+            "type": "string",
+            "default": "otherGuest"
+        },
+        "hw_vif_model": {
+            "title": "Virtual Network Interface",
+            "description": "Specifies the model of virtual network interface device to use. The valid options depend on the hypervisor. VMware driver supported options: e1000, e1000e, VirtualE1000, VirtualE1000e, VirtualPCNet32, VirtualSriovEthernetCard, and VirtualVmxnet.",
+            "type": "string",
+            "enum": [
+                "e1000",
+                "e1000e",
+                "VirtualE1000",
+                "VirtualE1000e",
+                "VirtualPCNet32",
+                "VirtualSriovEthernetCard",
+                "VirtualVmxnet",
+                "VirtualVmxnet3"
+            ],
+            "default" : "e1000"
+        }
+    },
+    "objects": []
+}

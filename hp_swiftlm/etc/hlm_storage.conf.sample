@@ -1,0 +1,8 @@
+[swift_config]
+boot_label = boot
+disk_pattern = /dev/sd[a-z]\+$
+file_system = xfs
+mount_dir = /srv/node/
+file_prefix = /tmp/swift_drive_info_
+net_interface = eth0
+drive_list = [/dev/sdb, disk0], [/dev/sdc, disk1]

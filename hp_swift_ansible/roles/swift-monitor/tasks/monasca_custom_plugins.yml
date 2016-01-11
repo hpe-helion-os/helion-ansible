@@ -1,0 +1,70 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+#
+# Installs custom plugin modules for monasca agent if any are defined.
+# NB after these tasks, monasca_setup should be run to detect the
+# installed plugins.
+#
+
+# Find custom detect modules
+- name: swift-monitor  | monasca_custom_plugins | Find monasca custom detect plugins
+  command: find {{ detect_plugins_src }} -maxdepth 1 -type f -name *.py ! -name __init__.py
+  register: detect_plugins
+  ignore_errors: yes
+
+# Find custom check modules
+- name: swift-monitor  | monasca_custom_plugins | Find monasca custom check plugins
+  command: find {{ check_plugins_src }} -maxdepth 1 -type f -name *.py ! -name __init__.py
+  register: check_plugins
+  ignore_errors: yes
+
+# Create monasca agent dirs in /usr/lib (if necessary)
+- name: swift-monitor  | monasca_custom_plugins | Create dirs for installing monasca custom check plugins
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: "u=rwx,g=rx,o=rx"
+  with_items:
+    - "{{ monasca_agent_detection_plugin_dir }}"
+    - "{{ monasca_agent_check_plugin_dir }}"
+  when: check_plugins.stdout != "" and detect_plugins.stdout != ""
+
+# symlink to custom detect modules
+- name: swift-monitor  | monasca_custom_plugins | Install swiftlm custom monasca detect plugins
+  file:
+    src: "{{ item }}"
+    dest: "{{ monasca_agent_detection_plugin_dir }}{{ item | basename }}"
+    owner: root
+    group: root
+    state: link
+    mode: "u=rw,g=r,o=r"
+  with_items:
+    - "{{ detect_plugins.stdout_lines }}"
+  when: check_plugins.stdout != "" and detect_plugins.stdout != ""
+
+# symlink to custom check modules
+- name: swift-monitor  | monasca_custom_plugins | Install swiftlm custom monasca check plugins
+  file:
+    src: "{{ item }}"
+    dest: "{{ monasca_agent_check_plugin_dir }}{{ item | basename }}"
+    owner: root
+    group: root
+    state: link
+    mode: "u=rw,g=r,o=r"
+  with_items:
+    - "{{ check_plugins.stdout_lines }}"
+  when: check_plugins.stdout != "" and detect_plugins.stdout != ""

@@ -1,0 +1,122 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+rabbitmq_cluster_name: hos_rabbit
+
+rabbitmq_HA_policy_name: HA
+
+rabbitmq_list_queues_timeout: "5m"
+
+# Defaults to rabbit. This can be useful if you want to run more than one node
+# per machine. Note: relate to RABBITMQ_NODENAME env as well.
+# WARNING: Changing the two setting below requires a redeploy.
+rabbitmq_node: rabbit
+rabbitmq_nodename: "{{ rabbitmq_node }}@{{ rabbitmq_cp.hostname }}"
+
+# The host to use for remote commands.
+rabbitmq_remote_host: "{%- if groups[ 'FND-RMQ' ].index( inventory_hostname ) == 0 -%}
+                         {{ groups[ group.vars.network_address_prefix ][1] }}
+                       {%- else -%}
+                         {{ groups[ group.vars.network_address_prefix ][0] }}
+                       {%- endif -%}"
+
+# Set to 'force_reset' to forcefully return a RabbitMQ node to its virgin
+# state.
+rabbitmq_reset_option: reset
+
+rabbitmq_reset_required: false
+
+# List of packages we register a restart.
+rabbitmq_restart_packages:
+  - rabbitmq-server
+  - erlang-base
+
+rabbitmq_restart_required: false
+
+rabbitmq_service_name: rabbitmq-server
+
+# Time to wait for a RabbitMQ service start.
+rabbitmq_start_timeout: "5m"
+
+# Time to wait for a RabbitMQ application app.
+rabbitmq_start_app_timeout: "5m"
+
+# Time to wait for a RabbitMQ application stop.
+rabbitmq_stop_app_timeout: "5m"
+
+rabbitmq_stop_forced: false
+
+# Time to wait for a RabbitMQ reset command to complete.
+rabbitmq_reset_timeout: "2m"
+
+# Control the time we wait for a node to become synchronised.
+# This has a max wait time in seconds of:
+#    rabbitmq_sync_retries * rabbitmq_sync_delay
+# Default:  90 * 10 = 900 seconds ( 15 mins )
+rabbitmq_sync_retries: 90
+rabbitmq_sync_delay: 10
+
+# MUST be set to "no" for an upgrade.
+# Typically we want the rabbit cluster up and running prior to
+# upgrade.
+rabbitmq_tolerate_error: no
+
+# Config Processor variable mapping.
+rabbitmq_cp:
+  bind_addresses:
+    - ip: 127.0.0.1
+      port: "{{ host.bind.FND_RMQ.internal.port }}"
+    - ip: "{{ host.bind.FND_RMQ.internal.ip_address }}"
+      port: "{{ host.bind.FND_RMQ.internal.port }}"
+  erlang_cookie: "{{ FND_RMQ.vars.erlang_cookie }}"
+  hostname: "{{ host.my_dimensions.hostname }}"
+  # WARNING: Changing this value requires a redeploy
+  inet_dist_listen_port: "{{ host.bind.FND_RMQ.rabbitmq_inet_dist_listen.port }}"
+  management_address:
+    ip: "{{ host.bind.FND_RMQ.rabbitmq_management.ip_address }}"
+    port: "{{ host.bind.FND_RMQ.rabbitmq_management.port }}"
+  service_password: "{{ FND_RMQ.vars.rmq_service_password }}"
+  service_user: "{{ FND_RMQ.vars.rmq_service_user }}"
+  # WARNING: Changing this value requires a redeploy
+  home: "{{ host | item( 'my_logical_volumes.FND_RMQ' )
+                 | by_item( 'consumer.rabbitmq_env', 'home' )
+                 | item( '0.mount', default='/var/lib/rabbitmq' ) }}"
+
+# See: https://www.rabbitmq.com/plugins.html
+# Add any RabbiitMQ plugins you wish to install to the list.
+rabbitmq_plugins:
+  - rabbitmq_management # See: https://www.rabbitmq.com/management.html for more details.
+
+# For details of config and environment options
+# See: https://www.rabbitmq.com/configure.html
+
+# RabbitMQ environment.
+# Adding a value here will add it to the RabbitMQ enviroment file
+# See: https://www.rabbitmq.com/relocate.html
+rabbitmq_env:
+  etc: /etc/rabbitmq # Fix location for Debian and RPM do not change
+  home: "{{ rabbitmq_cp.home }}"
+  log_base: /var/log/rabbitmq
+  nodename: "{{ rabbitmq_nodename }}"
+  mnesia_base: "{{ rabbitmq_cp.home }}/mnesia"
+  pid_file: /var/run/rabbitmq/{{ rabbitmq_nodename }}.pid
+
+# RabbitMQ config.
+rabbitmq_config:
+  cluster_partition_handling: pause_minority
+  # See: https://www.rabbitmq.com/disk-alarms.html for alternative setting
+  disk_free_limit: 1000000000 # 1GB disk free limit
+  vm_memory_high_watermark: 0.4

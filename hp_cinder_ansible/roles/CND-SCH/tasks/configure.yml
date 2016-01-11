@@ -1,0 +1,47 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- include: ../../_CND-CMN/tasks/configure.yml cinder_conf_dir="{{ cinder_scheduler_conf_dir }}"
+
+- name:  Cinder Scheduler | configure | Generate {{ cinder_scheduler_conf_dir }}/scheduler.conf
+  template: >
+    src=scheduler.conf.j2
+    dest={{ cinder_scheduler_conf_dir }}/scheduler.conf
+    owner={{ cinder_user }}
+    group={{ cinder_group }}
+    mode=0400
+  notify: cinder_scheduler_change
+
+- name: Cinder Scheduler | configure | Create '{{ cinder_scheduler_conf_dir }}'/scheduler-logging.conf
+  template: src=scheduler-logging.conf.j2 dest={{ cinder_scheduler_conf_dir }}/scheduler-logging.conf owner={{ cinder_user }} group={{ cinder_group }} mode=0400
+  notify: cinder_scheduler_change
+
+- name: Cinder Scheduler | configure | Modify cinder-scheduler.log file attributes
+  file:
+    path={{ cinder_logs_dir }}/cinder-scheduler.log
+    state=touch
+    owner=cinder
+    group=adm
+    mode=0640
+
+- name: Cinder Scheduler | configure | Modify Cinder cinder-scheduler-json.log file attributes
+  file:
+    path={{ cinder_logs_dir }}/cinder-scheduler-json.log
+    state=touch
+    owner=cinder
+    group=adm
+    mode=0640

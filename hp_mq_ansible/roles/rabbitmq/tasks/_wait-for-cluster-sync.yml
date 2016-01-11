@@ -1,0 +1,82 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+# Note: This task is delegated to a remote node to determine if that node
+#       is in cluster.
+- name: rabbitmq | _wait-for-cluster-sync | Check if RabbitMQ is running in a cluster
+  delegate_to: "{{ rabbitmq_remote_host }}"
+  shell: |
+    rabbitmqctl cluster_status |
+    grep {{ rabbitmq_nodename }}
+  register: rabbitmq_in_cluster_result
+  failed_when: false
+  changed_when: false
+
+- name: rabbitmq | _wait-for-cluster-sync | Wait for HA queue sync to complete
+  delegate_to: "{{ rabbitmq_remote_host }}"
+  shell: |
+    # see: https://www.rabbitmq.com/man/rabbitmqctl.1.man.html (Server Status)
+    #      for full details on list_queues.
+    #
+    # see: https://www.rabbitmq.com/ha.html (Configuring explicit synchronisation)
+    #      for how this relates to HA clustering.
+    #
+    # Precis of list queues doc:
+    #   Returns queue details. Queue details of the / virtual host are returned
+    #   if the "-p" flag is absent. The "-p" flag can be used to override this
+    #   default. The queueinfoitem parameter is used to indicate which queue
+    #   information items to include in the results. The column order in the
+    #   results will match the order of the parameters.
+    #
+    #   - policy
+    #     Policy name applying to the queue.
+    #
+    #   - state
+    #     The state of the queue. Normally 'running', but may be
+    #     "{syncing, MsgCount}" if the queue is synchronising. Queues which are
+    #     located on cluster nodes that are currently down will be shown with a
+    #     status of 'down' (and most other queueinfoitems will be unavailable)
+    #
+    #   - synchronised_slave_pids
+    #     If the queue is mirrored, this gives the IDs of the current slaves
+    #     which are synchronised with the master - i.e. those which could take
+    #     over from the master without message loss.
+    #
+    #   - name (for debug if there is failure)
+    #     The name of the queue with non-ASCII characters escaped as in C.
+    #
+    # The awk statement counts the number of hosts (<{{ rabbitmq_node }}@)
+    # that are currently synchronised to the master for any HA queues
+    # (rabbitmq_HA_policy_name). It will exclude any non HA/crashed queues
+    # that are found and will fail for any HA queues that is synchronising
+    # (printing its details for debug and to fail the task).
+    #
+    # Note: If timeout fails it writes to stderr.
+    timeout {{ rabbitmq_list_queues_timeout }} \
+    rabbitmqctl list_queues -q policy state synchronised_slave_pids name |
+    awk -F"<{{ rabbitmq_node }}@" \
+        '/^{{ rabbitmq_HA_policy_name }}\t/ && \
+           (!/\trunning\t/ || \
+            NF-1 < {{ rabbitmq_secondary_host_count }}) \
+         {print}'
+  changed_when: false
+  register: _rabbitmq_sync_cluster_result
+  when: ( rabbitmq_in_cluster_result | success )
+  until: ( _rabbitmq_sync_cluster_result | success ) and
+         _rabbitmq_sync_cluster_result.stdout == "" and
+         _rabbitmq_sync_cluster_result.stderr == ""
+  retries: "{{ rabbitmq_sync_retries }}"
+  delay: "{{ rabbitmq_sync_delay }}"

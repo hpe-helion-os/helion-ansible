@@ -1,0 +1,177 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+- name: FND-MDB | configure | Remove lost+found if it exists
+  file:
+    path: "{{ mysql_datadir }}/lost+found"
+    state: absent
+
+- name: FND-MDB | configure | Copy my.cnf
+  template:
+    src: etc/mysql/my.cnf.j2
+    dest: /etc/mysql/my.cnf
+    owner: mysql
+    group: mysql
+    mode: 0600
+  notify: mysql_change
+
+- name: FND-MDB | configure | Check initialised
+  stat:
+    path: "{{ mysql_initialised }}"
+  register: checkinitialise
+
+- name: FND-MDB | configure | Purge invalid InnoDB logfiles
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - /var/lib/mysql/ib_logfile0
+    - /var/lib/mysql/ib_logfile1
+  when: checkinitialise.stat.exists == False
+
+- name:  FND-MDB | configure | Check initialised anywhere else also
+  stat:
+      path: "{{ mysql_initialised }}"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['FND-MDB'] }}"
+  register: mysqlhere
+  run_once: true
+
+- set_fact:
+    mysql_bootstrapped: true
+  when:  " {{ item.stat.exists }}  == True "
+  with_items:   mysqlhere.results
+  run_once: true
+
+- include: bootstrap.yml
+  when: checkinitialise.stat.exists == False
+
+- name: FND-MDB | configure | Copy logrotate file
+  template:
+    src: etc/logrotate.d/mysql.j2
+    dest: /etc/logrotate.d/mysql
+    owner: root
+    group: root
+
+# On an add node the password may already be set so ignore errors here
+- name: FND-MDB | configure | Set MDB root password
+  mysql_user:
+    name: root
+    password: "{{ mysql_root_pwd }}"
+  run_once: true
+  ignore_errors: yes
+
+# store root password so the previous task does not fail on subsequent runs
+- name: FND-MDB | configure | Store MDB root password
+  template:
+    src: home/.my.cnf
+    dest: ~/
+    owner: root
+    group: root
+    mode: 0600
+
+- name: FND-MDB | configure | Create SST user
+  mysql_user:
+    login_user: root
+    login_password: "{{ mysql_root_pwd }}"
+    name: "{{ mysql_sst_user }}"
+    password: "{{ mysql_sst_pwd }}"
+    host: localhost
+    priv: "*.*:RELOAD,LOCK TABLES,REPLICATION CLIENT"
+    append_privs: yes
+    state: present
+  run_once: true
+
+- name: FND-MDB | configure | Create clustercheck user
+  mysql_user:
+    login_user: "{{ mysql_root_user }}"
+    login_password: "{{ mysql_root_pwd }}"
+    name: "{{ mysql_clustercheck_user }}"
+    password: "{{ mysql_clustercheck_pwd }}"
+    host: 'localhost'
+    priv: "*.*:ALL PRIVILEGES"
+    append_privs: yes
+    state: present
+  run_once: true
+
+- name: FND-MDB | configure | Grant process to clustercheck
+  command: mysql -e "
+    grant process on *.*
+    to '{{ mysql_clustercheck_user }}'@'localhost';
+    flush privileges;"
+  run_once: true
+
+- name: FND-MDB | configure | Update xinetd mysqlchk with clustercheck user
+  lineinfile:
+    dest: /etc/xinetd.d/mysqlchk
+    state: present
+    regexp: '\s*server_args\s*='
+    mode: 0600
+    insertafter: '^\s*server\s*='
+    line: '        server_args     = {{ mysql_clustercheck_user }} {{ mysql_clustercheck_pwd }} 1'
+  notify: restart xinetd
+
+- name: FND-MDB | configure | Update xinetd mysqlchk with clustercheck user
+  lineinfile:
+    dest: /etc/xinetd.d/mysqlchk
+    state: present
+    regexp: '\s*port\s*='
+    mode: 0600
+    insertafter: '^\s*socket_type\s*='
+    line: '        port            = {{ mysql_clustercheck_port }}'
+  notify: restart xinetd
+
+- name: FND-MDB | configure | Update xinetd mysqlchk with bind address
+  lineinfile:
+    dest: /etc/xinetd.d/mysqlchk
+    state: present
+    regexp: '\s*bind\s*='
+    mode: 0600
+    insertafter: '^\s*port\s*='
+    line: '        bind            = {{ mysql_bind_address }}'
+  notify: restart xinetd
+
+- name: FND-MDB | configure | Ensure xinetd restart
+  meta: flush_handlers
+
+- name: FND-MDB | configure | Create MDB OpenStack service user
+  mysql_user:
+    login_user: "{{ mysql_root_user }}"
+    login_password: "{{ mysql_root_pwd }}"
+    name: "{{ mysql_service_user }}"
+    password: "{{ mysql_service_pwd }}"
+    host: '%'
+    priv: "*.*:ALL PRIVILEGES,GRANT"
+    append_privs: yes
+    state: present
+  run_once: true
+
+# NOTE direct changes to mysql tables are not replicated.
+# However it is safe to run this once here as only the bootstrap
+# is up
+- name: FND-MDB | start | Delete blank users if mysql up
+  command: mysql mysql -e "
+    delete from user where User=\"\";
+    flush privileges;"
+  run_once: true
+
+- name: FND-MDB | start | Update root password for all hosts
+  command: mysql mysql -e "
+    update mysql.user
+       set password=PASSWORD( \"{{ mysql_root_pwd }}\" )
+       where User=\"root\";
+    flush privileges;"
+  run_once: true

@@ -1,0 +1,83 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: sosreport | install | Install sosreport
+  sudo: yes
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - sosreport
+    - python-six
+    - patch
+
+# There is a bug in sosreport which only manifests when run with python3
+# Debian packaging (and therefore hlinux packaging) specifies py3, and until this
+# is changed the fix is to rewrite the python invocation in sosreport. HLX-197
+- name: sosreport | install | Correct 'python' not 'python3'
+  sudo: yes
+  lineinfile:
+    dest: /usr/bin/sosreport
+    regexp: "^#!/usr/bin/python3"
+    line: "#!/usr/bin/python"
+
+# There is a bug in sosreport which causes plugins to fail if they try to
+# (re)copy a dangling symlink: https://github.com/sosreport/sos/issues/660
+
+- name: sosreport | install | Fix dangling symlink bug, copy patches
+  sudo: yes
+  copy:
+    dest: /usr/share/sosreport/sos
+    src: "{{ item }}"
+  with_fileglob:
+    - patches/*.patch
+
+- name: sosreport | install | Fix dangling symlink bug, patch
+  sudo: yes
+  patch:
+    basedir: /usr/share/sosreport/sos
+    src: /usr/share/sosreport/sos/{{ item | basename }}
+    remote_src: yes
+  ignore_errors: yes
+  with_fileglob:
+    - patches/*.patch
+
+- name: sosreport | install | Fix dangling symlink bug, tidy up patches
+  sudo: yes
+  file:
+    dest: /usr/share/sosreport/sos/{{ item | basename }}
+    state: absent
+  with_fileglob:
+    - patches/*.patch
+
+- name: sosreport | install | Install sosreport plugin
+  sudo: yes
+  synchronize:
+    src: "{{ item }}"
+    dest: "{{ sosreport_plugins_dir }}/{{ item | basename }}"
+  with_fileglob:
+    - "{{ playbook_dir }}/sos.d/*.py"
+  when: inventory_hostname != "localhost"
+
+- name: sosreport | install | Install sosreport plugin on localhost
+  sudo: yes
+  copy:
+    src: "{{ item }}"
+    dest: "{{ sosreport_plugins_dir }}/{{ item | basename }}"
+  with_fileglob:
+    - "{{ playbook_dir }}/sos.d/*.py"
+  when: inventory_hostname == "localhost"

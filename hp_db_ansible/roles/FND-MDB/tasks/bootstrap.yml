@@ -1,0 +1,72 @@
+#
+#  © Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+#  Confidential computer software. Valid license from HPE required for
+#  possession, use or copying. Consistent with FAR 12.211 and 12.212,
+#  Commercial Computer Software, Computer Software Documentation, and
+#  Technical Data for Commercial Items are licensed to the U.S.
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+- name: FND-MDB | bootstrap | Notify  I am bootstrapping
+  set_fact:
+    mysql_bootstrapping: true
+
+- name: FND-MDB | bootstrap | Bootstrap MDB Master
+  command: '/etc/init.d/mysql restart-bootstrap'
+  register: result
+  run_once: true
+  when: mysql_bootstrapped == False
+
+- name: FND-MDB | _bootstrap | Make sure MDB Master started
+  service:
+    name: "{{ item }}"
+    state: started
+  with_items:
+    - mysql
+  when: mysql_bootstrapped == True
+  run_once: true
+
+- name: FND-MDB | bootstrap | Create initialisation file
+  file:
+    path: "{{ mysql_initialised }}"
+    state: touch
+    mode: 0660
+    owner: mysql
+    group: mysql
+  when: result|success
+
+- name: FND-MDB | bootstrap | Wait for MDB master
+  wait_for:
+    host: "{{ mysql_bind_address }}"
+    port: "{{ mysql_server_port }}"
+    timeout: 30
+  run_once: true
+
+# Restart here so that service mysql status indicates mysql
+# is up
+- name: FND-MDB | bootstrap | Restart MDB Master
+  service:
+    name: "{{ item }}"
+    state: restarted
+  with_items:
+    - mysql
+  run_once: true
+
+- name: FND-MDB | bootstrap | Wait for MDB master
+  wait_for:
+    host: "{{ mysql_bind_address }}"
+    port: "{{ mysql_server_port }}"
+    timeout: 30
+  run_once: true
+

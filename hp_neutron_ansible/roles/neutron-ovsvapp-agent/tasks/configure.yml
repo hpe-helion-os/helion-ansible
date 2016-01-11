@@ -1,0 +1,84 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: neutron-ovsvapp-agent | configure | Create ml2 directory
+  file:
+    path: "{{ neutron_conf_dir }}/plugins/ml2"
+    state: directory
+    mode: 0755
+    owner: "{{ neutron_user }}"
+    group: "{{ neutron_group }}"
+
+- name: neutron-ovsvapp-agent | configure | Create ovsvapp-agent directory
+  file:
+    path: "{{ neutron_log_dir }}/ovsvapp-agent"
+    state: directory
+    mode: 0755
+    owner: "{{ neutron_user }}"
+    group: "{{ neutron_group }}"
+
+- name: neutron-ovsvapp-agent | configure | Change permission for ovsvapp agent
+  file:
+    path: "{{ neutron_bin_dir }}/neutron-ovsvapp-agent"
+    state: file
+    mode: 0755
+
+- name: neutron-ovsvapp-agent | configure | Change permission for agent monitor
+  file:
+    path: "{{ neutron_bin_dir }}/neutron-ovsvapp-agent-monitor"
+    state: file
+    mode: 0755
+    owner: "{{ neutron_user }}"
+    group: "{{ neutron_group }}"
+
+- name: neutron-ovsvapp-agent | configure | Change permission for agent monitor script
+  file:
+    path: "{{ neutron_bin_dir }}/../lib/python2.7/site-packages/networking_vsphere/monitor/ovsvapp-agent-monitor.sh"
+    state: file
+    mode: 0755
+    owner: "{{ neutron_user }}"
+    group: "{{ neutron_group }}"
+
+- name: neutron-ovsvapp-agent | configure | Copy ovsvapp_agent.ini file
+  command: cp -rp "{{ neutron_conf_dir }}/ovsvapp_agent.ini" "{{ neutron_conf_dir }}/plugins/ml2/ovsvapp_agent.ini"
+
+- name: neutron-ovsvapp-agent | configure | Create ovsvapp agent logrotate file
+  file: path=/etc/logrotate.d/neutron-ovsvapp-agent state=touch mode=657
+
+- name: neutron-ovsvapp-agent | configure | Copy logrotate configuration
+  copy:
+    src: etc/logrotate.d/neutron-ovsvapp-agent
+    dest: /etc/logrotate.d/neutron-ovsvapp-agent
+    owner: root
+    group: root
+    mode: 0644
+
+- name: neutron-ovsvapp-agent | configure | Copy nginx configuration
+  sudo: yes
+  command: cp {{ neutron_conf_dir }}/nginx-default /etc/nginx/sites-available/default
+
+- name: neutron-ovsvapp-agent | configure | nginx default file change
+  set_fact:
+    nginx_restart_required: true
+
+- include: ../../neutron-common/tasks/create_systemd_service.yml
+  neutron_service_cmd: "neutron-ovsvapp-agent"
+  neutron_service_cmd_args: "--config-file={{ neutron_conf_dir }}/neutron.conf --config-file={{ neutron_conf_dir }}/plugins/ml2/ovsvapp_agent.ini --log-file={{ neutron_log_dir }}/ovsvapp-agent/ovsvapp_agent.log"
+
+- include: ../../neutron-common/tasks/create_systemd_service.yml
+  neutron_sub_component: "neutron-ovsvapp-agent-monitor"
+  neutron_service_cmd: "neutron-ovsvapp-agent-monitor"
+  neutron_service_cmd_args: "--log={{ neutron_log_dir }}/ovsvapp-agent/monitor.log"

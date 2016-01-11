@@ -1,0 +1,5 @@
+SWIFT_PATH = "/etc/swift/"
+PROXY_PATH = "/opt/stack/service/swift-proxy-server/etc/"
+ACCOUNT_PATH = "/opt/stack/service/swift-account-server/etc/"
+CONTAINER_PATH = "/opt/stack/service/swift-container-server/etc/"
+OBJECT_PATH = "/opt/stack/service/swift-object-server/etc/"

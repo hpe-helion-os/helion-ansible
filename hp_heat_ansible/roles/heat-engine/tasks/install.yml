@@ -1,0 +1,54 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: heat-engine | install | update venv cache
+  install_package:
+    cache: update
+
+- name: heat-engine | install | install heat-engine service
+  install_package:
+    name: heat
+    service: heat-engine
+    state: present
+    activate: act_off
+  register: heat_engine_install_result
+  notify: heat_engine_venv_change
+
+- include: ../../heat-common/tasks/_set_directories.yml
+  vars:
+    install_package_result: "{{ heat_engine_install_result }}"
+
+- name: heat-engine | install | register heat-engine service
+  setup_systemd:
+    service: heat-engine
+    cmd: heat-engine
+    user: "{{ heat_system_user }}"
+    group: "{{ heat_system_group }}"
+    args: "--config-file={{ heat_service_conf_dir }}/heat.conf --config-file={{ heat_service_conf_dir }}/engine.conf"
+
+- include: ../../heat-common/tasks/install.yml
+
+- name: heat-engine | install | copy docker resource plugin to heat plugins directory
+  command: cp -r {{ heat_docker_plugin_source_dir }} {{ heat_plugins_dir }}
+
+- name: heat-engine | install | set correct permission for resource plugins
+  file:
+    path={{ heat_plugins_dir }}
+    owner={{ heat_system_user }}
+    group={{ heat_system_group }}
+    recurse=yes
+    state=directory

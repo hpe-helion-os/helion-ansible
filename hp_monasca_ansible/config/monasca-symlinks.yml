@@ -1,0 +1,31 @@
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+---
+symlinks:
+    "monasca/api-config.yml.j2": "roles/monasca-api/templates/api-config.yml.j2"
+    "monasca/notification.yaml.j2": "roles/monasca-notification/templates/notification.yaml.j2"
+    "monasca/influxdb.conf.j2": "roles/influxdb/templates/influxdb.conf.j2"
+    "monasca/vertica-cleanup.j2": "roles/monasca-schema/templates/vertica-cleanup.j2"
+    "monasca/storm.yaml.j2": "roles/storm/templates/storm.yaml.j2"
+    "monasca/thresh-cluster.xml.j2": "roles/storm/templates/cluster.xml.j2"
+    "monasca/thresh-config.yml.j2": "roles/monasca-thresh/templates/thresh-config.yml.j2"
+    "monasca/kafka.conf.j2": "roles/kafka/templates/kafka.conf.j2"
+    "monasca/kafka.server.properties.j2": "roles/kafka/templates/server.properties.j2"
+    "monasca/kafka.log4j.properties.j2": "roles/kafka/templates/log4j.properties.j2"
+    "monasca/zoo.cfg.j2": "roles/zookeeper/templates/zoo.cfg.j2"
+    "monasca/zookeeper.log4j.properties.j2": "roles/zookeeper/templates/log4j.properties.j2"
+    "monasca/plugin.yaml.j2": "roles/monasca-agent/templates/plugin.yaml.j2"
+    "monasca/persister-config.yml.j2": "roles/monasca-persister/templates/persister-config.yml.j2"
+    "monasca/vertica_logrotate.j2": "roles/vertica/templates/vertica_logrotate.j2"

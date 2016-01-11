@@ -1,0 +1,116 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: swiftlm-ring-builder | deploy-rings | Copy ring tarball to node
+  copy:
+    src: _swift-rings-tarball.tar
+    dest: "{{ swiftlm_etc }}/deploy_dir/swift-rings-tarball.tar"
+    force: yes
+    validate: "md5sum %s"
+  sudo: yes
+
+- name: swiftlm-ring-builder | deploy-rings | Determine if rings are changed
+  command: md5sum --strict --check {{ swiftlm_etc }}/deploy_dir/swift-rings-tarball.checksum
+  register: check_result
+  sudo: yes
+  ignore_errors: True
+
+# Fixes an issue with unarchive (https://github.com/ansible/ansible-modules-core/issues/1064)
+- name: swiftlm-ring-builder | deploy-rings | Prepare to unpack
+  file:
+     path: "{{ swiftlm_etc }}/deploy_dir/region-{{ region_name }}"
+     state: absent
+  sudo: yes
+  when: check_result.rc != 0
+
+- name: swiftlm-ring-builder | deploy-rings | Unpack tarball
+  unarchive:
+    copy: no
+    dest: "{{ swiftlm_etc }}/deploy_dir"
+    src: "{{ swiftlm_etc }}/deploy_dir/swift-rings-tarball.tar"
+    owner: "{{ swift_user }}"
+    group: "{{ swift_group }}"
+    mode: 0755
+  sudo: yes
+  when: check_result.rc != 0
+
+- name: swiftlm-ring-builder | deploy-rings | Create final ring destination /etc/swift
+  # May already exist
+  file:
+    path: "{{ swift_dir }}"
+    state: directory
+    owner: "{{ swift_user }}"
+    group: "{{ swift_group }}"
+    mode: 0755
+  sudo: yes
+  when: check_result.rc != 0
+
+- name: swiftlm-ring-builder | deploy-rings | Copy account/container rings to /etc/swift
+  command: cp {{ swiftlm_etc }}/deploy_dir/region-{{ region_name }}/{{ item }} {{ swift_dir }}
+  with_items:
+  - account.ring.gz
+  - account.builder
+  - container.ring.gz
+  - container.builder
+  sudo: yes
+  when: check_result.rc != 0
+
+- name: swiftlm-ring-builder | deploy-rings | Copy object-0 ring to object (no -0)
+  command: cp {{ swiftlm_etc }}/deploy_dir/region-{{ region_name }}/object-0.{{ item }} {{ swift_dir }}/object.{{ item }}
+  with_items:
+  - ring.gz
+  - builder
+  when: check_result.rc != 0
+
+  # Ignore errors here because there may be no additional storage policies
+- name: swiftlm-ring-builder | deploy-rings | Copy object-N rings to /etc/swift
+  shell: cp {{ swiftlm_etc }}/deploy_dir/region-{{ region_name }}/object-[1-9].{{ item }} {{ swift_dir }}
+  with_items:
+  - ring.gz
+  - builder
+  when: check_result.rc != 0
+  ignore_errors: True
+
+- name: swiftlm-ring-builder | deploy-rings | Fixup ownership
+  file:
+    path: "{{ swift_dir }}/{{ item[0] }}.{{ item[1] }}"
+    state: file
+    owner: "{{ swift_user }}"
+    group: "{{ swift_group }}"
+    mode: u=r,g=r,o-rwx
+  when: check_result.rc != 0
+  with_nested:
+  - ['account', 'container', 'object']
+  - ['ring.gz', 'builder']
+
+  # Ignore errors here because there may be no additional storage policies
+- name: swiftlm-ring-builder | deploy-rings | Fixup storage policy ownership
+  file:
+    path: "{{ swift_dir }}/object-{{ item[0] }}.{{ item[1] }}"
+    state: file
+    owner: "{{ swift_user }}"
+    group: "{{ swift_group }}"
+    mode: u=r,g=r,o-rwx
+  when: check_result.rc != 0
+  ignore_errors: True
+  with_nested:
+  - ['1', '2', '3', '4', '5', '6', '7', '8', '9']
+  - ['ring.gz', 'builder']
+   
+- name: swiftlm-ring-builder | deploy-rings | Save checksum of deployed rings
+  shell: md5sum {{ swiftlm_etc }}/deploy_dir/swift-rings-tarball.tar > {{ swiftlm_etc }}/deploy_dir/swift-rings-tarball.checksum
+  when: check_result.rc != 0

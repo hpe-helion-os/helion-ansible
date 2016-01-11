@@ -1,0 +1,171 @@
+#!/usr/bin/env python
+#
+# An Ansible module to parse baremetalConfig.yml (or json)
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+DOCUMENTATION = '''
+---
+module: bmconfig
+author: Joe Fegan
+short_description: Returns baremetal information from servers.yml
+description:
+    - Isolates parsing of baremetal information from the playbooks that consume it.
+    - By default this module returns a struct containing all information available.
+options:
+    field:
+        required: false
+        description:
+            - Returns just the value of this field, on stdout.
+    node:
+        required: false
+        description:
+            - Used with "field", returns just the value for this specific node.
+'''
+
+EXAMPLES = '''
+- bmconfig: file={{ baremetal_config }}
+- bmconfig: file={{ baremetal_config }} field=id
+- bmconfig: file={{ baremetal_config }} field=role node=ccn-0001
+'''
+
+import yaml
+
+
+class BmConfig(object):
+    name = 'bmconfig'
+    # The field that contains the node name.
+    idfield = 'id'
+    # The field that contains the primary IP of the node.
+    ipaddrfield = 'ip_addr'
+    # Old field names and their modern equivalents.
+    fieldmap = {
+        'node_name': 'id',
+        'node_type': 'role',
+        'pxe_ip_addr': 'ip_addr',
+        'pxe_mac_addr': 'mac_addr',
+        'kopts_extra': 'kopt_extras' }
+
+    def __init__(self, module):
+        self.module = module
+
+        try:
+            self.fname = module.params["file"]
+            self.field = module.params["field"]
+            self.node = module.params["node"]
+        except ValueError as e:
+            self.fail(msg="%s: bad value %s" % (self.name, str(e)))
+
+    def fail(self, **kwargs):
+        return self.module.fail_json(**kwargs)
+
+    def succeed(self, **kwargs):
+        return self.module.exit_json(**kwargs)
+
+    def execv(self, cmd, **kwargs):
+        return self.module.run_command(cmd, **kwargs)
+
+    # This doesn't do much yet, but in time it will handle more complex
+    # data file locations and varying content.
+    def load_data(self):
+        y = yaml.safe_load(file(self.fname))
+        if 'servers' in y:
+            key = 'servers'
+        elif 'baremetal_servers' in y:
+            # Backward compatibility
+            key = 'baremetal_servers'
+        else:
+            raise AttributeError('no servers info found in %s' % self.fname)
+        self.data = [self.map_fields(item) for item in y[key]]
+
+        if 'baremetal' in y:
+            key = 'baremetal'
+        elif 'baremetal_network' in y:
+            # Backward compatibility
+            key = 'baremetal_network'
+        else:
+            raise AttributeError('no network info found in %s' % self.fname)
+        self.network = self.map_fields(y[key])
+        if 'cidr' in self.network:
+            if 'subnet' in self.network or 'netmask' in self.network:
+                raise KeyError('cannot specify both cidr and subnet/netmask')
+            self.network['subnet'], width = self.network['cidr'].split('/')
+            self.network['netmask'] = int('1' * width + '0' * (32 - width), 2)
+        else:
+            binstr = "".join(["{0:08b}".format(int(x)) for x in self.network['netmask'].split('.')])
+            width = len(binstr.rstrip('0'))
+            self.network['cidr'] = "%s/%s" % (self.network['subnet'], width)
+        cmd = ['/bin/bash', '-c', 'ip a | awk \'/inet / {sub("/.*","",$2) ; print $2}\'']
+        rc, out, err = self.execv(cmd, check_rc=True)
+        self.localips = out.strip().split('\n')
+
+    # Handle backward compatibility of field names.
+    def map_fields(self, srv):
+        result = dict()
+        for (key, value) in srv.iteritems():
+            try:
+                result[self.fieldmap[key]] = value
+            except KeyError:
+                # Ansible doesn't accept - in variable names.
+                result[key.replace('-','_')] = value
+        return result
+
+    def action_field(self):
+        lst = list()
+        for srv in self.data:
+            if self.node is None or srv[self.idfield] == self.node:
+                lst.append(srv[self.field])
+        result = dict(stdout="\n".join(lst))
+        self.succeed(**result)
+
+    def action_struct(self):
+        lst = list()
+        svrids = list()
+        whoami = 'localhost'
+        for srv in self.data:
+            lst.append(srv)
+            svrids.append(srv[self.idfield])
+            if srv[self.ipaddrfield] in self.localips:
+                whoami = srv[self.idfield]
+        result = dict(servers=lst,network=self.network,server_ids=svrids,whoami=whoami)
+        self.succeed(**result)
+
+    def execute(self):
+        try:
+            self.load_data()
+
+            if self.field:
+                return self.action_field()
+            else:
+                return self.action_struct()
+        except Exception as e:
+            self.fail(msg="%s: %s %s" % (self.name, str(type(e)), str(e)))
+
+
+def main():
+    module = AnsibleModule(
+        argument_spec=dict(
+            file=dict(required=True),
+            field=dict(required=False),
+            node=dict(required=False)
+        )
+    )
+
+    mod = BmConfig(module)
+    return mod.execute()
+
+
+from ansible.module_utils.basic import *
+main()

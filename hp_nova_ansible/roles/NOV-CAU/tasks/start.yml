@@ -1,0 +1,47 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Restart or start the nova-consoleauth service
+---
+- include_vars:
+    run_location.yml
+
+- name: NOV-CAU | start | Activate the latest installed version
+  install_package:
+    name: nova
+    service: nova-consoleauth
+    activate: act_on
+    version: "{{ nova_consoleauth_install_result.version }}"
+  when: nova_consoleauth_install_result is defined
+
+# consoleauth_host_index is from run_location and specifies the index of the
+# host where consoleauth should be running.
+# we match the consoleauth_host_index with the index of the inventory_host
+- name: NOV-CAU | start | Restart nova-consoleauth service
+  service:
+    name: nova-consoleauth
+    state: restarted
+  when: "({{ consoleauth_host_index }} == {{ groups[ group.vars.network_address_prefix ].index(inventory_hostname) }}) and (nova_restart_required or nova_consoleauth_restart_required)"
+
+- name: NOV-CAU | start | Ensure nova-consoleauth service started
+  service:
+    name: nova-consoleauth
+    state: started
+  when: "{{ consoleauth_host_index }} == {{ groups[ group.vars.network_address_prefix ].index(inventory_hostname) }}"
+
+# write back to run_location where we started service
+# which allows for operator override
+- name: NOV-CAU | start | write localhost run_location file
+  local_action: "copy content='---\nconsoleauth_host_index: {{ consoleauth_host_index }}\n' dest=./roles/NOV-CAU/vars/run_location.yml"

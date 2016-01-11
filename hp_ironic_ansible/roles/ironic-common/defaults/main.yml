@@ -1,0 +1,83 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+ironic_user : "ironic"
+ironic_group : "ironic"
+ironic_rootwrap_dir : "{{ironic_service_conf_dir}}/rootwrap.d"
+ironic_logs_dir : "/var/log/ironic"
+ironic_images_path : "/tftpboot"
+host_pxelinux : "/usr/lib/PXELINUX/pxelinux.0"
+host_ldlinux : "/usr/lib/syslinux/modules/bios/ldlinux.c32"
+host_ipxe : "/usr/lib/ipxe/undionly.kpxe"
+protocol : "http"
+ironic_http_port : "{{ host.bind.IRN_CND.ipxe_http.port }}"
+ironic_ipxe_http_address: "{{ host.bind.IRN_CND.ipxe_http.ip_address }}"
+
+## [DEFAULT]
+ironic_common_restart_required: "false"
+log_config_append : "{{ ironic_service_conf_dir }}/{{ ironic_component }}-logging.conf"
+rootwrap_config_append : "{{ ironic_service_conf_dir }}/rootwrap.conf"
+ironic_loglevel: "{{ helion_loglevel | default('INFO') }}"
+ironic_logstash_loglevel: "{{ helion_loglevel | default('INFO') }}"
+verbose : "True"
+debug : "True"
+policy_file : "{{ ironic_service_conf_dir }}/policy.json"
+rabbit_userid : "{{ IRN_API.consumes_FND_RMQ.vars.rmq_service_user }}"
+rabbit_password : "{{ IRN_API.consumes_FND_RMQ.vars.rmq_service_password }}"
+_rabbit_hosts_list : "{{ IRN_API.consumes_FND_RMQ.members.private }}"
+rabbit_hosts: "{% for x in _rabbit_hosts_list %}{{ x.host }}:{{ x.port }}{%if not loop.last %},{% endif %}{% endfor %}"
+rpc_backend : "rabbit"
+rpc_conn_pool_size : "100"
+enabled_drivers: "pxe_ipmitool, pxe_ilo, agent_ilo, agent_ipmitool"
+
+## [database]
+connection : "mysql://{{ IRN_CND.consumes_FND_MDB.vars.mysql_admin_user }}:{{ IRN_CND.consumes_FND_MDB.vars.mysql_admin_password | urlencode }}@{{ IRN_CND.consumes_FND_MDB.vips.private[0].host }}/ironic?charset=utf8"
+
+## [keystone_authtoken]
+admin_tenant_name : "{{ KEY_API.vars.keystone_service_tenant }}"
+admin_password : "{{ IRN_API.consumes_KEY_API.vars.keystone_ironic_password }}"
+admin_user : "{{ IRN_API.consumes_KEY_API.vars.keystone_ironic_user }}"
+auth_uri : "{{ IRN_API.consumes_KEY_API.vips.private[0].url }}/v2.0"
+identity_uri : "{{ IRN_API.consumes_KEY_API.vips.admin[0].url }}"
+
+## [api]
+host_ip : "{{ host.bind.IRN_API.internal.ip_address }}"
+port : "{{ IRN_API.advertises.vips.private[0].port }}"
+
+## [neutron]
+url : "{{ IRN_CND.consumes_NEU_SVR.vips.private[0].url }}"
+
+## [glance]
+glance_host : "{{ IRN_CND.consumes_GLA_API.vips.private[0].host }}"
+glance_port : "{{ IRN_CND.consumes_GLA_API.vips.private[0].port }}"
+glance_protocol : "{{ tls_vars.glance.api.private.protocol }}"
+
+## [pxe]
+tftp_server : "{{ host.bind.IRN_CND.tftp.ip_address }}"
+images_path : "{{ ironic_images_path }}"
+instance_master_path : "{{ ironic_images_path }}/master_images"
+pxe_append_params : "nofb nomodeset vga=normal elevator=deadline security=apparmor crashkernel=256M console=tty0 console=ttyS0"
+http_root : "{{ ironic_images_path }}"
+http_url : "http://{{ ironic_ipxe_http_address }}:{{ ironic_http_port }}"
+ipxe_enabled : "True"
+pxe_bootfile_name : "undionly.kpxe"
+swift_temp_url_key : "{{ IRN_CND.ansible-vars.swift_temp_url_key }}"
+
+## [conductor]
+api_url : >
+  {{ protocol ~ '://' ~ IRN_API.advertises.vips.private[0].ip_address ~ ':'
+             ~ IRN_API.advertises.vips.private[0].port }}

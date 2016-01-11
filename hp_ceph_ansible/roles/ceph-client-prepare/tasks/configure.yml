@@ -1,0 +1,102 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: ceph-client-prepare | configure | Create ceph directory /etc/ceph
+  file:
+    path: /etc/ceph
+    state: directory
+    owner: "{{ ceph_user }}"
+    group: "{{ ceph_group }}"
+    mode: 0755
+
+- include_vars: ceph_user_model.yml
+
+- name: ceph-client-prepare | configure | Create keyring for {{ consumer }}
+  command: ceph --cluster {{ ceph_cluster }} auth get-or-create client.{{ item.0.user.name }} -o /etc/ceph/ceph.client.{{ item.0.user.name }}.keyring
+  when: item.1.attrs.creation_policy | default('lazy') == "eager" and item.1.usage.consumer == "{{ consumer }}"
+  with_subelements:
+       - ceph_user_models
+       - pools
+  delegate_to: "{{ ceph_admin_node }}"
+
+# key copy is a two step-operation to avoid firewall issues
+
+# Ensure directory exists on deployer
+- name: ceph-client-prepare | configure | Create a local temporary directory
+  command: mktemp -d
+  register: ceph_local_mktempdir_result
+  delegate_to: "localhost"
+  run_once: yes
+  become: no
+  # must be owned by local user for successful fetch operation
+
+# 1. copy to deployment node
+- name: ceph-client-prepare | configure | Stage {{ consumer }} keyring for deployment
+  fetch:
+    src: "/etc/ceph/ceph.client.{{ item.0.user.name }}.keyring"
+    dest: "{{ ceph_local_mktempdir_result.stdout }}/"
+    flat: yes
+  delegate_to: "{{ ceph_admin_node }}"
+  run_once: yes
+  when: item.1.attrs.creation_policy | default('lazy') == "eager" and item.1.usage.consumer == "{{ consumer }}"
+  with_subelements:
+       - ceph_user_models
+       - pools
+
+# 2. copy key to target
+- name: ceph-client-prepare | configure | Copy {{ consumer }} keyring to /etc/ceph
+  copy:
+    src: "{{ ceph_local_mktempdir_result.stdout }}/ceph.client.{{ item.0.user.name }}.keyring"
+    dest: /etc/ceph
+    owner: "{{ ceph_user }}"
+    group: "{{ ceph_group }}"
+    mode: 0644
+  when: item.1.attrs.creation_policy | default('lazy') == "eager" and item.1.usage.consumer == "{{ consumer }}"
+  with_subelements:
+       - ceph_user_models
+       - pools
+
+- name: ceph-client-prepare | configure | Check "/etc/ceph/{{ ceph_cluster }}.conf" exists in "{{ ceph_active_mon_nodes }}"
+  stat:
+    path: "/etc/ceph/{{ ceph_cluster }}.conf"
+  register: ceph_monitor_conf_result
+  delegate_to: "{{ item }}"
+  with_items: "{{ ceph_active_monitors | default() }}"
+
+- name: ceph-client-prepare | configure | Fetch "/etc/ceph/{{ ceph_cluster }}.conf" from monitor node to "{{ ceph_local_mktempdir_result.stdout }}/"
+  fetch:
+    src: "/etc/ceph/{{ ceph_cluster }}.conf"
+    dest: "{{ ceph_local_mktempdir_result.stdout }}/"
+    flat: yes
+  delegate_to: "{{ ceph_monitor_conf_result.results | one_from_list }}"
+  when: ceph_monitor_conf_result.results | one_from_list != None
+  run_once: yes
+
+- name: ceph-client-prepare | configure | Copy "{{ ceph_local_mktempdir_result.stdout }}/{{ ceph_cluster }}.conf" to "/etc/ceph/{{ ceph_cluster }}.conf"
+  copy:
+    src: "{{ ceph_local_mktempdir_result.stdout }}/{{ ceph_cluster }}.conf"
+    dest: "/etc/ceph/{{ ceph_cluster }}.conf"
+    owner: "{{ ceph_user }}"
+    group: "{{ ceph_group }}"
+    mode: 0644
+
+- name: ceph-client-prepare | configure | Delete local temporary directory "{{ ceph_local_mktempdir_result.stdout }}"
+  file:
+    dest: "{{  ceph_local_mktempdir_result.stdout }}"
+    state: absent
+  delegate_to: "localhost"
+  run_once: yes

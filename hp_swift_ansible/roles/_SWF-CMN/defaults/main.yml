@@ -1,0 +1,93 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+swift_restart_required: false
+swift_common_rsyslog_restart_required: false
+
+# Flags used to indicate swift system type
+swift_proxy_server_role: false
+swift_account_server_role: false
+swift_container_server_role: false
+swift_object_server_role: false
+
+swift_dir: /etc/swift
+swiftlm_dir: /etc/swiftlm
+swift_user: swift
+swift_group: swift
+# Note to reviewer. We need to pick a swift uid/gid that won't change
+# from node to node. For now I'm hardcoding it here. Alternate suggestions
+# welcome
+swift_uid: 154
+swift_gid: 154
+
+swift_hash_path_suffix: "{{ SWF_CMN.vars.swift_hash_path_prefix }}"
+swift_hash_path_prefix: "{{ SWF_CMN.vars.swift_hash_path_prefix }}"
+
+# Note to Reviewers: additional storage polifies like the commented out
+# silver policy need to come from the user i.e. need a way for the user
+# to specify storage policies and to have CP pass the data down.
+# For now can hardcode here.
+#storage_policies:
+#  - policy:
+#      index: 0
+#      name: Policy-0
+#      default: 'yes'
+#  - policy:
+#      index: 1
+#      name: silver
+
+mount_check: true
+swift_devices: /srv/node
+recon_cache_path: /var/cache/swift
+
+swift_logs_dir: /var/log/swift
+
+swift_facts_dir: /etc/ansible/facts.d
+
+# Swift service
+swift_service_name: "{{ SWF_PRX.advertises.keystone_service_name }}"
+swift_service_type: "{{ SWF_PRX.advertises.keystone_service_type }}"
+swift_user_name: "{{ SWF_PRX.consumes_KEY_API.vars.keystone_swift_user }}"
+swift_user_password: "{{ SWF_PRX.consumes_KEY_API.vars.keystone_swift_password | quote }}"
+
+# Swift monitor tenant/user used by swift-uptime-mon
+swift_monitor_tenant: "{{ SWF_PRX.consumes_KEY_API.vars.keystone_swift_monitor_user }}"
+swift_monitor_description: 'Tenant-for-swift-uptime-mon'
+swift_monitor_user: "{{ SWF_PRX.consumes_KEY_API.vars.keystone_swift_monitor_user }}"
+swift_monitor_password: "{{ SWF_PRX.consumes_KEY_API.vars.keystone_swift_monitor_password }}"
+
+# Swift bind ips/ports
+proxy_bind_port: "{% if host.bind.SWF_PRX is defined %}{{ host.bind.SWF_PRX.internal.port }}{% endif %}"
+proxy_bind_ip: "{% if host.bind.SWF_PRX is defined %}{{ host.bind.SWF_PRX.internal.ip_address }}{% endif %}"
+account_bind_port: "{% if host.bind.SWF_ACC is defined %}{{ host.bind.SWF_ACC.internal.port }}{% endif %}"
+account_bind_ip: "{% if host.bind.SWF_ACC is defined %}{{ host.bind.SWF_ACC.internal.ip_address }}{% endif %}"
+container_bind_port: "{% if host.bind.SWF_CON is defined %}{{ host.bind.SWF_CON.internal.port }}{% endif %}"
+container_bind_ip: "{% if host.bind.SWF_CON is defined %}{{ host.bind.SWF_CON.internal.ip_address }}{% endif %}"
+object_bind_port: "{% if host.bind.SWF_OBJ is defined %}{{ host.bind.SWF_OBJ.internal.port }}{% endif %}"
+object_bind_ip: "{% if host.bind.SWF_OBJ is defined %}{{ host.bind.SWF_OBJ.internal.ip_address }}{% endif %}"
+rsync_bind_ip: "{% if host.bind.SWF_RSY is defined %}{{ host.bind.SWF_RSY.internal.ip_address }}{% endif %}"
+
+# Keystone
+keystone_auth_uri: "{{ SWF_PRX.consumes_KEY_API.vips.private[0].url }}"
+keystone_identity_uri: "{{ SWF_PRX.consumes_KEY_API.vips.admin[0].url }}"
+admin_tenant_name: "{{ KEY_API.vars.keystone_service_tenant }}"
+
+memcache_servers: "{{ SWF_PRX.consumes_FND_MEM.members.private }}"
+swift_storage_servers: "{{ groups['SWF-ACC'] | union(groups['SWF-CON']) | union(groups['SWF-OBJ']) | unique }}"
+
+# Swift conf dirs
+swift_object_conf_dir: /opt/stack/service/swift-object-server/etc

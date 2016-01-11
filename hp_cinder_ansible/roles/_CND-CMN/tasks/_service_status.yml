@@ -1,0 +1,56 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: _CND-CMN | status | Print service being checked
+  debug:
+    msg: "Running service check for {{ cinder_component }}"
+  run_once: true
+
+- name: _CND-CMN | status | Check system service running
+  command: systemctl status "{{ cinder_component }}"
+  ignore_errors: yes
+  no_log: True
+  changed_when: false
+  register: systemctl_status_result
+
+- name: _CND_CMN | status | Set status facts
+  set_fact:
+     cinder_api_sch_not_running_error: "{{ systemctl_status_result | failed and cinder_component !=
+                                           \"cinder-volume\" and cinder_component != \"cinder-backup\" }}"
+     cinder_vol_bck_not_running_error: "{{ systemctl_status_result | failed and (cinder_component == \"cinder-volume\"
+                                           or cinder_component == \"cinder-backup\") and ansible_local.cindervolume.status.running == \"True\" }}"
+     cinder_vol_bck_running_error: "{{ systemctl_status_result | success and (cinder_component == \"cinder-volume\"
+                                       or cinder_component == \"cinder-backup\") and ansible_local.cindervolume.status.running == \"False\" }}"
+
+- name: cinder-common | status | Report status of "{{ cinder_component }} unexpectedly not runnning"
+  fail:
+    msg: |
+      {{ cinder_component }} is not running.
+      systemctl status {{ cinder_component }} output:
+      {{ systemctl_status_result.stdout }}
+      {{ systemctl_status_result.stderr }}
+  when: (cinder_api_sch_not_running_error == "True") or (cinder_vol_bck_not_running_error == "True")
+
+- name: cinder-common | status | Report status of "{{ cinder_component }} unexpectedly running"
+  fail:
+    msg: |
+      {{ cinder_component }} is running.
+      systemctl status {{ cinder_component }} output:
+      {{ systemctl_status_result.stdout }}
+      {{ systemctl_status_result.stderr }}
+  when: cinder_vol_bck_running_error == "True"
+

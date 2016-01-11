@@ -1,0 +1,78 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- include: ../../_SWF-CMN/tasks/configure.yml
+- include: ../../_SWF-RSY/tasks/configure.yml
+
+- set_fact:
+    swift_container_server_role: true
+
+- name: SWF-CON | configure | Create swift_devices directory
+  file:
+    path: "{{ swift_devices }}"
+    owner: root
+    group: root
+    mode: 0755
+    state: directory
+
+- name: SWF-CON | configure | Enable the container object services to start on boot
+  command: systemctl enable {{ item.key }}
+  with_dict: swift_container_services
+
+# Note, swift.conf file should NOT be in the service specific etc dir
+- name: SWF-CON | configure | Copy swift.conf
+  template:
+    src: ../../_SWF-CMN/templates/swift.conf.j2
+    dest: "{{ swift_dir }}/swift.conf"
+    owner: "{{ swift_user }}"
+    group: "{{ swift_group }}"
+    mode: 0400
+  notify:
+    - swift_config_change
+
+- name: SWF-CON | configure | Copy container-server.conf
+  template:
+    src: container-server.conf.j2
+    dest: "{{ swift_container_server_conf_dir }}/container-server.conf"
+    owner: "{{ swift_user }}"
+    group: "{{ swift_group }}"
+    mode: 0400
+  notify:
+    - swift_container_config_change
+
+- name: SWF-CON | configure | Copy container-reconciler.conf
+  template:
+    src: container-reconciler.conf.j2
+    dest: "{{ swift_container_reconciler_conf_dir }}/container-reconciler.conf"
+    owner: "{{ swift_user }}"
+    group: "{{ swift_group }}"
+    mode: 0400
+  notify:
+    - swift_container_reconciler_config_change
+
+# Note, container-sync-realms.conf file should NOT be in the service specific
+# etc dir
+- name: SWF-CON | configure | Copy container-sync-realms.conf
+  template:
+    src: container-sync-realms.conf.j2
+    dest: "{{ swift_dir }}/container-sync-realms.conf"
+    owner: "{{ swift_user }}"
+    group: "{{ swift_group }}"
+    mode: 0400
+  notify:
+    - swift_container_sync_config_change
+
+- include: ../../_SWF-CMN/tasks/provision_storage.yml

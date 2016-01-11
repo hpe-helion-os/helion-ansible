@@ -1,0 +1,68 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: rabbitmq | start | Ensure that RabbitMQ service is started
+  service:
+    name: rabbitmq-server
+    enabled: no
+    state: started
+  register: _rabbitmq_start_result
+
+# It is possible that RabbitMQ service was started but we are at stop_app
+# so let's guarantee the RabbitMQ application is also started.
+- name: rabbitmq | start | Run start_app
+  command: |
+    timeout {{ rabbitmq_start_app_timeout }}
+    rabbitmqctl start_app
+  when: not _rabbitmq_start_result.changed
+
+# Wait for the RabbitMQ application to start.
+- name: rabbitmq | start | Wait for the RabbitMQ application to start
+  command: |
+    timeout {{ rabbitmq_start_timeout }}
+    rabbitmqctl wait {{ rabbitmq_env.pid_file }}
+  changed_when: false
+
+# We have to work across the cluster here as to join a host at least two must
+# be online and hence this is a serialisation inside the task.
+- include: _join-cluster.yml
+  when: groups[ 'FND-RMQ' ].index( inventory_hostname ) == 0 and
+        ( groups[ 'FND-RMQ' ] | length ) > 1
+
+- include: _join-cluster.yml
+  when: groups[ 'FND-RMQ' ].index( inventory_hostname ) != 0 and
+        ( groups[ 'FND-RMQ' ] | length ) > 1
+
+# Live enable any registered RabbitMQ plugins. This must be done after
+# clustering to correctly set-up the distributed DB used by RabbitMQ.
+- include: _enable-plugins.yml
+
+# Wait for queues to synchronise, during synchronisation the queues will
+# pause and not allow any messages to be placed in the queue that is
+# synchronising.
+- include: _wait-for-cluster-sync.yml
+  vars:
+    rabbitmq_secondary_host_count: "{{ ( groups[ 'FND-RMQ' ] | length ) - 1 }}"
+  when: ( groups[ 'FND-RMQ' ] | length ) > 1
+
+# We retry here as logrotate may be running.
+- name: rabbitmq | start | Rotate the logs on startup
+  command: logrotate -f /etc/logrotate.d/rabbitmq-server
+  register: rabbitmq_start_logrotate_result
+  until: ( rabbitmq_start_logrotate_result | success )
+  retries: 5
+  delay: 10
+  when: _rabbitmq_start_result.changed

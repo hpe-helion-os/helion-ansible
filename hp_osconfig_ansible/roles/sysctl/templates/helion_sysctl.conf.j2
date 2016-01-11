@@ -1,0 +1,63 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+
+{# CAUTION: when adding new settings to this template, make sure you are not
+   overwriting settings from another service with a different value. Services
+   which may be co-located on the same node with conflicting settings need to
+   resolve those conflicts and apply the conflicting settings conditionally.
+   For example, see the vertica/rabbitmq conflict with 'fs.file-max'. #}
+
+{# fs.file-max conflict for vertica, rabbitmq #}
+{% if 'vertica' in group.services and 'rabbitmq' in group.services %}
+# vertica and rabbitmq
+fs.file-max = 95536
+{% elif 'vertica' in group.services %}
+# vertica
+fs.file-max = 65536
+{% elif 'rabbitmq' in group.services %}
+# rabbitmq
+fs.file-max = 30000
+{% endif %}
+
+{# neutron-openvswitch-agent #}
+{% if 'neutron-openvswitch-agent' in group.services %}
+# neutron-openvswitch-agent
+net.ipv4.neigh.default.gc_thresh1 = 8192
+net.ipv4.neigh.default.gc_thresh2 = 16384
+net.ipv4.neigh.default.gc_thresh3 = 32768
+{% endif %}
+
+{# nova-compute #}
+{% if 'nova-compute' in group.services %}
+# nova-compute
+vm.dirty_background_bytes = 16777216
+vm.dirty_bytes = 33554432
+{% endif %}
+
+fs.aio-max-nr = 1048576
+
+
+{# sysctl settings which should be on all servers, regardless of services #}
+# common
+net.ipv4.tcp_keepalive_probes = 3
+net.ipv4.tcp_syncookies = 0
+net.ipv4.tcp_tw_reuse = 1
+net.ipv4.tcp_keepalive_intvl = 5
+net.ipv4.tcp_keepalive_time = 45
+net.ipv4.tcp_tw_recycle = 1
+net.nf_conntrack_max = 524288

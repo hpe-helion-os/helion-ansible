@@ -1,0 +1,48 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: configure | create /opt/monasca
+  file: path=/opt/monasca state=directory owner=root group=root mode=755
+
+- name: create conf.d dir and custom plugin dirs
+  become: yes
+  file: path="{{item}}" state=directory owner=root group=root mode=755
+  with_items:
+    - "{{monasca_conf_dir}}/agent/conf.d"
+    - "{{monasca_agent_check_plugin_dir}}"
+    - "{{monasca_agent_detection_plugin_dir}}"
+  notify:
+    - monasca-agent | restart | restart all monasca-agent services
+
+- name: Create additional plugins config
+  become: yes
+  template: dest="{{monasca_conf_dir}}/agent/conf.d/{{item.key}}.yaml" src=plugin.yaml.j2 owner=root group=root mode=644
+  with_dict: monasca_checks
+  notify:
+    - monasca-agent | restart | restart all monasca-agent services
+
+# Instead of running this directly by creating a file to run it changes such as user/pass will trigger a rerun. Also a user can run it manually
+- name: Create reconfigure script
+  become: yes
+  template: dest="{{agent_reconfigure_script}}" src=monasca-reconfigure.j2 owner=root group=root mode=750
+  notify:
+    - monasca-agent | restart | restart all monasca-agent services
+
+- meta: flush_handlers
+
+- name: Enable Monasca-Agent
+  become: yes
+  service: name=monasca-agent state=started enabled=yes

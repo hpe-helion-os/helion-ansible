@@ -1,0 +1,92 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: freezer-post-configure |  keystone_conf | Get a domain scoped token
+  keystone_v3:
+    endpoint: "{{ keystone_endpoint }}"
+    login_username: "{{ keystone.admin_user }}"
+    login_password: "{{ keystone.admin_password }}"
+    login_user_domain_name: "{{ keystone.default_domain_name }}"
+    login_domain_name: "{{ keystone.default_domain_name }}"
+    action: "token_get"
+  run_once: true
+  register: domain_scoped_token
+
+- name: freezer-post-configure | keystone_conf | Create Freezer Keystone User
+  become: yes
+  keystone_v3:
+    action: create_user
+    login_token: "{{ domain_scoped_token.result }}"
+    endpoint: "{{ keystone_endpoint }}"
+    user_name: "{{ freezer_service_username }}"
+    user_password: "{{ freezer_service_password }}"
+    description: Freezer service user
+    user_domain_name: Default
+  run_once: true
+  register: freezer_keystone_user_result
+  until: not freezer_keystone_user_result | failed
+  retries: 5
+  delay: 10
+
+- name: freezer-post-configure | keystone_conf | Give freezer user admin role in service tenant
+  become: yes
+  keystone_v3:
+    action: grant_project_role
+    login_token: "{{ domain_scoped_token.result }}"
+    endpoint: "{{ keystone_endpoint }}"
+    user_name: "{{ freezer_service_username }}"
+    project_name: "{{ keystone_service_tenant }}"
+    role_name: "{{ keystone_admin_role_name }}"
+    user_domain_name: Default
+    project_domain_name: Default
+  run_once: true
+  register: freezer_keystone_role_result
+  until: not freezer_keystone_role_result | failed
+  retries: 5
+  delay: 10
+
+- name: freezer-post-configure | keystone_conf | Create Freezer Keystone Service
+  become: yes
+  keystone_v3:
+    action: create_service
+    login_token: "{{ domain_scoped_token.result }}"
+    endpoint: "{{ keystone_endpoint }}"
+    service_type: backup
+    service_name: freezer
+    description: Freezer Backup Service
+  run_once: true
+  register: freezer_keystone_service_result
+  until: not freezer_keystone_service_result | failed
+  retries: 5
+  delay: 10
+
+- name: freezer-post-configure | keystone_conf | Create Freezer Keystone Endpoint
+  become: yes
+  keystone_v3:
+    action: create_endpoint
+    login_token: "{{ domain_scoped_token.result }}"
+    endpoint: "{{ keystone_endpoint }}"
+    service_name: freezer
+    region: "{{ freezer_region_name }}"
+    admin_url: "{{ freezer_private_endpoint }}"
+    internal_url: "{{ freezer_private_endpoint}}"
+    public_url: "{{ freezer_public_endpoint }}"
+  run_once: true
+  register: freezer_keystone_endpoint_result
+  until: not freezer_keystone_endpoint_result | failed
+  retries: 5
+  delay: 10

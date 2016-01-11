@@ -1,0 +1,51 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+# Prepare a scratch directory to run the config processor
+#
+# Parameters:
+#   repo: ~/helion
+#   target_dir: ~/cp-run (subdirs of this used as work dirs)
+#   branches:
+#     site:
+#       - from: some relative path
+#         to: some relative path
+#       - ... etc ...
+#     cp-persistent:
+#       - ... etc ...
+---
+
+- name: git-operations | prepare-cp-run | Ensure all changes committed
+  include: check-repo-status.yml
+  vars:
+    repo: "{{ git_operations.main_repo }}"
+
+- name: git-operations | prepare-cp-run | Assemble CP contents
+  include: _assemble-working-directory.yml
+  vars:
+    repo: "{{ git_operations.main_repo }}"
+    target_dir: "{{ git_operations.cp_target_dir }}"
+    branches:
+      # The contents of the tree or subtree of each branch
+      # in turn is copied into a subdirectory of target_dir.
+      - name: "{{ git_operations.site_branch }}"
+        copies:
+          - from: .
+            to: .
+      - name: "{{ git_operations.cp_branch }}"
+        copies:
+          - from: "{{ git_operations.cp_subdir }}/."
+            to: "{{ git_operations.cp_subdir }}"

@@ -1,0 +1,42 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# nova-common | configure
+---
+- debug:
+    msg: "Running nova-common configure for {{ nova_component }}"
+    when: nova_component is defined
+    run_once: true
+
+- include: _write_conf.yml
+  src: "nova.conf.j2"
+  dest: "{{ nova_service_conf_dir }}/nova.conf"
+  owner: "{{ nova_system_user }}"
+  group: "{{ nova_system_group }}"
+
+- name: nova-common | configure | notify on nova.conf change
+  set_fact:
+    nova_restart_required: true
+  when: write_conf_result.changed
+
+- name: nova-common | configure | default rootwrap_changed to false
+  set_fact:
+    rootwrap_changed: false
+
+- include: _configure_rootwrap.yml
+  when: rootwrap_filters is defined
+
+- include: _configure_policy.yml
+  when: policy_file is defined

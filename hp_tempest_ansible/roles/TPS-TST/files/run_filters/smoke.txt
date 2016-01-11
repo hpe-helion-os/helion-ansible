@@ -1,0 +1,108 @@
+# Keystone API Test
+# DEVQA-423: Enable Keystone v3 API test
+# Exclude 3 known failures:
+# tempest\.api\.identity\.admin\.v3\.test_list_users.UsersV3TestJSON\.test_list_users
+# tempest\.api\.identity\.admin\.v3\.test_list_users.UsersV3TestJSON\.test_list_users_with_name
+# tempest\.api\.identity\.admin\.v3\.test_users.UsersV3TestJSON\.test_update_user_password
++tempest\.api\.identity\.admin\.v3\.test_credentials
+# HQA-292
+#+tempest\.api\.identity\.admin\.v3\.test_default_project_id
++tempest\.api\.identity\.admin\.v3\.test_domains
++tempest\.api\.identity\.admin\.v3\.test_endpoints*
++tempest\.api\.identity\.admin\.v3\.test_groups
++tempest\.api\.identity\.admin\.v3\.test_list_projects
++tempest\.api\.identity\.admin\.v3\.test_policies
++tempest\.api\.identity\.admin\.v3\.test_projects*
++tempest\.api\.identity\.admin\.v3\.test_regions
++tempest\.api\.identity\.admin\.v3\.test_roles
++tempest\.api\.identity\.admin\.v3\.test_services
++tempest\.api\.identity\.admin\.v3\.test_tokens
++tempest\.api\.identity\.admin\.v3\.test_trusts
++tempest\.api\.identity\.admin\.v3\.test_list_users\.UsersV3TestJSON\.test_get_user
++tempest\.api\.identity\.admin\.v3\.test_list_users\.UsersV3TestJSON\.test_list_user_domains
++tempest\.api\.identity\.admin\.v3\.test_list_users\.UsersV3TestJSON\.test_list_users_with_not_enabled
++tempest\.api\.identity\.admin\.v3\.test_users\.UsersV3TestJSON\.test_get_user
++tempest\.api\.identity\.admin\.v3\.test_users\.UsersV3TestJSON\.test_list_user_projects
++tempest\.api\.identity\.admin\.v3\.test_users\.UsersV3TestJSON\.test_user_update
++tempest\.api\.identity\.admin\.test_*
++tempest\.api\.identity\.test_extension
+# DEVQA-418: Add Nova smoke tests
++tempest\.api\.compute\.flavors\.test_flavors\.FlavorsV2TestJSON\.test_get_flavor
++tempest\.api\.compute\.flavors\.test_flavors\.FlavorsV2TestJSON\.test_list_flavors
++tempest\.api\.compute\.security_groups\.test_security_group_rules\.SecurityGroupRulesTestJSON\.test_security_group_rules_create
++tempest\.api\.compute\.security_groups\.test_security_group_rules\.SecurityGroupRulesTestJSON\.test_security_group_rules_list
++tempest\.api\.compute\.security_groups\.test_security_groups\.SecurityGroupsTestJSON\.test_security_groups_create_list_delete
++tempest\.api\.compute\.servers\.test_attach_interfaces\.AttachInterfacesTestJSON\.test_add_remove_fixed_ip
++tempest\.api\.compute\.servers\.test_create_server\.ServersTestJSON\.test_list_servers
++tempest\.api\.compute\.servers\.test_create_server\.ServersTestJSON\.test_verify_server_details
++tempest\.api\.compute\.servers\.test_create_server\.ServersTestManualDisk\.test_list_servers
++tempest\.api\.compute\.servers\.test_create_server\.ServersTestManualDisk\.test_verify_server_details
++tempest\.api\.compute\.servers\.test_server_actions\.ServerActionsTestJSON\.test_reboot_server_hard
++tempest\.api\.compute\.servers\.test_server_addresses\.ServerAddressesTestJSON\.test_list_server_addresses
++tempest\.api\.compute\.servers\.test_server_addresses\.ServerAddressesTestJSON\.test_list_server_addresses_by_network
+# Swift tests
++tempest\.api\.object_storage\.test_healthcheck.*
++tempest\.api\.object_storage\.test_container_services\.ContainerTesti\.test_delete_container
+#+tempest\.api\.object_storage\.test_account_services\.AccountTest\.test_list_containers
+# DEVQA-420: Image or glance testing
++tempest\.api\.image\.v1\.test_image_members_negative\.ImageMembersNegativeTest\.test_add_member_with_non_existing_image
++tempest\.api\.image\.v1\.test_image_members_negative\.ImageMembersNegativeTest\.test_delete_member_with_non_existing_image
++tempest\.api\.image\.v1\.test_images\.CreateRegisterImagesTest\.test_register_image_with_min_ram
++tempest\.api\.image\.v1\.test_images_negative\.CreateDeleteImagesNegativeTest\.test_delete_image_blank_id
++tempest\.api\.image\.v1\.test_images_negative\.CreateDeleteImagesNegativeTest\.test_delete_image_id_is_over_35_character_limit
++tempest\.api\.image\.v1\.test_images_negative\.CreateDeleteImagesNegativeTest\.test_delete_image_negative_image_id
++tempest\.api\.image\.v1\.test_images_negative\.CreateDeleteImagesNegativeTest\.test_delete_image_non_hex_string_id
++tempest\.api\.image\.v1\.test_images_negative\.CreateDeleteImagesNegativeTest\.test_delete_image_with_invalid_image_id
++tempest\.api\.image\.v1\.test_images_negative\.CreateDeleteImagesNegativeTest\.test_delete_non_existent_image
++tempest\.api\.image\.v1\.test_images_negative\.CreateDeleteImagesNegativeTest\.test_register_with_invalid_container_format
++tempest\.api\.image\.v1\.test_images_negative\.CreateDeleteImagesNegativeTest\.test_register_with_invalid_disk_format
++tempest\.api\.image\.v2\.test_images\.BasicOperationsImagesTest\.test_delete_image
++tempest\.api\.image\.v2\.test_images\.BasicOperationsImagesTest\.test_update_image
++tempest\.api\.image\.v2\.test_images_member\.ImagesMemberTest\.test_get_image_member
++tempest\.api\.image\.v2\.test_images_member\.ImagesMemberTest\.test_get_image_member_schema
++tempest\.api\.image\.v2\.test_images_member\.ImagesMemberTest\.test_get_image_members_schema
++tempest\.api\.image\.v2\.test_images_member\.ImagesMemberTest\.test_image_share_accept
++tempest\.api\.image\.v2\.test_images_member\.ImagesMemberTest\.test_image_share_reject
++tempest\.api\.image\.v2\.test_images_member\.ImagesMemberTest\.test_remove_image_member
++tempest\.api\.image\.v2\.test_images_member_negative\.ImagesMemberNegativeTest\.test_image_share_invalid_status
++tempest\.api\.image\.v2\.test_images_member_negative\.ImagesMemberNegativeTest\.test_image_share_owner_cannot_accept
++tempest\.api\.image\.v2\.test_images_negative\.ImagesNegativeTest\.test_delete_image_null_id
++tempest\.api\.image\.v2\.test_images_negative\.ImagesNegativeTest\.test_delete_non_existing_image
++tempest\.api\.image\.v2\.test_images_negative\.ImagesNegativeTest\.test_get_delete_deleted_image
++tempest\.api\.image\.v2\.test_images_negative\.ImagesNegativeTest\.test_get_image_null_id
++tempest\.api\.image\.v2\.test_images_negative\.ImagesNegativeTest\.test_get_non_existent_image
++tempest\.api\.image\.v2\.test_images_negative\.ImagesNegativeTest\.test_register_with_invalid_container_format
++tempest\.api\.image\.v2\.test_images_negative\.ImagesNegativeTest\.test_register_with_invalid_disk_format
++tempest\.api\.image\.v2\.test_images_tags\.ImagesTagsTest\.test_update_delete_tags_for_image
++tempest\.api\.image\.v2\.test_images_tags_negative\.ImagesTagsNegativeTest\.test_delete_non_existing_tag
++tempest\.api\.image\.v2\.test_images_tags_negative\.ImagesTagsNegativeTest\.test_update_tags_for_non_existing_image
+# DEVQA-421: Adding some Neutron API tests
++tempest\.api\.network\test_networks
++tempest\.api\.network\test_networks_negative
++tempest\.api\.network\test_ports
++tempest\.api\.network\test_routers
++tempest\.api\.network\test_routers_negative
++tempest\.api\.network\test_security_groups
++tempest\.api\.network\test_security_groups_negative
++tempest\.api\.network\test_floating_ips
++tempest\.api\.network\test_floating_ips_negative
+# DEVQA-422: Adding some Neutron API tests
++tempest\.api\.volume\.test_volumes_get.*
++tempest\.api\.volume\.test_volumes_extend.*
+#
++tempest\.api\.compute\.volumes\.test_volumes_list.*
++tempest\.api\.compute\.volumes\.test_volumes_get.*
+# HORI-3925: Enable horizon test
++tempest\.scenario\.test_dashboard_basic_ops.*
+# HQA-198: Adding Heat/Orchestration API tests
++tempest\.api\.orchestration\.stacks\.test_environment.*
++tempest\.api\.orchestration\.stacks\.test_limits.*
++tempest\.api\.orchestration\.stacks\.test_neutron_resources.*
++tempest\.api\.orchestration\.stacks\.test_nova_keypair_resources.*
++tempest\.api\.orchestration\.stacks\.test_resource_types.*
++tempest\.api\.orchestration\.stacks\.test_soft_conf.*
++tempest\.api\.orchestration\.stacks\.test_stacks.*
++tempest\.api\.orchestration\.stacks\.test_swift_resources.*
++tempest\.api\.orchestration\.stacks\.test_templates_negative.*
++tempest\.api\.orchestration\.stacks\.test_templates.*
++tempest\.api\.orchestration\.stacks\.test_volumes.*

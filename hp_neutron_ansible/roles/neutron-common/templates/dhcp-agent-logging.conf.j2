@@ -1,0 +1,63 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+# DHCP agent logging configuration file
+# This file should not be modified by customers.
+# This file is one of the configuration file used by the
+# Neutron DHCP agent. This file is referenced indirectly
+# from dhcp_agent.ini.
+[loggers]
+keys: root
+
+[handlers]
+keys: watchedfile, logstash
+
+[formatters]
+keys: context, logstash
+
+
+[logger_root]
+qualname: root
+handlers: watchedfile, logstash
+level: NOTSET
+
+
+# Writes to disk
+[handler_watchedfile]
+class: handlers.WatchedFileHandler
+args: ('/var/log/neutron/neutron-dhcp-agent.log',)
+formatter: context
+
+# Writes JSON to disk, beaver will ship to logstash
+[handler_logstash]
+class: handlers.WatchedFileHandler
+args: ('/var/log/neutron/neutron-dhcp-agent-json.log',)
+formatter: logstash
+level: INFO
+
+# datefmt must be set otherwise you end up with too many (msecs) fields
+[formatter_context]
+class: oslo_log.formatters.ContextFormatter
+args: (datefmt=datefmt)
+format: %(asctime)s.%(msecs)03d %(process)d %(levelname)s %(name)s [%(request_id)s %(user)s %(tenant)s] %(instance)s%(message)s
+datefmt: %Y-%m-%d %H:%M:%S
+
+# the "format" and "datefmt" attrs actually set the "type" and "tags"
+[formatter_logstash]
+class: logstash.LogstashFormatterVersion1
+format: neutron
+datefmt: neutron-dhcp-agent

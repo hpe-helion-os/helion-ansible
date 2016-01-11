@@ -1,0 +1,33 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Configure the hypervisor.conf specific to ironic
+---
+
+# hypervisor.conf will be loaded last by nova-scheduler
+# filename should remain the same across hypervisors
+# we can use nova_service_conf_dir as this will be set to scheduler
+# by including the NOV-SCH role as a dependency
+- include: ../../nova-common/tasks/_write_conf.yml
+  src: "../../NOV-SCH-IRN/templates/hypervisor.conf.j2"
+  dest: "{{ nova_service_conf_dir }}/hypervisor.conf"
+  owner: "{{ nova_system_user }}"
+  group: "{{ nova_system_group }}"
+
+- name: "NOV-SCH-IRN | configure | notify on hypervisor.conf change"
+  shell: echo "notify change"
+  notify:
+    - nova_scheduler_config_change
+  when: write_conf_result.changed

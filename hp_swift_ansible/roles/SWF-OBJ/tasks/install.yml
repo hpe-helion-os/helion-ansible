@@ -1,0 +1,60 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- include: ../../_SWF-CMN/tasks/install.yml
+
+- name: SWF-OBJ | install | Update venv cache
+  install_package:
+    cache: update
+
+- name: SWF-OBJ | install | Install Swift Object services
+  install_package:
+    name: swift
+    service: "{{ item.key }}"
+    state: present
+    activate: act_off
+  with_dict: swift_object_services
+  register: swift_object_install_result
+  notify: swift_object_venv_change
+
+# See swift-ansible/README for a description of the result structure
+# returned by the install_package module
+
+- name: SWF-OBJ | install | Set conf directory for the service
+  set_fact:
+    swift_venv_version: "{{ item.version }}"
+  with_items: "{{ swift_object_install_result.results }}"
+
+# Since all swift object services are in the one swift venv just set one fact,
+# swift_object_server_conf_dir for all the swift_object_services
+- name: SWF-OBJ | install | Set conf directory for the service
+  set_fact:
+    swift_object_server_conf_dir: "{{ 'swift-object-server' | config_dir(item.version) }}"
+  with_items: "{{ swift_object_install_result.results }}"
+
+# Note all swift object services use the same configuration file,
+# object-server.conf which is located in the conf_dir for swift-object-server
+# service
+- name: SWF-OBJ | install | Register the Swift Object services
+  setup_systemd:
+    service: "{{ item.item.key }}"
+    cmd: "{{ item.item.value.cmd }}"
+    user: "{{ swift_user }}"
+    group: "{{ swift_group }}"
+    args: "{{ item.item.value.conf_service |
+          config_dir(swift_venv_version) }}/{{ item.item.value.conf }}"
+  when: item.changed
+  with_items: swift_object_install_result.results

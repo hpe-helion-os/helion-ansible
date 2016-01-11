@@ -1,0 +1,48 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Install libvirt
+---
+- include: ../../nova-common/tasks/install.yml
+
+- name: NOV-KVM | install | notify restart on package update
+  shell: echo "notify change"
+  notify:
+    - restart libvirtd
+    - nova_compute_config_change
+  when: check_updated_packages_result.changed
+
+# add the libvirtd group as apt package only adds libvirt group
+- name: NOV-KVM | install | Add libvirtd group
+  group:
+    name: libvirtd
+
+- name: NOV-KVM | install | Add nova user to libvirtd group
+  user:
+    name: "{{ nova_system_user }}"
+    groups: libvirtd
+    append: yes
+
+# directories
+- name: NOV-KVM | install | Create sub-directories in /var/lib/nova
+  file:
+    path: "{{ nova_system_home_folder }}/{{ item }}"
+    owner: "{{ nova_system_user }}"
+    group: kvm
+    mode: 0750
+    state: directory
+  with_items:
+   - instances
+   - instances/_base

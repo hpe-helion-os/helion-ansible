@@ -1,0 +1,175 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+# Select default tunings based on system RAM
+# RAM < 32GB, use demo
+# RAM < 64GB, use small
+# RAM < 128GB, use medium
+# RAM >= 128GB, use large
+threshold_small_mb: 32086
+threshold_medium_mb: 64172
+threshold_large_mb: 128344
+tuning_selector: "{% if ansible_memtotal_mb < threshold_small_mb|int %}demo{% elif ansible_memtotal_mb < threshold_medium_mb|int %}small{% elif ansible_memtotal_mb < threshold_large_mb|int %}medium{% else %}large{%endif %}"
+logging_possible_tunings:
+  demo:
+    elasticsearch_heap_size: 256m
+    logstash_heap_size: 256m
+    logstash_num_workers: 10
+  small:
+    elasticsearch_heap_size: 8g
+    logstash_heap_size: 2g
+    logstash_num_workers: 10
+  medium:
+    elasticsearch_heap_size: 16g
+    logstash_heap_size: 4g
+    logstash_num_workers: 20
+  large:
+    elasticsearch_heap_size: 32g
+    logstash_heap_size: 8g
+    logstash_num_workers: 30
+
+logging_tunings: "{{ logging_possible_tunings[tuning_selector] }}"
+
+# Restart/activate defaults
+logging_apache_reload: false
+beaver_activate: false
+beaver_restart: false
+directory_restart: false
+elasticsearch_restart: false
+kibana_activate: false
+kibana_restart: false
+logstash_restart: false
+monitor_apache_restart: false
+monitor_beaver_restart: false
+monitor_directory_restart: false
+monitor_elasticsearch_restart: false
+monitor_kibana_restart: false
+monitor_logstash_restart: false
+logging_apache_started: false
+
+# Kibana defaults
+kibana_path: /opt/kibana
+kibana_host: 127.0.0.1
+kibana_internal_port: 5601
+kibana_tarball_ext: tar.gz
+kibana_log_path: /var/log/elasticsearch
+kibana_port: "{{ LOG_SVR | item('advertises.vips.private[0].port', default=5601) }}"
+kibana_user: "{{ LOG_SVR | item('vars.kibana_user', default='kibana') }}"
+kibana_pass: "{{ LOG_SVR.vars.logging_kibana_password }}"
+
+# Elasticsearch defaults
+elasticsearch_heap_size: "{{ logging_tunings.elasticsearch_heap_size }}"
+elasticsearch_http_host: 127.0.0.1
+elasticsearch_transport_host: "{{ inventory_hostname }}"
+elasticsearch_cluster_name: "{{ LOG_SVR | item('vars.elasticsearch_cluster_name', default='elasticsearch') }}"
+elasticsearch_http_port: "{{ LOG_SVR | item('vars.elasticsearch_http_port', default=9200) }}"
+elasticsearch_transport_port: "{{ LOG_SVR | item('vars.elasticsearch_transport_port', default=9300) }}"
+elasticsearch_indices_fielddata_cache_size: 15%
+elasticsearch_indices_breaker_fielddata_limit: 25%
+elasticsearch_indices_ttl_bulk_size: 100000
+elasticsearch_indices_cache_filter_size: 10%
+elasticsearch_indices_cache_filter_expire: 6h
+elasticsearch_indices_memory_index_buffer_size: 50%
+elasticsearch_indices_memory_min_index_buffer_size: 200mb
+elasticsearch_indices_memory_min_shard_index_buffer_size: 12mb
+elasticsearch_indices_store_throttle_type: merge
+elasticsearch_indices_store_throttle_max_bytes_per_sec: 80mb
+elasticsearch_index_refresh_interval: 30s
+elasticsearch_index_merge_scheduler_max_thread_count: 1
+elasticsearch_index_translog_flush_threshhold_ops: 150000
+elasticsearch_index_translog_flush_threshhold_size: 1gb
+elasticsearch_max_total_indices_size_in_bytes: 21474836480
+
+# Logstash defaults
+logstash_heap_size: "{{ logging_tunings.logstash_heap_size }}"
+logstash_num_workers: "{{ logging_tunings.logstash_num_workers }}"
+logstash_user: logstash
+logstash_group: logstash
+logstash_anonymize_salt: "{{ LOG_SVR | item('vars.logstash_anonymize_salt', default='7cd8yjqhdw') }}"
+
+# Curator defaults
+curator_enable: "{{ LOG_SVR | item('vars.curator_enable', default=True) }}"
+curator_es_hostname: "{{ elasticsearch_http_host }}"
+curator_es_port: "{{ elasticsearch_http_port }}"
+curator_bin_path: /usr/bin/curator
+curator_indices_regex: ^logstash-.*$
+curator_num_of_indices_to_keep: "{{ LOG_SVR | item('vars.curator_num_of_indices_to_keep', default=7) }}"
+curator_log_path: /var/log/elasticsearch/curator.log
+curator_disable_bloom_filter_days: "{{ LOG_SVR | item('vars.curator_disable_bloom_filter_days', default=0) }}"
+curator_close_indices_after_days: "{{ LOG_SVR | item('vars.curator_close_indices_after_days', default=0) }}"
+
+# the default partition for Elasticsearch
+curator_es_partition: /var/lib/elasticsearch
+
+# The following low watermark will be used to trigger alarms if the ES parition size grows over it.
+# Tuning this to to a higher percent may not give sufficient time to backup old indices before they
+# are removed.
+curator_low_watermark_percent: 65
+
+# The following high watermark will be used to decide if it is time to delete old indices.
+# The following approach is taken:
+# An hourly cronjob checks to see if there are more indices than curator_num_of_indices_to_keep.
+# If there are, curator will be run to delete old indices per the curator_num_of_indices_to_keep setting.
+# Then, a check is made to see if the partition size is below the high watermark percent.
+# If it is still too high, curator will be run again to delete all indices older than
+# curator_num_of_indices_to_keep -1, then -2, then -3 until the partition
+# size is below the high watermark, or only the current index remains.
+# Finally, if the usage is still high, just an error message is written to the log
+# file but the current index is NOT deleted.
+curator_high_watermark_percent: 95
+
+# Beaver defaults
+beaver_user: beaver
+beaver_group: adm
+beaver_conf_dir: /etc/beaver
+beaver_purge_config_files: false
+
+# Centralized Logging defaults
+enable_centralized_logging: "{{ LOG_SVR | item('vars.enable_centralized_logging', default=True) }}"
+
+# Rabbit defaults
+rabbitmq_key: logstash-key
+rabbitmq_queue: logstash-queue
+rabbitmq_exchange: logstash-exchange
+rabbitmq_user: "{{ LOG_SVR | item('consumes_FND_RMQ.vars.rmq_service_user', default='guest') }}"
+rabbitmq_pass: "{{ LOG_SVR | item('consumes_FND_RMQ.vars.rmq_service_password', default='guest') }}"
+rabbitmq_host: "{{ LOG_SVR | item('consumes_FND_RMQ.vips.private[0].host', default=inventory_hostname) }}"
+rabbitmq_port: "{{ LOG_SVR | item('consumes_FND_RMQ.vips.private[0].port', default=5672) }}"
+
+logging_keystone:
+  admin_user: "{{ KEY_API.vars.keystone_admin_user }}"
+  admin_password: "{{ KEY_API.vars.keystone_admin_pwd | quote }}"
+  default_domain_name: "{{ KEY_API.vars.keystone_default_domain }}"
+
+# Log Monitoring
+logging_keystone_url: >
+  {{ LOG_SVR | item('consumes_KEY_API.vips.admin[0].url' ~ '/v3',
+     default='http://' ~ KEY_API.advertises.vips.admin[0].host ~ ':' ~ KEY_API.advertises.vips.admin[0].port ~ '/v3') }}
+logging_keystone_user: "{{ LOG_SVR | item('consumes_KEY_API.vars.logging_keystone_user', default='logging') }}"
+logging_keystone_password: "{{ LOG_SVR | item('consumes_KEY_API.vars.logging_keystone_password', default='logging') }}"
+logging_keystone_project: "{{ KEY_API.vars.keystone_admin_tenant }}"
+logging_keystone_role: "monasca-user"
+logging_keystone_project_domain_name: "Default"
+logging_keystone_user_domain_name: "Default"
+monasca_alarm_definition_api_url: >
+  {{ MON_AGN.consumes_MON_API.vips.private[0].url ~ '/v2.0' }}
+
+logrotate_conf_dir: /etc/logrotate.d
+
+logr_maxsize: 45M
+logr_rotate: 7
+logr_json_rotate: 5

@@ -1,0 +1,115 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+# Some of these libraries are already in base node install. No harm listing here
+# python-httplib2 is an ansible dependency for the module uri
+- name:  KEY-API | install | Install keystone dependencies
+  become: yes
+  apt:
+    state: latest
+    name: "{{ item }}"
+  with_items:
+    - libldap-2.4-2
+    - libsasl2-2
+    - libmysqlclient18
+    - libxml2
+    - libxslt1.1
+    - libffi6
+    - libldap2-dev
+    - libsasl2-dev
+    - python-httplib2
+  tags:
+    - keystone
+
+- name: KEY-API | Add group '{{ keystone_group }}'
+  group:
+    name: "{{ keystone_group }}"
+    state: present
+  tags:
+    - keystone
+
+- name: KEY-API | Add user '{{ keystone_user }}'
+  user:
+    name: "{{ keystone_user }}"
+    group: "{{ keystone_group }}"
+    createhome: no
+    home: /tmp
+    shell: /bin/true
+    state: present
+  tags:
+    - keystone
+
+- name: KEY-API | install | Create /etc/keystone directory
+  file:
+     path={{ item.name }}
+     owner={{ keystone_user }}
+     group={{ keystone_group }}
+     mode={{ item.mode }} state=directory
+     recurse=yes
+  with_items:
+    - { name: "{{ keystone_conf_dir }}", mode: "u+rwx,g+rx,o+rx" }
+    - { name: "{{ keystone_conf_dir }}/ssl/certs", mode: "u+rwx,g-rwx,o-rwx" }
+    - { name: "{{ keystone_conf_dir }}/domains", mode: "u+rwx,g-rwx,o-rwx" }
+    - { name: "{{ keystone_fernet_dir }}", mode: "u+rwx,g+rx,o+rx" }
+  tags:
+    - keystone
+
+- name: KEY-API | install | Create logging directory
+  file:
+    path: /var/log/keystone
+    owner: "{{ keystone_user }}"
+    group: "{{ keystone_group }}"
+    mode: 0775
+    state: directory
+  tags:
+    - keystone
+
+
+- name: KEY-API | install | Create /var/www/keystone  directory
+  file:
+    path: /var/www/keystone
+    owner: "{{ keystone_user }}"
+    group: "{{ keystone_group }}"
+    mode: 0755
+    state: directory
+  tags:
+    - keystone
+
+# These two tasks are repeated so that it doesn't restart when u run keystone-deploy twice
+- name: KEY-API | install  | Set facts for virutal install
+  set_fact:
+    override_virtual_install: "{{ True if is_baremetal_install == 'False' and (keystone_wsgi_admin_process_count == keystone_default_process_count) else False }}"
+
+- name: KEY-API | install  | Override process counts for virtual install
+  set_fact:
+    keystone_wsgi_admin_process_count: 2
+    keystone_wsgi_public_process_count: 2
+  when: override_virtual_install
+
+- name: KEY-API | install  | Copies modwsgi configuration
+  template:
+    src: keystone-modwsgi.conf.j2
+    dest: /etc/apache2/sites-available/keystone-modwsgi.conf
+  notify: keystone_change
+  tags: keystone
+
+- name:  KEY-API | install | Enable keystone site
+  command: a2ensite keystone-modwsgi
+  tags:
+    - keystone
+
+- include: _venv_install.yml

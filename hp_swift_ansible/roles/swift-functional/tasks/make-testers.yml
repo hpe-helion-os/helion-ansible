@@ -1,0 +1,70 @@
+# Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+
+- name: swift-functional | configure | Get a domain scoped token
+  keystone_v3:
+    endpoint: "{{ keystone_admin_endpoint }}/v3"
+    login_username: "{{ keystone_admin_user }}"
+    login_password: "{{ keystone_admin_password }}"
+    login_user_domain_name: "Default"
+    login_domain_name: "Default"
+    action: "token_get"
+  register: domain_scoped_token
+
+- name: swift-functional | configure | Create functional test non-member role
+  keystone_v3:
+    login_token: "{{ domain_scoped_token.result }}"
+    endpoint: "{{ keystone_admin_endpoint }}/v3"
+    action: "create_role"
+    role_name: "{{ swift_functional_test_non_operator_role }}"
+    description: "Swift functional test non-member role"
+  run_once: true
+
+- name: swift-functional | configure | Create functional test projects
+  keystone_v3:
+    login_token: "{{ domain_scoped_token.result }}"
+    endpoint: "{{ keystone_admin_endpoint }}/v3"
+    action: "create_project"
+    project_name: "{{ item.value.project_name }}"
+    project_domain_name: "{{ item.value.domain }}"
+    description: "Project used by Swift functional tests"
+  run_once: true
+  with_dict: "{{ swift_functional_test_users }}"
+
+- name: swift-functional | configure | Create functional test users
+  keystone_v3:
+    login_token: "{{ domain_scoped_token.result }}"
+    endpoint: "{{ keystone_admin_endpoint }}/v3"
+    action: "create_user"
+    user_name: "{{ item.key }}"
+    user_password: "{{item.value.password }}"
+    description: "Swift functional test user"
+    user_domain_name: "{{ item.value.domain }}"
+  run_once: true
+  with_dict: "{{ swift_functional_test_users }}"
+
+- name: swift-functional | configure | Assign roles to users
+  keystone_v3:
+    login_token: "{{ domain_scoped_token.result }}"
+    endpoint: "{{ keystone_admin_endpoint }}/v3"
+    action: "grant_project_role"
+    user_name: "{{ item.key }}"
+    project_name: "{{ item.value.project_name }}"
+    role_name: "{{ item.value.role }}"
+    user_domain_name: "{{ item.value.domain }}"
+    project_domain_name: "{{ item.value.domain }}"
+  run_once: true
+  with_dict: "{{ swift_functional_test_users }}"

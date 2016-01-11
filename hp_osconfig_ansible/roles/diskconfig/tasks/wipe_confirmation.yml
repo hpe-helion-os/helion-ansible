@@ -1,0 +1,25 @@
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+---
+
+- name: You will Wipe the above disks if you continue. This will remove all data on all the selected nodes.
+  pause: prompt="Wipe the above disks. Press enter to continue or control+c then a to abort"
+  delegate_to: 127.0.0.1
+  when: automate is not defined
+
+- name: 5 minutes to reconsider. press ctrl+c then c if you are sure. if not press ctrl+c then a to abort.
+  pause: minutes=5
+  delegate_to: 127.0.0.1
+  when: automate is not defined

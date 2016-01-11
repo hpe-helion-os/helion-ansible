@@ -1,0 +1,42 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+{
+    "job_actions": [
+        {
+            "freezer_action": {
+                "action": "backup",
+                "mode": "mysql",
+                "backup_name": "freezer_mysql_backup",
+                "path_to_backup": "/var/lib/mysql/",
+                "container": "freezer_mysql_backup",
+                "mysql_conf": "/etc/freezer/hlm_mysql.conf",
+                "log_file": "{{ freezer_agent_log_file }}",
+                "max_level": 14,
+                "remove_older_than": 90,
+                "snapshot": true
+            },
+            "max_retries": 5,
+            "max_retries_interval": 600
+        }
+    ],
+    "job_schedule": {
+        "schedule_interval": "12 hours"
+    },
+    "description": "HLM Default: MySQL backup to Swift"
+}
+

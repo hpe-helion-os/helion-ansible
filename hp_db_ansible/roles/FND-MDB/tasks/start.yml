@@ -1,0 +1,96 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Start mysql on these nodes. Note if the whole cluster is down
+# this will not start as a boostrap will need to run on one node
+
+---
+
+
+- name: FND-MDB | start | Start MySQL
+  service:
+    name: "{{ item }}"
+    state: started
+  with_items:
+    - mysql
+
+- name: FND-MDB | configure | Wait for the port to settle
+  wait_for:
+    host: "{{ mysql_bind_address }}"
+    port : "{{ mysql_server_port }}"
+    timeout: 30
+
+# For now try to keep going if we are not fully synced.
+# Curl is used here instead of wait_for due to
+# https://github.com/ansible/ansible/issues/12305
+
+- name: FND-MDB | configure | Wait for percona to  sync
+  shell: curl --head --silent "http://{{ mysql_bind_address ~ ':' ~ mysql_clustercheck_port }}/"
+  register: result
+  until: result.stdout.find("200 OK") != -1
+  retries: 10
+  delay: 4
+  ignore_errors: yes
+
+- name: FND-MDB | start | Check if singlenode setup
+  command: "grep -qE '^wsrep_cluster_address = gcomm://{{ ansible_fqdn }}$' /etc/mysql/my.cnf"
+  ignore_errors: True
+  register: is_singleton
+
+# In the normal multinode bootstrap case configure is called before start
+# so we could have just run a bootstrap through that sequence in which
+# case mysql_bootstrapping should be set
+- name: FND-MDB | start | Restart MDB Master
+  service:
+    name: "{{ item }}"
+    state: restarted
+  with_items:
+    - mysql
+  run_once: true
+  when: mysql_restart_required and is_singleton | failed and not mysql_bootstrapping
+
+- include: bootstrap.yml
+  when:  mysql_restart_required and is_singleton | success and not mysql_bootstrapping
+
+- name: FND-MDB | configure | Wait for MDB master
+  wait_for:
+    host: "{{ mysql_bind_address }}"
+    port: "{{ mysql_server_port }}"
+    timeout: 30
+  run_once: true
+  when: mysql_restart_required and not mysql_bootstrapping
+
+# For now try to keep going if we are not fully synced.
+# Curl is used here instead of wait_for due to
+# https://github.com/ansible/ansible/issues/12305
+
+- name: FND-MDB | configure | Wait for percona to  sync
+  shell: curl --head --silent "http://{{ mysql_bind_address ~ ':' ~ mysql_clustercheck_port }}/"
+  register: result
+  until: result.stdout.find("200 OK") != -1
+  retries: 10
+  delay: 4
+  ignore_errors: yes
+
+- name: FND-MDB | start | ReStart MySQL on non-primary nodes
+  service:
+     name: mysql
+     state: restarted
+  when: mysql_restart_required and groups [ 'FND-MDB' ].index(inventory_hostname) != 0 and not mysql_bootstrapping
+
+- name: FND-MDB | start | Run Monasca detection plugin for mysql
+  monasca_agent_plugin:
+    name: "mysql"
+

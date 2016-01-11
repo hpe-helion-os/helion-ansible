@@ -1,0 +1,85 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# nova-common | _configure_rootwrap
+---
+
+- debug:
+    msg: "Running nova-common _configure_rootwrap for {{ nova_component }}"
+    when: nova_component is defined
+    run_once: true
+
+# this has to be in the /etc/sudoers.d of the host - not the venv!
+- name: nova-common | _configure_rootwrap | Setup nova user to allow sudo to run nova-rootwrap without password
+  become: yes
+  copy:
+    src: nova-rootwrap
+    dest: /etc/sudoers.d/nova-rootwrap
+    owner: root
+    group: root
+    mode: 0440
+    validate: 'visudo -cf %s'
+  register: allow_sudo_result
+
+# DO NOT register the symbolic link creation - it reports changed everytime
+- name: nova-common | _configure_rootwrap | Create a symbolic link between filesystem and venv for nova-rootwrap
+  become: yes
+  file:
+    src: "{{ nova_service_bin_dir }}/nova-rootwrap"
+    dest: /usr/local/bin/nova-rootwrap
+    owner: "{{ nova_system_user }}"
+    group: "{{ nova_system_group }}"
+    state: link
+  changed_when: False
+
+- name: nova-common | _configure_rootwrap | Create directory for rootwrap filters.
+  become: yes
+  file:
+    path: "{{ nova_service_conf_dir }}/rootwrap.d"
+    owner: root
+    group: root
+    mode: 0755
+    state: directory
+  register: create_dir_result
+
+- name: nova-common | _configure_rootwrap | Apply rootwrap template
+  become: yes
+  template:
+    src: "{{ item }}.j2"
+    dest: "{{ nova_service_conf_dir }}/{{ item }}"
+    owner: root
+    group: root
+    mode: 0644
+  with_items:
+    - rootwrap.conf
+  register: apply_template_result
+
+- name: nova-common | _configure_rootwrap | Copy the rootwrap filters
+  become: yes
+  copy:
+    src: "{{ item }}"
+    dest: "{{ nova_service_conf_dir }}/rootwrap.d"
+    owner: root
+    group: root
+    mode: 0644
+  with_items:
+    rootwrap_filters
+  register: copy_filters_result
+
+- name: nova-common | _configure_rootwrap | summarise rootwrap results
+  set_fact:
+    rootwrap_changed: True
+  when:
+    allow_sudo_result.changed or create_dir_result.changed or apply_template_result.changed or copy_filters_result.changed

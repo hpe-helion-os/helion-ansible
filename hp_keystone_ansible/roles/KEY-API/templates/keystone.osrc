@@ -1,0 +1,24 @@
+{# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP #}
+# Refer http://docs.openstack.org/developer/python-openstackclient/command-list.html
+
+# Environment variables for keystone v3 API using openstack client
+
+# Keystone requires domain scoped token
+
+unset OS_PROJECT_NAME
+unset OS_PROJECT_DOMAIN_NAME
+
+export OS_IDENTITY_API_VERSION=3
+export OS_USERNAME={{ keystone_admin_user }}
+export OS_USER_DOMAIN_NAME=Default
+export OS_PASSWORD={{ keystone_admin_user_pwd }}
+export OS_DOMAIN_NAME=Default
+export OS_AUTH_URL={{ keystone_admin_endpoint }}/v3
+export OS_INTERFACE=internal
+export OS_CACERT=/etc/ssl/certs/ca-certificates.crt
+
+
+# Environment variables for openstack client v3 API if you are using hardcoded ADMIN token
+# Note if you use the env variables below, this takes precedence.
+#export OS_TOKEN={{ keystone_admin_token }}
+#export OS_URL={{ keystone_admin_endpoint }}/v3

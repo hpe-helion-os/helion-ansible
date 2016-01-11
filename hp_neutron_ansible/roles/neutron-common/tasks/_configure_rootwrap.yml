@@ -1,0 +1,106 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# neutron-common | configure rootwrap
+---
+- name: Neutron Common | _configure_rootwrap | Set ownership and permissions of {{ neutron_rootwrap_filters_dir }}
+  file:
+    path: "{{neutron_rootwrap_filters_dir }}"
+    owner: "root"
+    group: "root"
+    mode: "0755"
+    state: directory
+
+# Customize rootwrap dhcp.filters
+- include: _write_conf.yml
+  write_conf_file_owner: "root"
+  write_conf_file_group: "root"
+  src: "../templates/dhcp.filters.j2"
+  dest: "rootwrap.d/dhcp.filters"
+  mode: "0644"
+
+- name: Neutron Common | _configure_rootwrap | dhcp.filters changed
+  set_fact:
+    neutron_dhcp_agent_restart_required: true
+  when: write_conf_result.changed==true
+
+# Customize rootwrap l3.filters
+- include: _write_conf.yml
+  write_conf_file_owner: "root"
+  write_conf_file_group: "root"
+  src: "../templates/l3.filters.j2"
+  dest: "rootwrap.d/l3.filters"
+  mode: "0644"
+
+- name: Neutron Common | _configure_rootwrap | l3.filters changed
+  set_fact:
+    neutron_l3_agent_restart_required: true
+    neutron_vpn_agent_restart_required: true
+  when: write_conf_result.changed==true
+
+- name: Neutron Common | _configure_rootwrap | Customize neutron rootwrap filters
+  template:
+    src: "{{ item }}.j2"
+    dest: "{{ neutron_rootwrap_filters_dir }}/{{ item }}"
+    owner: "root"
+    group: "root"
+    mode: 0644
+  with_items:
+    - debug.filters
+    - ipset-firewall.filters
+    - iptables-firewall.filters
+    - linuxbridge-plugin.filters
+    - openvswitch-plugin.filters
+    - nec-plugin.filters
+
+- name: Neutron Common | _configure_rootwrap | Customize neutron-lbaas rootwrap filters
+  template:
+    src: "{{ item }}.j2"
+    dest: "{{ neutron_rootwrap_filters_dir }}/{{ item }}"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  with_items:
+    - lbaas-haproxy.filters
+  notify:
+    - lbaasv2_agent_cfg_changed
+
+- name: Neutron Common | _configure_rootwrap | Customize neutron-vpnaas rootwrap filters
+  template:
+    src: "{{ item }}.j2"
+    dest: "{{ neutron_rootwrap_filters_dir }}/{{ item }}"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  with_items:
+    - vpnaas.filters
+  notify:
+    - vpn_agent_cfg_changed
+
+# Customize rootwrap.conf
+- include: _write_conf.yml
+  write_conf_file_owner: "root"
+  write_conf_file_group: "root"
+  src: "../templates/rootwrap.conf.j2"
+  dest: "rootwrap.conf"
+  mode: "0644"
+
+- name: Neutron Common | _configure_rootwrap | rootwrap.conf changed
+  set_fact:
+    neutron_dhcp_agent_restart_required: true
+    neutron_l3_agent_restart_required: true
+    neutron_lbaasv2_agent_restart_required: true
+    neutron_vpn_agent_restart_required: true
+  when: write_conf_result.changed==true

@@ -1,0 +1,37 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+---
+- name: install | Install OpenJDK
+  apt: name=openjdk-7-jre-headless state=present
+
+- name: install | Update venv cache
+  install_package:
+    cache: update
+
+- name: install | Install kafka from venv
+  install_package:
+    name: monasca
+    service: monasca
+    state: present
+  register: monasca_jar_install_result
+
+- name: install | Notify monasca venv components
+  set_fact:
+    kafka_restart_required=True
+    monasca_api_restart_required=True
+    monasca_persister_restart_required=True
+    monasca_thresh_restart_required=True
+  when: monasca_jar_install_result.changed

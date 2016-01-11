@@ -1,0 +1,61 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+# Run the Configuration Processor
+#
+# We assemble a scratch working area, putting the site configuration
+# and the CP's persistent state into it.
+#
+# Then the configuration processor is invoked.
+#
+# If all runs to completion, then we tentatively save the
+# CP output prior to using it in a deployment.
+---
+- hosts: localhost
+  connection: local
+  roles:
+    - guard-runtime-location
+    - git-operations
+  tasks:
+    - include: roles/git-operations/tasks/prepare-cp-run.yml
+
+- hosts: localhost
+  connection: local
+  roles:
+    - config-processor
+  vars_prompt:
+    - name: encrypt
+      prompt: "Enter encryption key (press return for none)"
+      private: yes
+      confirm: yes
+    - name: rekey
+      prompt: "To change encryption key enter new key (press return for none)"
+      private: yes
+      confirm: yes
+  tasks:
+    - include: roles/config-processor/tasks/upgrade-state.yml
+    - include: roles/config-processor/tasks/run-config-processor.yml
+    - include: roles/config-processor/tasks/add-localhost.yml
+    - include: roles/config-processor/tasks/configure.yml
+      vars:
+        config_processor: "{{ config_processor_runtime }}"
+
+- hosts: localhost
+  connection: local
+  roles:
+    - git-operations
+  tasks:
+    - include: roles/git-operations/tasks/save-cp-output.yml

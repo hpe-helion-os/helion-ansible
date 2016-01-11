@@ -1,0 +1,77 @@
+{#
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+#}
+[DEFAULT]
+rpc_backend=rabbit
+
+[oslo_messaging_rabbit]
+rabbit_hosts={{ mq_hosts_port_pair }}
+rabbit_userid={{ ceilometer_mq_user }}
+rabbit_password={{ ceilometer_mq_password }}
+rabbit_use_ssl={{ ceilometer_rabbit_is_ssl }}
+
+[alarm]
+evaluation_service=default
+rest_notifier_ssl_verify=false
+notifier_rpc_topic=alarm_notifier
+partition_rpc_topic=alarm_partition_coordination
+evaluation_interval=60
+record_history=true
+
+[api]
+host={{ local_ip }}
+pecan_debug=False
+
+[publisher]
+telemetry_secret=openstack
+
+[publisher_rpc]
+metering_topic=metering
+
+[service_credentials]
+os_auth_url={{ id_service_auth_url }}
+os_password={{ id_password }}
+os_tenant_name={{ id_service_tenant }}
+os_username={{ ceilometer_user }}
+
+[keystone_authtoken]
+admin_password={{ id_password }}
+admin_tenant_name={{ id_service_tenant }}
+admin_user=ceilometer
+auth_port={{ id_admin_port }}
+auth_protocol=http
+auth_url={{ id_auth_url }}
+identity_uri={{ id_auth_url }}
+signing_dir={{ signing_dir }}
+username={{ ceilometer_user }}
+
+[database]
+backend=sqlalchemy
+connection={{ cm_database_connection }}
+metering_time_to_live=604800
+
+[sqlalchemy]
+max_sample_limit=20
+
+[collector]
+requeue_sample_on_dispatcher_error=True
+
+[coordination]
+backend_url={{ cm_agent_ha_backend }}
+check_watchers=10.0
+heartbeat=1.0
+

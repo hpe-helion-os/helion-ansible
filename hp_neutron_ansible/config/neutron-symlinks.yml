@@ -1,0 +1,42 @@
+#
+# (c) Copyright 2015 Hewlett Packard Enterprise Development Company LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+# The following relative symlinks are created under the
+# my_cloud/config directory.
+---
+symlinks:
+  "neutron/dhcp_agent.ini.j2": "roles/neutron-common/templates/dhcp_agent.ini.j2"
+  "neutron/dhcp-agent-logging.conf.j2": "roles/neutron-common/templates/dhcp-agent-logging.conf.j2"
+  "neutron/dnsmasq-neutron.conf.j2": "roles/neutron-common/templates/dnsmasq-neutron.conf.j2"
+  "neutron/fwaas_driver.ini.j2": "roles/neutron-common/templates/fwaas_driver.ini.j2"
+  "neutron/l3_agent.ini.j2": "roles/neutron-common/templates/l3_agent.ini.j2"
+  "neutron/l3-agent-logging.conf.j2": "roles/neutron-common/templates/l3-agent-logging.conf.j2"
+  "neutron/lbaas_agent.ini.j2": "roles/neutron-common/templates/lbaas_agent.ini.j2"
+  "neutron/lbaas-agent-logging.conf.j2": "roles/neutron-common/templates/lbaas-agent-logging.conf.j2"
+  "neutron/logging.conf.j2": "roles/neutron-common/templates/logging.conf.j2"
+  "neutron/metadata_agent.ini.j2": "roles/neutron-common/templates/metadata_agent.ini.j2"
+  "neutron/metadata-agent-logging.conf.j2": "roles/neutron-common/templates/metadata-agent-logging.conf.j2"
+  "neutron/ml2_conf.ini.j2": "roles/neutron-common/templates/ml2_conf.ini.j2"
+  "neutron/neutron.conf.j2": "roles/neutron-common/templates/neutron.conf.j2"
+  "neutron/openvswitch_agent.ini.j2": "roles/neutron-common/templates/openvswitch_agent.ini.j2"
+  "neutron/openvswitch-agent-logging.conf.j2": "roles/neutron-common/templates/openvswitch-agent-logging.conf.j2"
+  "neutron/ovsvapp_agent.ini.j2": "roles/neutron-common/templates/ovsvapp_agent.ini.j2"
+  "neutron/server.ini.j2": "roles/neutron-common/templates/server.ini.j2"
+  "neutron/vpn_agent.ini.j2": "roles/neutron-common/templates/vpn_agent.ini.j2"
+  "neutron/vpn-agent-logging.conf.j2": "roles/neutron-common/templates/vpn-agent-logging.conf.j2"
+  "neutron/policy.json.j2": "roles/neutron-common/templates/policy.json.j2"
+  "neutron/neutron-ovsvapp-agent-monitor.service.j2": "roles/neutron-common/templates/neutron-ovsvapp-agent-monitor.service.j2"
+  "neutron/nginx-default.j2": "roles/neutron-common/templates/nginx-default.j2"
